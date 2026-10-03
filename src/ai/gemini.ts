@@ -5,17 +5,24 @@
  */
 import { GEMINI } from '../config';
 
+import type { PieceSpec } from './scene';
+
 export const geminiAvailable = (): boolean => !!import.meta.env.VITE_GEMINI_API_KEY;
 
-/** One-shot question. `context` is prepended as a system-style note (e.g. the scene summary). */
-export async function askGemini(question: string, context = ''): Promise<string> {
+export interface ScenePlan {
+  action: 'answer' | 'rebuild';
+  message: string;          // short spoken reply
+  pieces?: PieceSpec[];     // full replacement layout when action = rebuild
+}
+
+async function callGemini(systemText: string, userText: string, json: boolean): Promise<string> {
   const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
   if (!key) throw new Error('No Gemini key: put VITE_GEMINI_API_KEY in .env.local');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI.model}:generateContent`;
   const body = {
-    system_instruction: { parts: [{ text: GEMINI.systemPrompt + (context ? `\n\nCurrent scene:\n${context}` : '') }] },
-    contents: [{ role: 'user', parts: [{ text: question }] }],
-    generationConfig: { maxOutputTokens: GEMINI.maxOutputTokens, temperature: 0.4 },
+    system_instruction: { parts: [{ text: systemText }] },
+    contents: [{ role: 'user', parts: [{ text: userText }] }],
+    generationConfig: { maxOutputTokens: json ? GEMINI.maxPlanTokens : GEMINI.maxOutputTokens, temperature: json ? 0.3 : 0.4, ...(json ? { responseMimeType: 'application/json' } : {}) },
   };
   let res: Response | null = null;
   for (let attempt = 0; attempt <= GEMINI.retries; attempt++) {
@@ -28,4 +35,24 @@ export async function askGemini(question: string, context = ''): Promise<string>
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim();
   if (!text) throw new Error('Gemini returned no text');
   return text;
+}
+
+/**
+ * Interpret a spoken/typed request about the scene. The model decides whether it is a
+ * question (answer) or an edit (rebuild, with a complete replacement list of pieces).
+ */
+export async function planScene(request: string, pieces: PieceSpec[], context: string): Promise<ScenePlan> {
+  const system = GEMINI.systemPrompt + '\n\n' + GEMINI.planPrompt;
+  const user = `Current scene summary:\n${context}\n\nCurrent pieces as JSON:\n${JSON.stringify(pieces)}\n\nUser request: ${request}`;
+  const raw = await callGemini(system, user, true);
+  const jsonText = raw.replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const plan = JSON.parse(jsonText) as ScenePlan;
+  if (plan.action !== 'rebuild' && plan.action !== 'answer') plan.action = plan.pieces ? 'rebuild' : 'answer';
+  if (typeof plan.message !== 'string') plan.message = plan.action === 'rebuild' ? 'Done.' : '';
+  return plan;
+}
+
+/** One-shot question. `context` is prepended as a system-style note (e.g. the scene summary). */
+export async function askGemini(question: string, context = ''): Promise<string> {
+  return callGemini(GEMINI.systemPrompt + (context ? `\n\nCurrent scene:\n${context}` : ''), question, false);
 }

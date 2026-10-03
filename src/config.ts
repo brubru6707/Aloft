@@ -87,6 +87,18 @@ export const GEMINI = {
   model: 'gemini-3.8-flash',   // the API retired gemini-2.5-flash for new keys
   maxOutputTokens: 200,
   retries: 2,              // extra attempts on 503 (overloaded) / 429 (rate limited), with backoff
+  maxPlanTokens: 4000,     // a rebuild plan is JSON with up to ~40 pieces
+  planPrompt: [
+    'You receive the user\'s built pieces and a request, and you reply with JSON only.',
+    'Decide: if the request asks to change, improve, fix, rebuild or add to what was built, reply with',
+    '{"action":"rebuild","message":"<one short spoken sentence>","pieces":[...]} where pieces is the COMPLETE new',
+    'layout that replaces every current piece. Otherwise reply {"action":"answer","message":"<one or two short sentences>"}.',
+    'Piece format: {"shape":"cube|sphere|cylinder","size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
+    'Units are centimetres. Y is up and the floor is y=0, so a piece\'s centre y must be at least h/2. rot is degrees.',
+    'A cube is a box w×h×d. A sphere uses w as its diameter. A cylinder stands along Y: w = diameter, h = length;',
+    'rotate it with rot to make limbs. Keep the new build near the old one\'s centre and roughly its overall size,',
+    'keep the user\'s colour unless asked otherwise, and use at most 40 pieces. Make it look like what they asked for.',
+  ].join(' '),
   systemPrompt: 'You are the assistant inside Aloft, a hand-controlled 3D building app where the world is in centimetres. Answer in one or two short sentences, plain text, no markdown.',
 };
 

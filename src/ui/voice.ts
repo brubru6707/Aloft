@@ -17,7 +17,7 @@ export type VoiceState = 'off' | 'listening' | 'connecting' | 'talking' | 'unsup
 
 type Recognition = {
   continuous: boolean; interimResults: boolean; lang: string;
-  onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null;
   start(): void; stop(): void; abort(): void;
 };
@@ -40,8 +40,11 @@ export class VoiceAssistant {
   private wantListening = false;
   private session: Awaited<ReturnType<typeof Conversation.startSession>> | null = null;
   private stateCb: ((s: VoiceState, detail?: string) => void) | null = null;
+  private requestCb: ((text: string) => void) | null = null;
 
   onState(cb: (s: VoiceState, detail?: string) => void): void { this.stateCb = cb; }
+  /** Called with the words that followed the wake word, e.g. "make it an actual stickman". */
+  onRequest(cb: (text: string) => void): void { this.requestCb = cb; }
   private setState(s: VoiceState, detail?: string): void { this.state = s; this.stateCb?.(s, detail); }
 
   /** Start watching for the wake word. Needs the mic permission once. */
@@ -53,13 +56,17 @@ export class VoiceAssistant {
     r.continuous = true; r.interimResults = true; r.lang = VOICE.lang;
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        const text = e.results[i][0].transcript;
+        const result = e.results[i];
+        const text = result[0].transcript;
         this.lastHeard = text.trim();
-        const heard = squash(text);
-        if (VOICE.wakeWords.some((w) => heard.includes(squash(w)))) {
-          void this.startSession();
-          break;
-        }
+        // Wait for the final transcript of the utterance so a request after the wake word
+        // ("X2D, make it an actual stickman") is captured whole.
+        if (!result.isFinal) continue;
+        const after = this.afterWakeWord(text);
+        if (after === null) continue;
+        if (after.trim().length > 0) this.requestCb?.(after.trim());
+        else void this.startSession();
+        break;
       }
     };
     r.onerror = (e) => {
@@ -70,6 +77,20 @@ export class VoiceAssistant {
     this.recognition = r;
     this.wantListening = true;
     try { r.start(); this.setState('listening'); } catch { this.setState('off', 'could not start listening'); }
+  }
+
+  /** Text following the wake word, '' if the wake word stood alone, null if absent. */
+  private afterWakeWord(text: string): string | null {
+    const words = text.trim().split(/\s+/);
+    for (let n = 1; n <= Math.min(3, words.length); n++) {
+      for (let start = 0; start + n <= words.length; start++) {
+        const chunk = squash(words.slice(start, start + n).join(' '));
+        if (VOICE.wakeWords.some((w) => squash(w) === chunk)) {
+          return words.slice(start + n).join(' ').replace(/^[,.!?\s]+/, '');
+        }
+      }
+    }
+    return null;
   }
 
   stopListening(): void {

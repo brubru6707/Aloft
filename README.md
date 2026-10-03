@@ -67,10 +67,15 @@ panel's FLY row shows the same state as chips plus a bar of the current move amo
 
 ## X2D voice assistant and Gemini
 
-- **X2D** (ElevenLabs Agents): the page watches for the wake word "X2D" with Chrome's
-  built-in speech recognition (local, free). Hearing it, or clicking **🎙 X2D** in the
-  toolbar, opens a voice session with the public "Aloft X2D" agent, which answers
-  "Hello" and then listens. Click the button again to hang up. The agent id and wake
+- **X2D** (ElevenLabs Agents + Gemini): the page watches for the wake word "X2D" with
+  Chrome's built-in speech recognition (local, free). Say **"X2D" on its own** (or click
+  **🎙 X2D**) and a voice session opens with the public "Aloft X2D" agent, which answers
+  "Hello" and listens; click the button again to hang up. Say **"X2D, …" followed by a
+  request**, e.g. *"X2D, I made a stickman but it looks ugly, make it an actual stickman"*,
+  and the whole sentence goes to Gemini together with every piece you built (shape, size,
+  position, colour). Gemini either answers out loud or returns a complete new layout, which
+  replaces your pieces as one undoable step (B2 undoes it). The ask box does the same with
+  typed text. The agent id and wake
   word spellings are under `VOICE` in `src/config.ts`; the agent itself is edited in the
   ElevenLabs dashboard (prompt, voice, LLM). Chrome asks for the microphone once.
 - **Gemini**: the **✨ ask Gemini…** box in the toolbar sends a question plus a summary of

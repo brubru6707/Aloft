@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, VOICE } from './config';
-import { askGemini, geminiAvailable } from './ai/gemini';
+import { geminiAvailable, planScene } from './ai/gemini';
+import { describeBuilt, rebuildScene, sanitize } from './ai/scene';
 import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
@@ -102,17 +103,27 @@ function sceneSummary(): string {
   return lines.join('\n');
 }
 
-/** Ask Gemini about the scene (or anything); show and speak the answer. */
-async function askAssistant(question: string): Promise<void> {
-  if (!question.trim()) return;
+/**
+ * Hand a spoken or typed request to Gemini with the scene. A question gets a spoken
+ * answer; an edit request ("make it an actual stickman") rebuilds the pieces as one
+ * undoable step and says what was done.
+ */
+async function askAssistant(request: string): Promise<void> {
+  if (!request.trim()) return;
   if (!geminiAvailable()) { hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return; }
-  hud.toast('Gemini: thinking…');
+  hud.toast(`X2D: thinking about “${request}”…`, 4000);
   try {
-    const answer = await askGemini(question, sceneSummary());
-    hud.toast(answer, 6000);
-    speak(answer);
+    const plan = await planScene(request, describeBuilt(ctx), sceneSummary());
+    if (plan.action === 'rebuild' && Array.isArray(plan.pieces)) {
+      const specs = plan.pieces.map(sanitize).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 40);
+      const n = rebuildScene(specs, ctx, sessions[0].color, `X2D: ${request.slice(0, 40)}`);
+      hud.toast(`${plan.message} (${n} pieces, B2 to undo)`, 6000);
+    } else {
+      hud.toast(plan.message, 6000);
+    }
+    speak(plan.message);
   } catch (err) {
-    hud.toast(`Gemini: ${err instanceof Error ? err.message : String(err)}`, 5000);
+    hud.toast(`X2D: ${err instanceof Error ? err.message : String(err)}`, 5000);
   }
 }
 
@@ -176,6 +187,7 @@ voice.onState((state, detail) => {
   if (detail) hud.toast(`X2D: ${detail}`);
   else if (state === 'talking') hud.toast('X2D is listening');
 });
+voice.onRequest((text) => void askAssistant(text));
 if (VOICE.autoListen) voice.startListening();
 
 // Enter the initial mode for glove 1 so its label/hint are right from the start.
