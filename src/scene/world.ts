@@ -57,15 +57,15 @@ export function createWorld(): World {
     g.font = 'bold 26px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = color; g.fillText(text, 64, 24);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
-    sp.scale.set(6, 2.25, 1);
+    sp.scale.set(3.6, 1.35, 1);
     return sp;
   };
   for (let v = -UNITS.labelRangeCm; v <= UNITS.labelRangeCm; v += UNITS.labelEveryCm) {
     if (v === 0) continue;
-    const lx = label(`${v} ${UNITS.name}`, '#ff6b7f'); lx.position.set(v, 0.6, 1.8); scene.add(lx);
-    const lz = label(`${-v} ${UNITS.name}`, '#6fb4ff'); lz.position.set(1.8, 0.6, v); scene.add(lz);   // -Z is "forward", shown positive
+    const lx = label(`${v} ${UNITS.name}`, '#ff6b7f'); lx.position.set(v, 0.4, 1.4); scene.add(lx);
+    const lz = label(`${-v} ${UNITS.name}`, '#6fb4ff'); lz.position.set(1.4, 0.4, v); scene.add(lz);   // -Z is "forward", shown positive
   }
-  const origin = label('0', '#e6e6e6'); origin.position.set(1.8, 0.6, 1.8); scene.add(origin);
+  const origin = label('0', '#e6e6e6'); origin.position.set(1.4, 0.4, 1.4); scene.add(origin);
   // Blender-style axis lines through the origin: X red, Z blue (Y is up here).
   const axisLine = (a: THREE.Vector3, b: THREE.Vector3, color: number) => {
     const g = new THREE.BufferGeometry().setFromPoints([a, b]);
