@@ -14,7 +14,7 @@ import { VoiceAssistant } from './src/ui/VoiceAssistant';
 import { FONT, T } from './src/ui/theme';
 
 type Tab = 'nav' | 'test';
-const TAB_BAR = 44;
+const TAB_BAR = 28;
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('nav');
@@ -27,11 +27,11 @@ function Shell() {
     else deactivateKeepAwake('aloft').catch(() => {});
   }, [hud.connected]);
 
-  const barHeight = TAB_BAR + insets.bottom;
+  const barHeight = TAB_BAR + Math.max(0, insets.bottom - 14);   // sit in the home-indicator area instead of above it
   return (
     <View style={s.root}>
       {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} /> : <TestScreen tabBarHeight={barHeight} />}
-      <View style={[s.tabBar, { height: barHeight, paddingBottom: insets.bottom }]}>
+      <View style={[s.tabBar, { height: barHeight, paddingBottom: Math.max(0, insets.bottom - 14) }]}>
         {(['nav', 'test'] as Tab[]).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={s.tab}>
             <Text style={[s.tabText, tab === t && { color: T.accent }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
@@ -63,5 +63,5 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', backgroundColor: T.panel, borderTopWidth: 1, borderColor: T.line },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabText: { color: T.muted, fontWeight: '700', fontSize: 13, letterSpacing: 1.5 },
+  tabText: { color: T.muted, fontWeight: '700', fontSize: 10, letterSpacing: 1.2 },
 });

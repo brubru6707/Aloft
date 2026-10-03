@@ -38,15 +38,15 @@ export function Toast({ text, top }: { text: string; top: number }) {
 }
 
 const s = StyleSheet.create({
-  modes: { position: 'absolute', left: 14, top: 0, right: 130 },
+  modes: { position: 'absolute', left: 12, top: 0, right: 104 },
   modeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' },
-  modeName: { fontFamily: FONT.pixel, fontSize: 34, letterSpacing: 1.5, lineHeight: 38, ...hardShadow(2, 0.55) },
-  hint: { fontSize: 11, color: T.muted, marginTop: 2, ...hardShadow(1, 0.5) },
-  axisLabel: { fontFamily: FONT.pixel, fontSize: 24, lineHeight: 30, letterSpacing: 1.5, color: T.accent, ...hardShadow(3, 0.6) },
+  modeName: { fontFamily: FONT.pixel, fontSize: 24, letterSpacing: 1.2, lineHeight: 28, ...hardShadow(2, 0.55) },
+  hint: { fontSize: 10, color: T.muted, marginTop: 1, ...hardShadow(1, 0.5) },
+  axisLabel: { fontFamily: FONT.pixel, fontSize: 17, lineHeight: 22, letterSpacing: 1.2, color: T.accent, ...hardShadow(3, 0.6) },
   crossWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   cross: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: T.accent, alignItems: 'center', justifyContent: 'center' },
   crossDot: { width: 4, height: 4, backgroundColor: T.accent },
   toastWrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
   toast: { maxWidth: 520, backgroundColor: T.panel, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 7, paddingHorizontal: 14 },
-  toastText: { color: T.text, fontWeight: '500', fontSize: 13 },
+  toastText: { color: T.text, fontWeight: '500', fontSize: 12 },
 });

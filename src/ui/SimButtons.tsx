@@ -23,12 +23,12 @@ export function SimButtons({ down }: { down: boolean[] }) {
 }
 
 const s = StyleSheet.create({
-  col: { position: 'absolute', right: 12, gap: 8 },
+  col: { position: 'absolute', right: 10, gap: 6 },
   btn: {
-    width: 52, height: 52, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.94)', borderWidth: 1, borderColor: T.line,
+    width: 42, height: 42, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
     alignItems: 'center', justifyContent: 'center',
   },
   btnDown: { backgroundColor: T.select, borderColor: T.selectBorder },
-  num: { color: T.text, fontWeight: '700', fontSize: 18, lineHeight: 20 },
-  lbl: { color: T.muted, fontSize: 10 },
+  num: { color: T.text, fontWeight: '700', fontSize: 15, lineHeight: 17 },
+  lbl: { color: T.muted, fontSize: 9 },
 });

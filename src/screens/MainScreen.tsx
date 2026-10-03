@@ -5,10 +5,13 @@ import { engine } from '../core/Engine';
 import { useHud } from '../core/useHud';
 import { UI } from '../config';
 import { exportSTL } from '../export';
-import { BottomSheet } from '../ui/BottomSheet';
+import { BottomSheet, TopModes } from '../ui/BottomSheet';
 import { Crosshair, ModeLabel, Toast } from '../ui/Hud';
 import { SceneView } from '../ui/SceneView';
 import { SimButtons } from '../ui/SimButtons';
+
+/** Height of the mode/mic bar under the status bar. */
+const TOP_BAR = 32;
 
 /** 3D view + overlays + bottom sheet. */
 export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
@@ -28,17 +31,18 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
 
   return (
     <View style={s.root}>
-      <SceneView gizmoTop={insets.top + UI.gizmoMargin} />
-      <View style={[s.overlay, { top: insets.top + 8, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
+      <SceneView gizmoTop={insets.top + TOP_BAR + 6} />
+      <TopModes hud={hud} top={insets.top + 4} right={landscape ? 436 : 8} />
+      <View style={[s.overlay, { top: insets.top + TOP_BAR + 6, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
       {hud.sourceKind === 'sim' ? (
-        <View style={[s.simWrap, { top: insets.top + UI.gizmoMargin + UI.gizmoSize + 16, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
+        <View style={[s.simWrap, { top: insets.top + TOP_BAR + UI.gizmoSize + 18, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
           <SimButtons down={hud.buttons} />
         </View>
       ) : null}
-      <Toast text={hud.toast} top={insets.top + 70} />
+      <Toast text={hud.toast} top={insets.top + TOP_BAR + 58} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />
     </View>
   );

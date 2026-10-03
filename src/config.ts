@@ -285,7 +285,7 @@ export const RENDER = {
 export const UI = {
   hudRefreshHz: 20,       // how often React re-reads engine state for the overlays and bottom sheet
   toastMs: 1400,
-  gizmoSize: 110,         // px, square in the top-right corner
+  gizmoSize: 84,          // px, square in the top-right corner (under the mode bar)
   gizmoMargin: 12,        // px from the edges
   speechRate: 1.15,
   speechPitch: 1.0,
