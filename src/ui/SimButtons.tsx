@@ -29,9 +29,9 @@ export function SimButtons({ down, pressable }: { down: boolean[]; pressable: bo
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 3 },
+  row: { flexDirection: 'row', gap: 2 },
   btn: {
-    width: 30, height: 36, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
+    width: 28, height: 36, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
     alignItems: 'center', justifyContent: 'center',
   },
   btnDown: { backgroundColor: T.select, borderColor: T.selectBorder },

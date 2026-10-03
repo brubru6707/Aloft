@@ -11,7 +11,7 @@ const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
 type Tab = 'glove' | 'build' | 'tools';
 /** Height of the bottom row (NAV / TEST, dock, B0–B3) in App.tsx: the dock sits in it, centred. */
 const BOTTOM_ROW = 40;
-const DOCK_W = 96;
+const DOCK_W = 116;
 const TABS: { id: Tab; label: string }[] = [{ id: 'glove', label: 'Glove' }, { id: 'build', label: 'Build' }, { id: 'tools', label: 'Tools' }];
 const VOICE_ICON = { off: '🎙', listening: '🎙', connecting: '…', talking: '🔴', unsupported: '🎙' } as const;
 
