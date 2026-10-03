@@ -27,12 +27,12 @@ export const MODE_ORDER = ['FLY', 'ORBIT', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
-  FLY:   '#4cc9f0',
-  ORBIT: '#b388ff',
-  GRAB:  '#ff9f43',
-  SCALE: '#5be37e',
-  BUILD: '#ffe066',
-  ERASE: '#ff5c7a',
+  FLY:   '#e87d0d',  // Blender orange
+  ORBIT: '#5680c2',  // Blender selection blue
+  GRAB:  '#ff9f3c',
+  SCALE: '#8bdc00',  // Blender Y-axis green
+  BUILD: '#ffd43b',
+  ERASE: '#ff3352',  // Blender X-axis red
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
@@ -45,7 +45,7 @@ export const MODE_HINTS: Record<ModeName, string> = {
 };
 
 /** Glove identity. Up to two gloves. */
-export const GLOVE_COLORS = ['#4cc9f0', '#ff4fd8'];
+export const GLOVE_COLORS = ['#e87d0d', '#5680c2']; // Blender orange, Blender selection blue
 export const GLOVE_DEFAULT_MODE: ModeName[] = ['FLY', 'BUILD'];
 export const MAX_GLOVES = 2;
 

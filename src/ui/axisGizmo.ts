@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { FlyAxis } from '../config';
 
-const AXIS_COLORS: Record<FlyAxis, number> = { X: 0xff5c7a, Y: 0x5be37e, Z: 0x4cc9f0 };
+const AXIS_COLORS: Record<FlyAxis, number> = { X: 0xff3352, Y: 0x8bdc00, Z: 0x2890ff }; // Blender axis colours
 const DIRS: Record<FlyAxis, THREE.Vector3> = {
   X: new THREE.Vector3(1, 0, 0),
   Y: new THREE.Vector3(0, 1, 0),
@@ -12,7 +12,7 @@ function labelSprite(text: string, color: number): THREE.Sprite {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;
-  g.font = 'bold 44px system-ui, sans-serif';
+  g.font = 'bold 40px "Pixelify Sans", monospace';
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#' + color.toString(16).padStart(6, '0');
   g.fillText(text, 32, 34);

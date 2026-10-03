@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
 export const BUILD_AREA = { center: new THREE.Vector3(0, 0, -28), radius: 12 };
 
@@ -22,20 +21,14 @@ export interface World {
 
 export function createWorld(): World {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x9fb6cf, 0.0055);
-
-  // Sky
-  const sky = new Sky();
-  sky.scale.setScalar(4000);
-  const u = sky.material.uniforms;
-  u.turbidity.value = 6; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.8;
-  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(55), THREE.MathUtils.degToRad(150));
-  u.sunPosition.value.copy(sun);
-  scene.add(sky);
+  // Blender viewport look: flat grey background, grey fog, neutral studio-style lighting.
+  scene.background = new THREE.Color(0x3d3d3d);
+  scene.fog = new THREE.FogExp2(0x3d3d3d, 0.006);
+  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(50), THREE.MathUtils.degToRad(150));
 
   // Lights
-  scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x6a6a5a, 1.1));
-  const dir = new THREE.DirectionalLight(0xfff1dc, 2.2);
+  scene.add(new THREE.HemisphereLight(0xd0d0d0, 0x5a5a5a, 1.9));   // even, studio-like fill
+  const dir = new THREE.DirectionalLight(0xffffff, 1.3);
   dir.position.copy(sun).multiplyScalar(120);
   dir.castShadow = true;
   dir.shadow.mapSize.set(2048, 2048);
@@ -48,24 +41,33 @@ export function createWorld(): World {
   // Ground + grid
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(600, 600),
-    new THREE.MeshStandardMaterial({ color: 0x3d4656, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x393939, roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   ground.name = 'ground';
   scene.add(ground);
-  const grid = new THREE.GridHelper(600, 120, 0x5b6b80, 0x3a4553);
+  const grid = new THREE.GridHelper(600, 120, 0x545454, 0x4a4a4a);
   (grid.material as THREE.Material).transparent = true;
-  (grid.material as THREE.Material).opacity = 0.45;
+  (grid.material as THREE.Material).opacity = 0.7;
   grid.position.y = 0.01;
   scene.add(grid);
+  // Blender-style axis lines through the origin: X red, Z blue (Y is up here).
+  const axisLine = (a: THREE.Vector3, b: THREE.Vector3, color: number) => {
+    const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+    const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const l = new THREE.Line(g, m); l.position.y = 0.015; scene.add(l);
+  };
+  axisLine(new THREE.Vector3(-300, 0, 0), new THREE.Vector3(300, 0, 0), 0xff3352);
+  axisLine(new THREE.Vector3(0, 0, -300), new THREE.Vector3(0, 0, 300), 0x2890ff);
 
   // City: blocks of buildings separated by roads, leaving the build plaza empty.
   const buildings: THREE.Mesh[] = [];
   const rand = mulberry32(1337);
   const blockSize = 16, road = 6, half = 4; // 9x9 blocks
-  const palette = [0x8fa3bf, 0xb8c4d6, 0x6f8199, 0xd9c9a8, 0x9bb0a3, 0x7f93b0];
-  const roadMat = new THREE.MeshStandardMaterial({ color: 0x1b2028, roughness: 0.95 });
+  // Blender default-material greys, one warm and one cool for a little variety.
+  const palette = [0x7f7f7f, 0x8c8c8c, 0x6e6e6e, 0x9a9a9a, 0x857f78, 0x767c85];
+  const roadMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.95 });
   const pitch = blockSize + road;
   for (let bx = -half; bx <= half; bx++) {
     for (let bz = -half; bz <= half; bz++) {
@@ -103,12 +105,12 @@ export function createWorld(): World {
   const buildArea = new THREE.Group();
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(BUILD_AREA.radius - 0.4, BUILD_AREA.radius, 96),
-    new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color: 0xe87d0d, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   );
   ring.rotation.x = -Math.PI / 2;
   const fill = new THREE.Mesh(
     new THREE.CircleGeometry(BUILD_AREA.radius - 0.4, 96),
-    new THREE.MeshStandardMaterial({ color: 0x3b4252, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 1 }),
   );
   fill.rotation.x = -Math.PI / 2; fill.receiveShadow = true;
   buildArea.add(fill, ring);
