@@ -13,7 +13,6 @@ const has = (t: string, re: RegExp) => re.test(t);
 
 function modeOf(t: string): string | null {
   if (has(t, /\bfly(ing)?\b|\bnavigat/)) return 'FLY';
-  if (has(t, /\bscal(e|ing)\b|\bresiz/)) return 'SCALE';
   if (has(t, /\bbuild(ing)?\b|\bplac(e|ing)\b/)) return 'BUILD';
   if (has(t, /\berase\b|\berasing\b|\bdelet/)) return 'ERASE';
   return null;
@@ -30,12 +29,13 @@ function sizeOf(t: string): string | null {
   if (has(t, /\b(large|big|huge|l)\b/)) return 'large';
   return null;
 }
-/** Sensitivity: a level (0.5 / 1 / 1.5 / 2) or 'up' / 'down'. */
+/** Sensitivity: a level (0 to 1 in steps of 0.2) or 'up' / 'down'. */
 function sensOf(t: string): string | null {
   const n = t.match(/(\d+(?:\.\d+)?)/);
   if (n) return n[1];
   if (has(t, /\bhalf\b/)) return '0.5';
-  if (has(t, /\bdouble\b|\bmax(imum)?\b/)) return '2';
+  if (has(t, /\bmax(imum)?\b|\bfull\b/)) return '1';
+  if (has(t, /\bmin(imum)?\b|\boff\b|\bzero\b/)) return '0';
   if (has(t, /\bnormal\b|\bdefault\b|\breset\b/)) return '1';
   if (has(t, /\b(up|higher|more|faster|increase|raise)\b/)) return 'up';
   if (has(t, /\b(down|lower|less|slower|decrease|reduce)\b/)) return 'down';
@@ -59,10 +59,10 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
   const setting = String(settingRaw ?? '').toLowerCase().trim().replace(/[\s-]+/g, '_') as ControlSetting;
   const v = String(valueRaw ?? '').toLowerCase().trim();
   switch (setting) {
-    case 'mode': { const m = modeOf(v); return m ? { setting, value: m } : { error: `unknown mode "${v}" (FLY, SCALE, BUILD or ERASE)` }; }
+    case 'mode': { const m = modeOf(v); return m ? { setting, value: m } : { error: `unknown mode "${v}" (FLY, BUILD or ERASE)` }; }
     case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere or cylinder)` }; }
     case 'size': { const s = sizeOf(v); return s ? { setting, value: s } : { error: `unknown size "${v}" (small, medium or large)` }; }
-    case 'sensitivity': { const s = sensOf(v); return s ? { setting, value: s } : { error: `unknown sensitivity "${v}" (0.5, 1, 1.5, 2, up or down)` }; }
+    case 'sensitivity': { const s = sensOf(v); return s ? { setting, value: s } : { error: `unknown sensitivity "${v}" (0, 0.2, 0.4, 0.6, 0.8, 1, up or down)` }; }
     case 'fly_state': { const s = flyStateOf(v); return s ? { setting, value: s } : { error: `unknown FLY state "${v}" (rotate, X, Y or Z)` }; }
     case 'rotate_style': { const s = rotateStyleOf(v); return s ? { setting, value: s } : { error: `unknown rotate style "${v}" (rate or absolute)` }; }
     case 'reset_view': return { setting, value: '' };
@@ -75,7 +75,7 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
  * "make me a sphere" (a build request) is NOT read as "set shape to sphere".
  */
 export function parseControl(text: string): ControlCommand | null {
-  const t = text.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+  const t = text.toLowerCase().replace(/(?<!\d)[.,!?]|[.,!?](?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t || t.split(' ').length > 9) return null;
   if (has(t, /^(center|centre|recenter|recentre|reset)( me| the view| view| camera| everything| it)?$/) || has(t, /\b(center|centre) me\b|\bback to (the )?start\b|\breset (the )?(view|camera)\b/)) return { setting: 'reset_view', value: '' };
   if (has(t, /\bsensitivity\b|\bsens\b/)) { const s = sensOf(t); if (s) return { setting: 'sensitivity', value: s }; }

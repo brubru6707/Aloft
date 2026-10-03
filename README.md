@@ -53,7 +53,7 @@ has connection status, Connect / Simulator / Recenter / ✕, live ROLL / PITCH /
 B0–B3 lamps, mode chips (tap to jump to any mode, including the previous one), in FLY the
 ROTATE / X / Y / Z chips and the signed move-amount bar, in BUILD the SHAPE
 (cube / sphere / cylinder) and SIZE (S / M / L) chips with a "<edge> cm @ x, y, z cm"
-readout for the ghost, Rotate: rate / absolute, ⚡ Sens (sensitivity 0.5× → 1× → 1.5× → 2×),
+readout for the ghost, Rotate: rate / absolute, ⚡ Sens (sensitivity 1× → 0.8× → 0.6× → 0.4× → 0.2× → 0×),
 Undo and Export STL (binary STL via the share sheet, scaled from cm to mm for slicers).
 
 **TEST** — mirrors the web `/test.html`: live raw and processed values, button chips
@@ -65,9 +65,9 @@ classification events, 0.5 s trace) with Copy and Share.
 
 Press **B0** (GPIO 13) = next mode (previous mode: tap a mode chip), **B1** (GPIO 25,
 pinky) = FLY MOVE/ROTATE cycle, place, delete, select, **B2** (GPIO 27) = undo, **B3**
-(GPIO 26) = cycle the sensitivity multiplier 0.5× / 1× / 1.5× / 2× on every hand-driven
+(GPIO 26) = cycle the sensitivity multiplier 1× / 0.8× / 0.6× / 0.4× / 0.2× / 0× on every hand-driven
 rate (in BUILD, B3 cycles the piece size small / medium / large instead). All act on the
-press edge. Mode order: FLY, SCALE, BUILD, ERASE. Mode, axis, size and sensitivity are
+press edge. Mode order: FLY, BUILD, ERASE. Mode, axis, size and sensitivity are
 spoken and the phone vibrates on mode / FLY-state changes.
 
 On connect the glove zeroes itself: the pose at the first sample becomes 0/0/0, and it
@@ -77,7 +77,6 @@ The sheet's ROLL / PITCH / YAW show the smoothed tilt the modes read, not the po
 | Mode | Controls |
 | --- | --- |
 | FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE: X ← roll (right = +X), Y ← pitch (up = +Y), Z ← pitch (tilt forward = forward); deadzone 2°, full speed at 25°, 20 cm/s × sensitivity. ROTATE turns with **roll** (roll right = turn right) and looks up/down with **pitch**, in `rate` or `absolute` style. Yaw is not used for control |
-| SCALE | pitch scales the selection; press **B1** selects what is under the crosshair |
 | BUILD | hand aims the camera; press **B1** places the ghost exactly where the crosshair points: on top of the floor or piece you aim at (stacking), or stuck to the side you aim at, at that height; never below the floor; if nothing is hit, 6 cm ahead dropped onto the surface below. **B3** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips |
 | ERASE | hand aims; tap **B1** deletes the object under the crosshair |
 
@@ -141,7 +140,7 @@ Everything tunable is in [`src/config.ts`](src/config.ts).
 ```
 src/config.ts            all tunables (input, BLE, FLY, modes, render, UI, test bench)
 src/input/               GloveInput (smoothing, recenter, deadzone, tap/hold), BleSource, TouchSimSource
-src/modes/               FLY, SCALE, BUILD, ERASE
+src/modes/               FLY, BUILD, ERASE
 src/scene/               world (cm grid + stroke-text labels, axes, plaza), camera rig, object registry
 src/core/Engine.ts       headless port of the web main.ts; one instance shared by both screens
 src/ui/                  SceneView (r3f + expo-gl), AxisGizmo, HUD, BottomSheet, widgets, theme

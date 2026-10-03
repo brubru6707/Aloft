@@ -34,35 +34,33 @@ export const GLOBAL_ACTIONS = {
 
 /** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  BUILD/ERASE: place/delete.  SCALE: select
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  BUILD/ERASE: place/delete.
 };
 
 /**
- * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, scale).
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move).
  * B2 (ring finger, GPIO 26) cycles through the levels in every mode except BUILD, where B2 cycles the piece
  * size instead; the "⚡ Sens" button always cycles sensitivity.
  */
 export const SENSITIVITY = {
   button: 2,
-  levels: [0.5, 1, 1.5, 2],
-  startIndex: 1,
+  levels: [1, 0.8, 0.6, 0.4, 0.2, 0],   // B2 steps down 0.2 at a time, then wraps back to 1
+  startIndex: 0,
 };
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
-export const MODE_ORDER = ['FLY', 'SCALE', 'BUILD', 'ERASE'] as const;
+export const MODE_ORDER = ['FLY', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
   FLY:   '#e87d0d',  // Blender orange
-  SCALE: '#8bdc00',  // Blender Y-axis green
   BUILD: '#ffd43b',
   ERASE: '#ff3352',  // Blender X-axis red
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
   FLY:   'B1: MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity · B3 (pinky) reset',
-  SCALE: 'Pitch up/down to scale · tap B1 to select',
   BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
@@ -256,11 +254,8 @@ export const FLY = {
 
 /**
  * Modes (besides FLY's ROTATE state) where the hand also turns the camera.
- * Only modes that do not already use tilt for something else belong here:
- * SCALE uses tilt to scale, so it is left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
   maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
   distance: 6,            // fallback float distance (cm) when the crosshair points at nothing

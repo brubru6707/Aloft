@@ -97,7 +97,7 @@ export const buildMode: Mode = {
     const mesh = ctx.objects.createPrimitive(s.primitive, s.color);
     mesh.scale.setScalar(BUILD.sizeScale[s.size]);
     const hh = halfHeight(mesh);
-    mesh.userData.halfHeight = hh / mesh.scale.y;   // unscaled; SCALE mode multiplies by the live scale
+    mesh.userData.halfHeight = hh / mesh.scale.y;   // unscaled half height
     mesh.position.copy(placementPoint(s, ctx, point, hh));
     mesh.rotation.y = ctx.rig.yaw;
     ctx.objects.add(mesh);

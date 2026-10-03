@@ -222,9 +222,10 @@ export class Engine {
       case 'size': this.setSize(cmd.value as SizeName); this.notify(); return `Piece size set to ${cmd.value}.`;
       case 'sensitivity': {
         const levels = SENSITIVITY.levels;
-        const i = levels.indexOf(RUNTIME.sensitivity);
-        const next = cmd.value === 'up' ? levels[Math.min(levels.length - 1, i + 1)]
-          : cmd.value === 'down' ? levels[Math.max(0, i - 1)]
+        const cur = RUNTIME.sensitivity;
+        // Levels run high to low; "up" is the next larger value, "down" the next smaller.
+        const next = cmd.value === 'up' ? (levels.filter((v) => v > cur).sort((a, b) => a - b)[0] ?? cur)
+          : cmd.value === 'down' ? (levels.filter((v) => v < cur).sort((a, b) => b - a)[0] ?? cur)
           : levels.reduce((a, b) => (Math.abs(b - Number(cmd.value)) < Math.abs(a - Number(cmd.value)) ? b : a));
         RUNTIME.sensitivity = next;
         this.toast(`Sensitivity ${next}×`);
