@@ -3,19 +3,25 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { engine } from '../core/Engine';
 import { T } from './theme';
 
-/** On-screen glove buttons 1–4 (B0–B3) for the touch simulator. Hold = hold. */
-export function SimButtons({ down }: { down: boolean[] }) {
+const ROLE = ['mode', 'action', 'reset', 'sens'];   // what each glove button does (B2 = GPIO 27 is the pinky on this glove)
+
+/**
+ * B0–B3 on the right edge. Each lights while that glove button is held. With the touch
+ * simulator on they are also pressable (hold = hold); otherwise they are indicators only.
+ */
+export function SimButtons({ down, pressable }: { down: boolean[]; pressable: boolean }) {
   return (
     <View style={s.col} pointerEvents="box-none">
       {[0, 1, 2, 3].map((b) => (
         <Pressable
           key={b}
+          disabled={!pressable}
           onPressIn={() => engine.sim?.setButton(b, true)}
           onPressOut={() => engine.sim?.setButton(b, false)}
-          style={[s.btn, down[b] && s.btnDown]}
+          style={[s.btn, down[b] && s.btnDown, !pressable && s.indicator]}
         >
-          <Text style={[s.num, down[b] && { color: '#fff' }]}>{b + 1}</Text>
-          <Text style={[s.lbl, down[b] && { color: '#fff' }]}>B{b}</Text>
+          <Text style={[s.num, down[b] && { color: '#fff' }]}>B{b}</Text>
+          <Text style={[s.lbl, down[b] && { color: '#fff' }]}>{ROLE[b]}</Text>
         </Pressable>
       ))}
     </View>
@@ -23,12 +29,13 @@ export function SimButtons({ down }: { down: boolean[] }) {
 }
 
 const s = StyleSheet.create({
-  col: { position: 'absolute', right: 10, gap: 6 },
+  col: { position: 'absolute', right: 6, gap: 5 },
   btn: {
     width: 42, height: 42, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
     alignItems: 'center', justifyContent: 'center',
   },
   btnDown: { backgroundColor: T.select, borderColor: T.selectBorder },
-  num: { color: T.text, fontWeight: '700', fontSize: 15, lineHeight: 17 },
-  lbl: { color: T.muted, fontSize: 9 },
+  num: { color: T.text, fontWeight: '700', fontSize: 12, lineHeight: 14 },
+  indicator: { opacity: 0.8 },
+  lbl: { color: T.muted, fontSize: 8 },
 });

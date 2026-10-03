@@ -37,11 +37,9 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
-      {hud.sourceKind === 'sim' ? (
-        <View style={[s.simWrap, { top: insets.top + TOP_BAR + UI.gizmoSize + 18, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
-          <SimButtons down={hud.buttons} />
-        </View>
-      ) : null}
+      <View style={[s.simWrap, { top: height / 2 - 110, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
+        <SimButtons down={hud.buttons} pressable={hud.sourceKind === 'sim'} />
+      </View>
       <Toast text={hud.toast} top={insets.top + TOP_BAR + 58} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />
     </View>
@@ -51,5 +49,5 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#3d3d3d' },
   overlay: { position: 'absolute', left: 0, right: 0 },
-  simWrap: { position: 'absolute', right: 0, width: 80, height: 260 },
+  simWrap: { position: 'absolute', right: 0, width: 60, height: 220 },
 });

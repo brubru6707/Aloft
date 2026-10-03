@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { engine, type HudState } from '../core/Engine';
 import { BUILD, MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
-import { Btn, ButtonLamp, Chip, Readout, SignedBar, fmtDeg } from './widgets';
+import { Btn, Chip, Readout, SignedBar, fmtDeg } from './widgets';
 import { FONT, T } from './theme';
 
 const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
@@ -62,9 +62,6 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                   <Readout label="ROLL" value={fmtDeg(hud.roll)} />
                   <Readout label="PITCH" value={fmtDeg(hud.pitch)} />
                   <Readout label="YAW" value={fmtDeg(hud.yaw)} />
-                </View>
-                <View style={s.row}>
-                  {hud.buttons.map((b, i) => <ButtonLamp key={i} label={`B${i}`} down={b} />)}
                 </View>
               </>
             ) : null}

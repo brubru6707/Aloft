@@ -14,7 +14,6 @@ import { VoiceAssistant } from './src/ui/VoiceAssistant';
 import { FONT, T } from './src/ui/theme';
 
 type Tab = 'nav' | 'test';
-const TAB_BAR = 28;
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('nav');
@@ -27,14 +26,14 @@ function Shell() {
     else deactivateKeepAwake('aloft').catch(() => {});
   }, [hud.connected]);
 
-  const barHeight = TAB_BAR + Math.max(0, insets.bottom - 14);   // sit in the home-indicator area instead of above it
+  const barHeight = Math.max(8, insets.bottom - 14);   // no bottom bar any more: just keep clear of the home indicator
   return (
     <View style={s.root}>
       {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} /> : <TestScreen tabBarHeight={barHeight} />}
-      <View style={[s.tabBar, { height: barHeight, paddingBottom: Math.max(0, insets.bottom - 14) }]}>
+      <View style={s.switcher}>
         {(['nav', 'test'] as Tab[]).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={s.tab}>
-            <Text style={[s.tabText, tab === t && { color: T.accent }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
+          <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabOn]} hitSlop={6}>
+            <Text style={[s.tabText, tab === t && { color: T.darkText }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
           </Pressable>
         ))}
       </View>
@@ -61,7 +60,9 @@ export default function App() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
-  tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', backgroundColor: T.panel, borderTopWidth: 1, borderColor: T.line },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabText: { color: T.muted, fontWeight: '700', fontSize: 10, letterSpacing: 1.2 },
+  // Left-edge NAV / TEST switch, vertically centred, out of the way of the 3D view and the dock.
+  switcher: { position: 'absolute', left: 4, top: '45%', gap: 4 },
+  tab: { width: 40, paddingVertical: 6, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)' },
+  tabOn: { backgroundColor: T.accent, borderColor: T.accent },
+  tabText: { color: T.muted, fontWeight: '700', fontSize: 9, letterSpacing: 0.8 },
 });

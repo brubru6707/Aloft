@@ -99,7 +99,7 @@ export function TestScreen({ tabBarHeight }: { tabBarHeight: number }) {
   const statusColor = hud.status === 'connected' ? T.ok : hud.status === 'error' ? T.bad : T.muted;
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 20 }]} keyboardShouldPersistTaps="handled">
+    <ScrollView style={s.root} contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 20, paddingLeft: 52 }]} keyboardShouldPersistTaps="handled">
       <Text style={s.h1}>Aloft glove test <Text style={s.h1small}>live values, recording, pasteable report</Text></Text>
       <Text style={s.hint}>Connect, press Start recording, do each movement while tapping its marker, press Stop, then Copy or Share the report.</Text>
 
