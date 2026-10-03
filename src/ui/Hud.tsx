@@ -5,11 +5,14 @@ import { FONT, T, hardShadow } from './theme';
 
 /** Top-left overlay: mode name in the mode colour, one-line hint, FLY state label. */
 export function ModeLabel({ hud, compact }: { hud: HudState; compact?: boolean }) {
+  // Mode name and FLY state on one line; the hint is a single small line under them.
   return (
     <View style={[s.modes, compact && { right: 130 }]} pointerEvents="none">
-      <Text style={[s.modeName, { color: hud.modeColor }, compact && { fontSize: 30 }]}>{hud.mode}</Text>
-      <Text style={s.hint} numberOfLines={compact ? 1 : 2}>{hud.hint}</Text>
-      {hud.flyLabel ? <Text style={[s.axisLabel, compact && { fontSize: 36 }]}>{hud.flyLabel}</Text> : null}
+      <View style={s.modeRow}>
+        <Text style={[s.modeName, { color: hud.modeColor }]}>{hud.mode}</Text>
+        {hud.flyLabel ? <Text style={s.axisLabel}>{hud.flyLabel}</Text> : null}
+      </View>
+      <Text style={s.hint} numberOfLines={1}>{hud.hint}</Text>
     </View>
   );
 }
@@ -25,20 +28,21 @@ export function Crosshair({ hover }: { hover: boolean }) {
   );
 }
 
-export function Toast({ text, bottom }: { text: string; bottom: number }) {
+export function Toast({ text, top }: { text: string; top: number }) {
   if (!text) return null;
   return (
-    <View style={[s.toastWrap, { bottom }]} pointerEvents="none">
+    <View style={[s.toastWrap, { top }]} pointerEvents="none">
       <View style={s.toast}><Text style={s.toastText} numberOfLines={6}>{text}</Text></View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  modes: { position: 'absolute', left: 14, top: 0, right: 150 },
-  modeName: { fontFamily: FONT.pixel, fontSize: 44, letterSpacing: 1.5, lineHeight: 48, ...hardShadow(2, 0.55) },
-  hint: { fontSize: 13, color: T.muted, marginTop: 2, ...hardShadow(1, 0.5) },
-  axisLabel: { fontFamily: FONT.pixel, fontSize: 52, lineHeight: 56, marginTop: 8, letterSpacing: 2, color: T.accent, ...hardShadow(3, 0.6) },
+  modes: { position: 'absolute', left: 14, top: 0, right: 130 },
+  modeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' },
+  modeName: { fontFamily: FONT.pixel, fontSize: 34, letterSpacing: 1.5, lineHeight: 38, ...hardShadow(2, 0.55) },
+  hint: { fontSize: 11, color: T.muted, marginTop: 2, ...hardShadow(1, 0.5) },
+  axisLabel: { fontFamily: FONT.pixel, fontSize: 24, lineHeight: 30, letterSpacing: 1.5, color: T.accent, ...hardShadow(3, 0.6) },
   crossWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   cross: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: T.accent, alignItems: 'center', justifyContent: 'center' },
   crossDot: { width: 4, height: 4, backgroundColor: T.accent },

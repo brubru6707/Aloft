@@ -20,9 +20,20 @@ function EngineDriver({ gizmoTop }: { gizmoTop: number }) {
   useFrame((state, dt) => {
     engine.frame(dt);
     const gl = state.gl as THREE.WebGLRenderer;
-    gl.render(engine.world.scene, engine.rig.camera);
-    const { axis, deflection } = engine.gizmoState();
-    gizmo.current!.render(gl, engine.rig.camera, axis, deflection, size.width, size.height);
+    // r3f/native wraps gl.render so every call also presents the frame (endFrameEXP). We draw two
+    // passes (scene, then the corner gizmo on top): mute the present during both and present once,
+    // otherwise the gizmo pass lands on a fresh buffer and the screen shows a stale frame.
+    const ctx = gl.getContext() as unknown as { endFrameEXP?: () => void };
+    const present = ctx.endFrameEXP?.bind(ctx);
+    ctx.endFrameEXP = () => {};
+    try {
+      gl.render(engine.world.scene, engine.rig.camera);
+      const { axis, deflection } = engine.gizmoState();
+      gizmo.current!.render(gl, engine.rig.camera, axis, deflection, size.width, size.height);
+    } finally {
+      if (present) ctx.endFrameEXP = present;
+    }
+    present?.();
   }, 1);
   return null;
 }

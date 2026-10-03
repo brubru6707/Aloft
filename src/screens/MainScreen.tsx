@@ -29,16 +29,16 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
   return (
     <View style={s.root}>
       <SceneView gizmoTop={insets.top + UI.gizmoMargin} />
-      <View style={[s.overlay, { top: insets.top + 10, right: landscape ? 412 : 0 }]} pointerEvents="box-none">
+      <View style={[s.overlay, { top: insets.top + 8, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
       {hud.sourceKind === 'sim' ? (
-        <View style={[s.simWrap, { top: insets.top + UI.gizmoMargin + UI.gizmoSize + 16, right: landscape ? 412 : 0 }]} pointerEvents="box-none">
+        <View style={[s.simWrap, { top: insets.top + UI.gizmoMargin + UI.gizmoSize + 16, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
           <SimButtons down={hud.buttons} />
         </View>
       ) : null}
-      <Toast text={hud.toast} bottom={landscape ? 24 : 300} />
+      <Toast text={hud.toast} top={insets.top + 70} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />
     </View>
   );
