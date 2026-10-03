@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@elevenlabs/client": "^1.26.0",
     "three": "^0.170.0"
   },
   "devDependencies": {

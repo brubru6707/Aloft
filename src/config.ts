@@ -75,6 +75,22 @@ export const INPUT = {
   invertRoll: false,      // flip if rolling right reads negative on the panel
 };
 
+/** X2D voice assistant (ElevenLabs Agents). The agent is public, so only its id is needed. */
+export const VOICE = {
+  agentId: 'agent_8201m413w8nyf63thnzzcrexwx1t',   // "Aloft X2D" in the ElevenLabs dashboard
+  wakeWords: ['x2d', 'x 2 d', 'x two d', 'x to d', 'x too d', 'ex 2 d', 'ex two d', 'extudy'],
+  lang: 'en-US',
+  autoListen: true,       // start watching for the wake word as soon as the page loads (asks for the mic once)
+};
+
+/** Gemini (Google AI Studio). Key lives in .env.local as VITE_GEMINI_API_KEY. */
+export const GEMINI = {
+  model: 'gemini-3.8-flash',   // the API retired gemini-2.5-flash for new keys
+  maxOutputTokens: 200,
+  retries: 2,              // extra attempts on 503 (overloaded) / 429 (rate limited), with backoff
+  systemPrompt: 'You are the assistant inside Aloft, a hand-controlled 3D building app where the world is in centimetres. Answer in one or two short sentences, plain text, no markdown.',
+};
+
 /** Web Bluetooth (Nordic UART Service). */
 export const BLE = {
   namePrefix: 'Aloft',

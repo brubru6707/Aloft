@@ -1,11 +1,13 @@
 import * as THREE from 'three';
-import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY } from './config';
+import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, VOICE } from './config';
+import { askGemini, geminiAvailable } from './ai/gemini';
 import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
 import { applyRotate, flyAxis, flyDeflection, resetRotateAnchor, setFlyAxis } from './modes/fly';
 import { AxisGizmo } from './ui/axisGizmo';
+import { VoiceAssistant } from './ui/voice';
 import { CameraRig } from './scene/cameraRig';
 import { ObjectRegistry } from './scene/objects';
 import { createWorld } from './scene/world';
@@ -29,6 +31,7 @@ const objects = new ObjectRegistry(world.scene);
 world.buildings.forEach((b) => objects.registerSelectable(b));
 const undo = new UndoStack();
 const gizmo = new AxisGizmo();
+const voice = new VoiceAssistant();
 
 // ---------- Input ----------
 const gloves = new GloveManager(canvas);
@@ -64,6 +67,8 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
     setFlyAxis(s, axis);
   },
   cycleSensitivity,
+  toggleVoice: () => voice.toggle(),
+  askGemini: (q) => void askAssistant(q),
   setPrimitive: (id, p) => { setPrimitive(sessions[id], ctx, p); hud.toast(`Shape: ${p}`); },
   setSize: (id, size) => { setSize(sessions[id], ctx, size); hud.toast(`Size: ${size}`); },
   toggleRotateStyle: () => {
@@ -83,6 +88,32 @@ function cycleSensitivity(): void {
   hud.syncSensitivityButton();
   hud.toast(`Sensitivity ${RUNTIME.sensitivity}×`);
   speak(`sensitivity ${RUNTIME.sensitivity}`);
+}
+
+/** Summarise what is in the scene so Gemini can answer questions about it. */
+function sceneSummary(): string {
+  const built = objects.built;
+  const cam = rig.camera.position;
+  const lines = [`camera at x=${cam.x.toFixed(0)} y=${cam.y.toFixed(0)} z=${cam.z.toFixed(0)} cm; mode ${MODE_ORDER[sessions[0].modeIndex]}; ${built.length} built piece(s)`];
+  built.slice(0, 30).forEach((m, i) => {
+    const edge = (2 * m.scale.x).toFixed(0);
+    lines.push(`${i + 1}. ${m.name} ${edge} cm at x=${m.position.x.toFixed(0)} y=${m.position.y.toFixed(0)} z=${m.position.z.toFixed(0)}`);
+  });
+  return lines.join('\n');
+}
+
+/** Ask Gemini about the scene (or anything); show and speak the answer. */
+async function askAssistant(question: string): Promise<void> {
+  if (!question.trim()) return;
+  if (!geminiAvailable()) { hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return; }
+  hud.toast('Gemini: thinking…');
+  try {
+    const answer = await askGemini(question, sceneSummary());
+    hud.toast(answer, 6000);
+    speak(answer);
+  } catch (err) {
+    hud.toast(`Gemini: ${err instanceof Error ? err.message : String(err)}`, 5000);
+  }
 }
 
 function doUndo(): void {
@@ -138,6 +169,13 @@ gloves.onAll('status', ({ gloveId, status, source, detail }) => {
     hud.toast(`Glove ${gloveId + 1}: ${detail ?? 'error'}`);
   }
 });
+
+voice.onState((state, detail) => {
+  hud.syncVoiceButton(state);
+  if (detail) hud.toast(`X2D: ${detail}`);
+  else if (state === 'talking') hud.toast('X2D is listening');
+});
+if (VOICE.autoListen) voice.startListening();
 
 // Enter the initial mode for glove 1 so its label/hint are right from the start.
 MODES[sessions[0].modeIndex].enter?.(sessions[0], ctx);
@@ -196,6 +234,7 @@ window.addEventListener('resize', () => {
 
 // Keyboard shortcuts that don't belong to the simulator.
 window.addEventListener('keydown', (e) => {
+  if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
   if (e.key === 'z' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doUndo(); }
   if (e.key === 'r' && !e.metaKey && !e.ctrlKey) { gloves.recenterAll(); sessions.forEach(resetRotateAnchor); }
   if (e.key === 'Tab') { e.preventDefault(); setMode(sessions[0], sessions[0].modeIndex + (e.shiftKey ? -1 : 1)); }
@@ -205,4 +244,4 @@ frame();
 hud.toast('Click “Simulator” or “Connect Glove” to start');
 
 // Debug handle for the console / automated tests.
-(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx };
+(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, askAssistant, sceneSummary };

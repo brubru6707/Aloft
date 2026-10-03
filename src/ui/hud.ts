@@ -1,5 +1,6 @@
 import { BUILD, FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, UNITS, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
+import type { VoiceState } from './voice';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
 import type { GloveSession } from '../modes/types';
@@ -16,8 +17,12 @@ export interface HudActions {
   /** Mouse shortcuts for what the glove buttons do: pick a mode, or a FLY state, directly. */
   setMode(gloveId: number, modeIndex: number): void;
   setFlyAxis(gloveId: number, axis: FlyAxis | null): void;
-  /** Step the global sensitivity multiplier (same as pressing B2). */
+  /** Step the global sensitivity multiplier (same as pressing the sensitivity button). */
   cycleSensitivity(): void;
+  /** X2D voice assistant: start a session, or end the current one. */
+  toggleVoice(): void;
+  /** Ask Gemini a question (answer is toasted and spoken). */
+  askGemini(question: string): void;
   /** Choose the BUILD primitive for a glove. */
   setPrimitive(gloveId: number, p: PrimitiveName): void;
   /** Choose the BUILD piece size for a glove (same as B2 in BUILD). */
@@ -56,6 +61,7 @@ export class Hud {
   private toastTimer: number | null = null;
   private rotateBtn: HTMLButtonElement;
   private sensBtn: HTMLButtonElement;
+  private voiceBtn: HTMLButtonElement;
 
   constructor(root: HTMLElement, gloves: GloveManager, actions: HudActions) {
     root.innerHTML = `
@@ -65,6 +71,8 @@ export class Hud {
         <button id="recenter-all" title="Zero every glove's orientation">⌖ Recenter</button>
         <button id="rotate-style" title="FLY rotation: rate = tilt sets turn speed and keeps turning; absolute = camera follows the hand angle and stays there"></button>
         <button id="sensitivity" title="Sensitivity multiplier on every hand-driven rate (B3 cycles it too)"></button>
+        <button id="voice" title="X2D voice assistant: say “X2D” or click to talk; click again to hang up">🎙 X2D</button>
+        <form id="ask" title="Ask Gemini about the scene"><input id="ask-q" type="text" placeholder="✨ ask Gemini…" autocomplete="off" /></form>
         <button id="export">⬇ Export STL</button>
       </div>
       <div id="gloves"></div>
@@ -86,6 +94,11 @@ export class Hud {
     this.sensBtn = root.querySelector<HTMLButtonElement>('#sensitivity')!;
     this.sensBtn.onclick = () => actions.cycleSensitivity();
     this.syncSensitivityButton();
+    this.voiceBtn = root.querySelector<HTMLButtonElement>('#voice')!;
+    this.voiceBtn.onclick = () => actions.toggleVoice();
+    const askForm = root.querySelector<HTMLFormElement>('#ask')!;
+    const askInput = root.querySelector<HTMLInputElement>('#ask-q')!;
+    askForm.onsubmit = (e) => { e.preventDefault(); actions.askGemini(askInput.value); askInput.value = ''; askInput.blur(); };
 
     const modes = root.querySelector('#modes')!;
     const glovesEl = root.querySelector('#gloves')!;
@@ -172,6 +185,14 @@ export class Hud {
     });
   }
 
+  /** Reflect the X2D assistant state on the toolbar button. */
+  syncVoiceButton(state: VoiceState): void {
+    const label = { off: '🎙 X2D', listening: '🎙 X2D · listening', connecting: '🎙 X2D · connecting…', talking: '🔴 X2D · talking', unsupported: '🎙 X2D (Chrome only)' }[state];
+    this.voiceBtn.textContent = label;
+    this.voiceBtn.classList.toggle('active', state === 'talking' || state === 'connecting');
+    this.voiceBtn.disabled = state === 'unsupported';
+  }
+
   /** Reflect the current sensitivity on the toolbar button. */
   syncSensitivityButton(): void {
     this.sensBtn.textContent = `⚡ Sens: ${RUNTIME.sensitivity}×`;
@@ -185,11 +206,11 @@ export class Hud {
     this.rotateBtn.classList.toggle('active', abs);
   }
 
-  toast(msg: string): void {
+  toast(msg: string, ms = 1400): void {
     this.toastEl.textContent = msg;
     this.toastEl.classList.add('show');
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), 1400);
+    this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), ms);
   }
 
   /** Called every frame. */

@@ -66,6 +66,21 @@ MOVE axis is drawn bright and thick and the end you are moving toward grows. The
 panel's FLY row shows the same state as chips plus a bar of the current move amount.
 
 
+## X2D voice assistant and Gemini
+
+- **X2D** (ElevenLabs Agents): the page watches for the wake word "X2D" with Chrome's
+  built-in speech recognition (local, free). Hearing it, or clicking **🎙 X2D** in the
+  toolbar, opens a voice session with the public "Aloft X2D" agent, which answers
+  "Hello" and then listens. Click the button again to hang up. The agent id and wake
+  word spellings are under `VOICE` in `src/config.ts`; the agent itself is edited in the
+  ElevenLabs dashboard (prompt, voice, LLM). Chrome asks for the microphone once.
+- **Gemini**: the **✨ ask Gemini…** box in the toolbar sends a question plus a summary of
+  the scene (camera, mode, every built piece with size and position in cm) to Gemini.
+  The answer is shown and spoken. Put your key in `.env.local` as
+  `VITE_GEMINI_API_KEY=…` (see `.env.example`; the file is git-ignored) and restart
+  `npm run dev`. Model and prompt are under `GEMINI` in `src/config.ts`. Anything in a
+  browser bundle is visible to whoever loads the page, so this is for local use.
+
 ## Glove test bench
 
 Open **`/test.html`** (e.g. `http://localhost:5173/test.html`) for a page with no 3D
