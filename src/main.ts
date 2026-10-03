@@ -3,7 +3,7 @@ import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_M
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
-import { applyRotate, flyAxis, flyDeflection, resetRotateAnchor } from './modes/fly';
+import { applyRotate, flyAxis, flyDeflection, resetRotateAnchor, setFlyAxis } from './modes/fly';
 import { AxisGizmo } from './ui/axisGizmo';
 import { CameraRig } from './scene/cameraRig';
 import { ObjectRegistry } from './scene/objects';
@@ -55,6 +55,12 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
     hud.toast(n ? `Exported ${n} object${n === 1 ? '' : 's'} to STL` : 'Nothing built yet — place something in BUILD mode');
   },
   undo: doUndo,
+  setMode: (id, index) => setMode(sessions[id], index),
+  setFlyAxis: (id, axis) => {
+    const s = sessions[id];
+    if (MODE_ORDER[s.modeIndex] !== 'FLY') setMode(s, modeIndexOf('FLY'));
+    setFlyAxis(s, axis);
+  },
   toggleRotateStyle: () => {
     FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
     sessions.forEach(resetRotateAnchor);

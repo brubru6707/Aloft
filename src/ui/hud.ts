@@ -1,4 +1,4 @@
-import { FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER } from '../config';
+import { FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, type FlyAxis } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -13,6 +13,9 @@ export interface HudActions {
   undo(): void;
   /** Flip FLY rotation between rate (keeps turning) and absolute (follows the hand angle). */
   toggleRotateStyle(): void;
+  /** Mouse shortcuts for what the glove buttons do: pick a mode, or a FLY state, directly. */
+  setMode(gloveId: number, modeIndex: number): void;
+  setFlyAxis(gloveId: number, axis: FlyAxis | null): void;
 }
 
 interface GlovePanel {
@@ -32,6 +35,7 @@ interface GlovePanel {
   flyRow: HTMLElement;
   flyChips: HTMLElement[];
   flyAmt: HTMLElement;
+  modeChips: HTMLElement[];
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -86,7 +90,8 @@ export class Hud {
           <div><span>YAW</span><b>+0°</b></div>
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
-        <div class="fly" title="FLY state: pinky button (B1) alternates ROTATE and a MOVE axis"><span>FLY</span><i>ROTATE</i><i>X</i><i>Y</i><i>Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
+        <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
+        <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
           <button class="sim">Simulator</button>
@@ -132,7 +137,10 @@ export class Hud {
         flyRow: panel.querySelector('.fly')!,
         flyChips: [...panel.querySelectorAll<HTMLElement>('.fly i')],
         flyAmt: panel.querySelector('.fly .amt u')!,
+        modeChips: [...panel.querySelectorAll<HTMLElement>('.modes i')],
       };
+      p.modeChips.forEach((chip, idx) => (chip.onclick = () => actions.setMode(g.gloveId, idx)));
+      p.flyChips.forEach((chip) => (chip.onclick = () => actions.setFlyAxis(g.gloveId, (chip.dataset.axis || null) as FlyAxis | null)));
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
       p.recenter.onclick = () => actions.recenter(g.gloveId);
@@ -190,6 +198,7 @@ export class Hud {
       // FLY: active translation axis, large so it reads from across the room, plus chips in the panel.
       const axisText = modeName === 'FLY' ? flyLabel(s) : '';
       p.flyRow.style.display = modeName === 'FLY' ? '' : 'none';
+      p.modeChips.forEach((c, k) => c.classList.toggle('on', k === s.modeIndex));
       const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
       p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
       // Deflection bar: fills from the centre toward − or + along the active axis.

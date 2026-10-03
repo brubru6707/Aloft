@@ -15,6 +15,16 @@ export function flyAxis(s: GloveSession): FlyAxis | null {
   return (s.scratch.flyAxis as FlyAxis | null | undefined) ?? null;
 }
 
+/** Jump straight to a MOVE axis or ROTATE (null). Used by the clickable HUD chips. */
+export function setFlyAxis(s: GloveSession, axis: FlyAxis | null): void {
+  const current = flyAxis(s);
+  if (current) s.scratch.flyLastAxis = current;
+  s.scratch.flyAxis = axis;
+  s.scratch.flyCycleAt = performance.now();
+  resetRotateAnchor(s);
+  speak(axis ? axis.toLowerCase() : 'rotate');
+}
+
 /** Big HUD label text for the FLY state. */
 export function flyLabel(s: GloveSession): string {
   const a = flyAxis(s);
