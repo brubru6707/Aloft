@@ -3,7 +3,8 @@ import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER } from './co
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
-import { resetRotateAnchor } from './modes/fly';
+import { flyAxis, flyDeflection, resetRotateAnchor } from './modes/fly';
+import { AxisGizmo } from './ui/axisGizmo';
 import { CameraRig } from './scene/cameraRig';
 import { ObjectRegistry } from './scene/objects';
 import { createWorld } from './scene/world';
@@ -26,6 +27,7 @@ const rig = new CameraRig(window.innerWidth / window.innerHeight);
 const objects = new ObjectRegistry(world.scene);
 world.buildings.forEach((b) => objects.registerSelectable(b));
 const undo = new UndoStack();
+const gizmo = new AxisGizmo();
 
 // ---------- Input ----------
 const gloves = new GloveManager(canvas);
@@ -81,6 +83,10 @@ function setMode(s: GloveSession, index: number): void {
   speak(MODE_ORDER[next].toLowerCase());
 }
 
+gloves.onAll('press', ({ gloveId, button }) => {
+  const s = sessions[gloveId];
+  MODES[s.modeIndex].onPress?.(s, ctx, button);
+});
 gloves.onAll('tap', ({ gloveId, button }) => {
   const s = sessions[gloveId];
   if (button === GLOBAL_ACTIONS.modeNext.button && GLOBAL_ACTIONS.modeNext.gesture === 'tap') return setMode(s, s.modeIndex + 1);
@@ -146,6 +152,9 @@ function frame(): void {
   }
   hud.update(sessions, window.innerWidth, window.innerHeight);
   renderer.render(world.scene, rig.camera);
+  const s0 = sessions[0];
+  const inFly = MODE_ORDER[s0.modeIndex] === 'FLY';
+  gizmo.render(renderer, rig.camera, inFly ? flyAxis(s0) : null, inFly ? flyDeflection(s0) : 0, window.innerWidth, window.innerHeight);
   requestAnimationFrame(frame);
 }
 

@@ -37,6 +37,8 @@ export interface Mode {
   enter?(s: GloveSession, ctx: AppContext): void;
   exit?(s: GloveSession, ctx: AppContext): void;
   update(s: GloveSession, ctx: AppContext, dt: number): void;
+  /** Raw down edge, fired immediately on press (before tap/hold classification). */
+  onPress?(s: GloveSession, ctx: AppContext, button: number): void;
   onTap?(s: GloveSession, ctx: AppContext, button: number): void;
   onHoldStart?(s: GloveSession, ctx: AppContext, button: number): void;
   onHoldEnd?(s: GloveSession, ctx: AppContext, button: number): void;

@@ -1,5 +1,5 @@
 import { FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER } from '../config';
-import { flyLabel } from '../modes/fly';
+import { flyDeflection, flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
 import type { GloveSession } from '../modes/types';
@@ -31,6 +31,7 @@ interface GlovePanel {
   axisLabel: HTMLElement;
   flyRow: HTMLElement;
   flyChips: HTMLElement[];
+  flyAmt: HTMLElement;
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -85,7 +86,7 @@ export class Hud {
           <div><span>YAW</span><b>+0°</b></div>
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
-        <div class="fly" title="FLY state: pinky button (B1) alternates ROTATE and a MOVE axis"><span>FLY</span><i>ROTATE</i><i>X</i><i>Y</i><i>Z</i></div>
+        <div class="fly" title="FLY state: pinky button (B1) alternates ROTATE and a MOVE axis"><span>FLY</span><i>ROTATE</i><i>X</i><i>Y</i><i>Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
           <button class="sim">Simulator</button>
@@ -130,6 +131,7 @@ export class Hud {
         axisLabel,
         flyRow: panel.querySelector('.fly')!,
         flyChips: [...panel.querySelectorAll<HTMLElement>('.fly i')],
+        flyAmt: panel.querySelector('.fly .amt u')!,
       };
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
@@ -190,6 +192,10 @@ export class Hud {
       p.flyRow.style.display = modeName === 'FLY' ? '' : 'none';
       const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
       p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
+      // Deflection bar: fills from the centre toward − or + along the active axis.
+      const amt = modeName === 'FLY' ? flyDeflection(s) : 0;
+      p.flyAmt.style.left = amt < 0 ? `${50 + amt * 50}%` : '50%';
+      p.flyAmt.style.width = `${Math.abs(amt) * 50}%`;
       if (p.axisLabel.textContent !== axisText) {
         p.axisLabel.textContent = axisText;
         p.axisLabel.style.display = axisText ? '' : 'none';

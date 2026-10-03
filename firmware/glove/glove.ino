@@ -204,15 +204,26 @@ void updateOrientation(float dt) {
 }
 
 // ---------------- Buttons ----------------
-uint8_t readButtons() {
+// Polled every loop pass (~200+ Hz) with debouncing. Each debounced press sets a latch bit so
+// that even a press shorter than one 50 Hz frame is reported in the next frame's bitmask.
+uint8_t btnLatch = 0;
+
+void pollButtons() {
   const uint32_t now = millis();
-  uint8_t mask = 0;
   for (int i = 0; i < 4; i++) {
     const bool raw = digitalRead(BUTTON_PINS[i]) == LOW;   // pressed = LOW (pull-up)
     if (raw != btnRaw[i]) { btnRaw[i] = raw; btnChangedAt[i] = now; }
-    if (now - btnChangedAt[i] >= DEBOUNCE_MS) btnState[i] = btnRaw[i];
-    if (btnState[i]) mask |= (1 << i);
+    if (now - btnChangedAt[i] >= DEBOUNCE_MS && btnState[i] != btnRaw[i]) {
+      btnState[i] = btnRaw[i];
+      if (btnState[i]) btnLatch |= (1 << i);
+    }
   }
+}
+
+uint8_t readButtons() {
+  uint8_t mask = btnLatch;          // presses seen since the last frame, even if already released
+  btnLatch = 0;
+  for (int i = 0; i < 4; i++) if (btnState[i]) mask |= (1 << i);
   return mask;
 }
 
@@ -255,6 +266,7 @@ void loop() {
   const float dt = (nowMicros - lastMicros) * 1e-6f;
   lastMicros = nowMicros;
   updateOrientation(dt);            // run the filter as fast as the loop goes (~200 Hz)
+  pollButtons();
 
   const uint32_t nowMs = millis();
   if (nowMs - lastSend >= 1000 / SAMPLE_HZ) {

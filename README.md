@@ -56,6 +56,12 @@ is deflected, *absolute* makes the camera follow the hand angle 1:1 so a 180° t
 of the hand stays a 180° turn), **Export STL** (downloads every user-built object
 as one binary STL).
 
+A small world-axes gizmo sits top-right under the toolbar. It turns with the camera so
+you can always see where world X (red), Y (green) and Z (blue) point; in FLY the active
+MOVE axis is drawn bright and thick and the end you are moving toward grows. The glove
+panel's FLY row shows the same state as chips plus a bar of the current move amount.
+
+
 ## BLE protocol
 
 The glove advertises as `Aloft-Glove` with the Nordic UART Service.

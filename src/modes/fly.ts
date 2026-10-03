@@ -21,6 +21,12 @@ export function flyLabel(s: GloveSession): string {
   return a ? `MOVE: ${a}` : 'ROTATE';
 }
 
+/** Signed -1..1 deflection currently driving the active MOVE axis (0 in ROTATE). */
+export function flyDeflection(s: GloveSession): number {
+  const a = flyAxis(s);
+  return a ? deflection(s, FLY.axisControl[a]) * FLY.axisSign[a] : 0;
+}
+
 /**
  * Forget the absolute-rotation anchor so the camera re-attaches to the current hand
  * angle without jumping. Call after recentering a glove or switching rotation style.
@@ -51,11 +57,14 @@ export const flyMode: Mode = {
     if (s.scratch.flyAxis === undefined) s.scratch.flyAxis = null;      // start in ROTATE
     if (s.scratch.flyLastAxis === undefined) s.scratch.flyLastAxis = null;
   },
-  // A press that lasts longer than the tap threshold arrives as a hold; treat it the same,
-  // so a slow or firm press still cycles exactly once.
-  onHoldStart(s, ctx, button) { flyMode.onTap!(s, ctx, button); },
-  onTap(s, _ctx, button) {
+  // Act on the press edge so the response is instant and does not depend on how long the
+  // button is held. A short cooldown swallows contact bounce or a duplicated report.
+  onPress(s, _ctx, button) {
     if (button !== FLY.axisCycleButton) return;
+    const now = performance.now();
+    const last = (s.scratch.flyCycleAt as number | undefined) ?? -Infinity;
+    if (now - last < FLY.cycleCooldownMs) return;
+    s.scratch.flyCycleAt = now;
     const current = flyAxis(s);
     if (current) {
       // MOVE -> ROTATE, remembering where we were in the cycle.
