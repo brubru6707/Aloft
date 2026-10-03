@@ -148,7 +148,7 @@ export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
 export const ORBIT = {
   azimuthDegPerSec: 90,     // at full roll
   elevationDegPerSec: 60,   // at full pitch
-  invertAzimuth: false,     // default: roll right = view turns right around the target (same feel as FLY)
+  invertAzimuth: true,      // roll left = camera swings left around the target (the target slides right in view)
   invertElevation: true,    // default: pitch up = look up (camera moves DOWN around the target); set false for "pitch up = camera rises"
 };
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
