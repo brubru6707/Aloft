@@ -15,7 +15,7 @@ interface Ev { t: number; text: string }
 
 const PRESETS = ['still', 'turn left', 'turn right', 'roll left', 'roll right', 'pitch up', 'pitch down',
   'press B0', 'hold B0', 'press B1', 'hold B1', 'press B2', 'press B3'];
-const BUTTON_GPIO = [13, 14, 27, 26];
+const BUTTON_GPIO = [13, 25, 27, 26];
 
 const glove = new GloveInput(0);
 let source: GloveSource | null = null;

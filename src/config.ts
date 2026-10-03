@@ -90,7 +90,7 @@ export type FlyAxis = 'X' | 'Y' | 'Z';
 export type TiltInput = 'roll' | 'pitch';
 export type TiltAxis = TiltInput | 'yaw';
 export const FLY = {
-  axisCycleButton: 1,                       // B1 = pinky button (GPIO 14 on the glove). Acts on the press edge.
+  axisCycleButton: 1,                       // B1 = pinky button (GPIO 25 on the glove). Acts on the press edge.
   cycleCooldownMs: 200,                     // ignore a second press within this (contact bounce / double report)
   axisOrder: ['X', 'Y', 'Z'] as FlyAxis[],  // MOVE cycle order; ROTATE sits between each
   axisControl: { X: 'pitch', Y: 'roll', Z: 'roll' } as Record<FlyAxis, TiltInput>,

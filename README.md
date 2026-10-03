@@ -112,7 +112,7 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 [`firmware/glove/glove.ino`](firmware/glove/glove.ino) — ESP32 Arduino sketch.
 
 - MPU-6050 (GY-521) on I2C, SDA = GPIO 21, SCL = GPIO 22.
-- Buttons on GPIO 13 (B0 = mode), 14 (B1 = pinky / axis-cycle), 27 (B2), 26 (B3) to GND, `INPUT_PULLUP` (pressed = LOW). GPIO 12 is a boot strapping pin, so it is avoided; unwired buttons read as released.
+- Buttons on GPIO 13 (B0 = mode), 25 (B1 = pinky / axis-cycle), 27 (B2), 26 (B3) to GND, `INPUT_PULLUP` (pressed = LOW). GPIO 12 is a boot strapping pin, so it is avoided; unwired buttons read as released.
 - Library: **NimBLE-Arduino** (h2zero) from the Library Manager. No IMU library needed.
 - Keep the glove still for about a second at power-on while it calibrates the gyro.
   A pass is rejected and retried if the glove moved, and the bias keeps re-learning

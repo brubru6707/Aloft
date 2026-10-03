@@ -7,7 +7,7 @@
  *
  * Wiring
  *   GY-521  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22 (default ESP32 I2C pins)
- *   Buttons: GPIO 13 (B0 = mode), 14 (B1 = pinky / FLY axis-cycle), 27 (B2), 26 (B3) each to GND.
+ *   Buttons: GPIO 13 (B0 = mode), 25 (B1 = pinky / FLY axis-cycle), 27 (B2), 26 (B3) each to GND.
  *   INPUT_PULLUP, pressed = LOW.
  *   (Unwired buttons simply read "not pressed" thanks to the pull-ups. GPIO 12 is a boot strapping pin, so it is not used.)
  *
@@ -35,7 +35,7 @@ static const char*   DEVICE_NAME   = "Aloft-Glove";
 static const uint8_t MPU_ADDR      = 0x68;   // AD0 low. Use 0x69 if AD0 is tied high.
 static const int     PIN_SDA       = 21;
 static const int     PIN_SCL       = 22;
-static const int     BUTTON_PINS[4] = {13, 14, 27, 26};   // B0 mode, B1 pinky (axis cycle), B2, B3. GPIO 12 is a boot strapping pin, avoid it.
+static const int     BUTTON_PINS[4] = {13, 25, 27, 26};   // B0 mode, B1 pinky (axis cycle), B2, B3. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
 static const float   SIGN_ROLL     = 1.0f;
