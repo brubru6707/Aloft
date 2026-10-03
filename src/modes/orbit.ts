@@ -21,8 +21,11 @@ export const orbitMode: Mode = {
 
     offset.copy(rig.camera.position).sub(target);
     spherical.setFromVector3(offset);
-    spherical.theta -= roll * THREE.MathUtils.degToRad(ORBIT.azimuthDegPerSec) * dt;
-    spherical.phi -= pitch * THREE.MathUtils.degToRad(ORBIT.elevationDegPerSec) * dt;
+    // Camera yaw equals theta when looking at the target, so decreasing theta turns the view right.
+    const az = ORBIT.invertAzimuth ? -1 : 1;
+    const el = ORBIT.invertElevation ? -1 : 1;
+    spherical.theta -= az * roll * THREE.MathUtils.degToRad(ORBIT.azimuthDegPerSec) * dt;
+    spherical.phi -= el * pitch * THREE.MathUtils.degToRad(ORBIT.elevationDegPerSec) * dt;
     spherical.phi = THREE.MathUtils.clamp(spherical.phi, 0.1, Math.PI / 2 - 0.02);
     spherical.makeSafe();
     rig.camera.position.copy(target).add(offset.setFromSpherical(spherical));

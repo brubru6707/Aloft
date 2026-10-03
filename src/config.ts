@@ -127,7 +127,12 @@ export type RotateStyle = 'rate' | 'absolute';
  * ORBIT/GRAB/SCALE use tilt to orbit, move or scale, so they are left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
+export const ORBIT = {
+  azimuthDegPerSec: 90,     // at full roll
+  elevationDegPerSec: 60,   // at full pitch
+  invertAzimuth: false,     // default: roll right = view turns right around the target (same feel as FLY)
+  invertElevation: true,    // default: pitch up = look up (camera moves DOWN around the target); set false for "pitch up = camera rises"
+};
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
