@@ -57,16 +57,9 @@ export function SceneView({ gizmoTop }: { gizmoTop: number }) {
   };
   const onRelease = () => { engine.sim?.endDrag(); touch.current.multi = false; };
 
+  // The touch layer sits on top of the GL view (a sibling), so the Canvas's own responder cannot steal the drag.
   return (
-    <View
-      style={s.fill}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderGrant={onGrant}
-      onResponderMove={onMove}
-      onResponderRelease={onRelease}
-      onResponderTerminate={onRelease}
-    >
+    <View style={s.fill}>
       <Canvas
         style={s.fill}
         scene={engine.world.scene}
@@ -81,8 +74,17 @@ export function SceneView({ gizmoTop }: { gizmoTop: number }) {
       >
         <EngineDriver gizmoTop={gizmoTop} />
       </Canvas>
+      <View
+        style={s.touch}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={onGrant}
+        onResponderMove={onMove}
+        onResponderRelease={onRelease}
+        onResponderTerminate={onRelease}
+      />
     </View>
   );
 }
 
-const s = StyleSheet.create({ fill: { flex: 1 } });
+const s = StyleSheet.create({ fill: { flex: 1 }, touch: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } });

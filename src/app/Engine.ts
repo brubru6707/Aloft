@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FLY, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, UI, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle } from '../config';
+import { BLE, FLY, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, UI, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle } from '../config';
 import { BleSource } from '../input/BleSource';
 import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
@@ -191,7 +191,7 @@ export class Engine {
     const s = this.session;
     const g = this.glove;
     const mode = MODE_ORDER[s.modeIndex];
-    const stale = g.connected && g.sourceKind === 'ble' && performance.now() - g.lastSampleAt > 1500;
+    const stale = g.connected && g.sourceKind === 'ble' && performance.now() - g.lastSampleAt > BLE.staleMs;
     const statusLabel = g.status === 'connected'
       ? `${g.sourceKind === 'sim' ? 'simulator' : g.statusDetail || 'connected'}${stale ? ' · no data' : ''}`
       : g.statusDetail || g.status;

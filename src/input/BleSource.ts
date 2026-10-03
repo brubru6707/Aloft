@@ -156,10 +156,7 @@ export class BleSource implements GloveSource {
     await new Promise((r) => setTimeout(r, BLE.reconnectDelayMs));
     if (this.closed) return;
     try {
-      const attempts = this.reconnectAttempts;
-      await this.attach(dev);
-      this.reconnectAttempts = attempts; // attach() zeroes it; keep counting until data flows
-      this.reconnectAttempts = 0;
+      await this.attach(dev); // zeroes reconnectAttempts on success
       this.statusCb?.('connected', this.name);
     } catch {
       this.onDisconnected(null, dev);

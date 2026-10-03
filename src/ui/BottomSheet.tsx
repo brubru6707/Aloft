@@ -19,7 +19,7 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
   const activeFly = hud.flyLabel === '' ? -1 : hud.flyAxis ? ['X', 'Y', 'Z'].indexOf(hud.flyAxis) + 1 : 0;
 
   return (
-    <View style={[s.sheet, landscape && s.sheetLandscape, { paddingBottom: bottomInset + 8 }]}>
+    <View style={[s.sheet, landscape ? s.sheetLandscape : s.sheetPortrait, { paddingBottom: bottomInset + 8 }]}>
       <Pressable onPress={() => setOpen((o) => !o)} style={s.handleRow} hitSlop={6}>
         <View style={s.handle} />
         <View style={s.handleInfo}>
@@ -76,11 +76,12 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
 
 const s = StyleSheet.create({
   sheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
+    position: 'absolute', bottom: 0,
     backgroundColor: 'rgba(40,40,40,0.94)', borderTopWidth: 1, borderColor: T.line,
     borderTopLeftRadius: T.radius, borderTopRightRadius: T.radius,
   },
-  sheetLandscape: { left: undefined, width: 400, right: 0, borderLeftWidth: 1, borderTopRightRadius: 0 },
+  sheetPortrait: { left: 0, right: 0 },
+  sheetLandscape: { right: 0, width: 400, borderLeftWidth: 1, borderTopRightRadius: 0 },
   handleRow: { alignItems: 'center', paddingTop: 6, paddingBottom: 6, paddingHorizontal: 12 },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: T.lineSoft, marginBottom: 6 },
   handleInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' },
