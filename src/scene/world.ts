@@ -19,6 +19,9 @@ export interface World {
   buildArea: THREE.Object3D;
 }
 
+/** Buildings shorter than this are not placed; keeps the ground level open. */
+const MIN_BUILDING_HEIGHT = 10;
+
 export function createWorld(): World {
   const scene = new THREE.Scene();
   // Blender viewport look: flat grey background, grey fog, neutral studio-style lighting.
@@ -79,6 +82,7 @@ export function createWorld(): World {
         const w = 3 + rand() * 6, d = 3 + rand() * 6;
         const h = 3 + Math.pow(rand(), 1.8) * 34;
         const ox = (rand() - 0.5) * (blockSize - w), oz = (rand() - 0.5) * (blockSize - d);
+        if (h < MIN_BUILDING_HEIGHT) continue; // no stubby little boxes cluttering the streets
         const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(w, h, d),
           new THREE.MeshStandardMaterial({ color: palette[Math.floor(rand() * palette.length)], roughness: 0.7, metalness: 0.05 }),
