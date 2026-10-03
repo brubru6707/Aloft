@@ -17,7 +17,7 @@ export const GLOBAL_ACTIONS = {
   modeNext: { button: 0, gesture: 'press' } as ButtonAction,
   // Previous mode is not on the glove any more: click a mode chip in the panel, or Shift+Tab.
   modePrev: null as ButtonAction | null,
-  undo:     { button: 3, gesture: 'press' } as ButtonAction,
+  undo:     { button: 2, gesture: 'press' } as ButtonAction,   // B2 = GPIO 27
 };
 
 /** Per-mode button roles. "primary" is the main action button. */
@@ -27,11 +27,11 @@ export const MODE_BUTTONS = {
 
 /**
  * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
- * B2 (GPIO 27) cycles through the levels in every mode except BUILD, where B2 cycles the piece
+ * B3 (GPIO 26) cycles through the levels in every mode except BUILD, where B3 cycles the piece
  * size instead; the toolbar button always cycles sensitivity.
  */
 export const SENSITIVITY = {
-  button: 2,
+  button: 3,
   levels: [0.5, 1, 1.5, 2],
   startIndex: 1,
 };
@@ -51,11 +51,11 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity',
+  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B3 sensitivity',
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
+  BUILD: 'Turn hand to aim · press B1 to place · B3 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
 
@@ -154,7 +154,7 @@ export const BUILD = {
   distance: 6,            // float distance when the cursor is not pointing at nearby ground
   maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
-  // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
+  // Piece size. In BUILD, B3 cycles small -> medium -> large (elsewhere B3 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,
   sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
   defaultSize: 'medium' as 'small' | 'medium' | 'large',

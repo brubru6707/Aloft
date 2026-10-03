@@ -69,7 +69,7 @@ export const buildMode: Mode = {
   // Act on the press edge so it works no matter how long the button is held.
   onPress(s, ctx, button) {
     if (button === SENSITIVITY.button) {
-      // In BUILD, B2 is the size button: small -> medium -> large.
+      // In BUILD, the sensitivity button (B3) is the size button: small -> medium -> large.
       const i = BUILD.sizes.indexOf(s.size);
       const next = BUILD.sizes[(i + 1) % BUILD.sizes.length];
       setSize(s, ctx, next);

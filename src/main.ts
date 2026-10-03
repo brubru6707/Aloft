@@ -108,7 +108,7 @@ gloves.onAll('press', ({ gloveId, button }) => {
   if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);
   if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return setMode(s, s.modeIndex - 1);
   if (is(GLOBAL_ACTIONS.undo, button, 'press')) return doUndo();
-  if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return cycleSensitivity();   // BUILD uses B2 for size
+  if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return cycleSensitivity();   // BUILD uses this button for size
   MODES[s.modeIndex].onPress?.(s, ctx, button);
 });
 gloves.onAll('tap', ({ gloveId, button }) => {
