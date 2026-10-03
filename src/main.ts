@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, VOICE } from './config';
-import { geminiAvailable, planScene } from './ai/gemini';
+import { geminiAvailable, listGeminiModels, planScene } from './ai/gemini';
 import { describeBuilt, rebuildScene, sanitize } from './ai/scene';
 import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
@@ -257,4 +257,4 @@ frame();
 hud.toast('Click “Simulator” or “Connect Glove” to start');
 
 // Debug handle for the console / automated tests.
-(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, askAssistant, sceneSummary };
+(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, askAssistant, sceneSummary, listGeminiModels };

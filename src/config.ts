@@ -85,8 +85,9 @@ export const VOICE = {
 /** Gemini (Google AI Studio). Key lives in .env.local as VITE_GEMINI_API_KEY. */
 export const GEMINI = {
   model: 'gemini-3.8-flash',   // the API retired gemini-2.5-flash for new keys
+  fallbackModels: ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'],   // tried in order when the main model returns 503/404/429
   maxOutputTokens: 200,
-  retries: 2,              // extra attempts on 503 (overloaded) / 429 (rate limited), with backoff
+  retries: 1,              // extra attempt per model on 503 (overloaded) / 429 (rate limited), then the next model
   maxPlanTokens: 4000,     // a rebuild plan is JSON with up to ~40 pieces
   planPrompt: [
     'You receive the user\'s built pieces and a request, and you reply with JSON only.',
