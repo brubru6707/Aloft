@@ -11,11 +11,7 @@ const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
 type Tab = 'glove' | 'build' | 'tools';
 /** Height of the bottom row (NAV / TEST, dock, B0–B3) in App.tsx: the dock sits in it, centred. */
 const BOTTOM_ROW = 40;
-/** Space taken on each side of the bottom row (App.tsx: 26 px inset + NAV/TEST on the left, B0–B3 on the right). */
-const ROW_LEFT = 26 + 80;    // measured right edge of TEST
-const ROW_RIGHT = 26 + 140;  // measured left edge of B0, from the right
-const DOCK_W = 108;
-const DOCK_NUDGE = 3;        // a touch to the right of the exact middle
+const DOCK_W = 96;
 const TABS: { id: Tab; label: string }[] = [{ id: 'glove', label: 'Glove' }, { id: 'build', label: 'Build' }, { id: 'tools', label: 'Tools' }];
 const VOICE_ICON = { off: '🎙', listening: '🎙', connecting: '…', talking: '🔴', unsupported: '🎙' } as const;
 
@@ -43,8 +39,8 @@ export function TopModes({ hud, top, right }: { hud: HudState; top: number; righ
 export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: HudState; bottomInset: number; onExport: () => void; landscape: boolean }) {
   const [tab, setTab] = useState<Tab | null>(null);
   const { width: screenW } = useWindowDimensions();
-  // Centre the dock in the gap between NAV / TEST and the B0–B3 buttons.
-  const dockLeft = ROW_LEFT + Math.max(0, (screenW - ROW_LEFT - ROW_RIGHT - DOCK_W) / 2) + DOCK_NUDGE;
+  // Centred on the screen (NAV / TEST on the left and B0–B3 on the right leave room for it).
+  const dockLeft = (screenW - DOCK_W) / 2;
   const [question, setQuestion] = useState('');
   const ask = () => { const q = question.trim(); if (!q) return; setQuestion(''); void engine.askAssistant(q); };
   const statusOn = hud.connected && !hud.stale;

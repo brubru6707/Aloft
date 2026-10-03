@@ -68,7 +68,7 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   // Bottom row: NAV / TEST on the left, B0–B3 on the right.
-  bottomRow: { position: 'absolute', left: 26, right: 26, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  bottomRow: { position: 'absolute', left: 26, right: 14, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   switcher: { flexDirection: 'row', gap: 4 },
   tab: { width: 38, paddingVertical: 5, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)' },
   tabOn: { backgroundColor: T.accent, borderColor: T.accent },
