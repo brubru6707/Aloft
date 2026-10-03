@@ -36,13 +36,13 @@ export function Toast({ text, bottom }: { text: string; bottom: number }) {
 
 const s = StyleSheet.create({
   modes: { position: 'absolute', left: 14, top: 0, right: 150 },
-  modeName: { fontFamily: FONT.bold, fontSize: 44, letterSpacing: 1.5, lineHeight: 48, ...hardShadow(2, 0.55) },
-  hint: { fontFamily: FONT.regular, fontSize: 13, color: T.muted, marginTop: 2, ...hardShadow(1, 0.5) },
-  axisLabel: { fontFamily: FONT.bold, fontSize: 52, lineHeight: 56, marginTop: 8, letterSpacing: 2, color: T.accent, ...hardShadow(3, 0.6) },
+  modeName: { fontFamily: FONT.pixel, fontSize: 44, letterSpacing: 1.5, lineHeight: 48, ...hardShadow(2, 0.55) },
+  hint: { fontSize: 13, color: T.muted, marginTop: 2, ...hardShadow(1, 0.5) },
+  axisLabel: { fontFamily: FONT.pixel, fontSize: 52, lineHeight: 56, marginTop: 8, letterSpacing: 2, color: T.accent, ...hardShadow(3, 0.6) },
   crossWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   cross: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: T.accent, alignItems: 'center', justifyContent: 'center' },
   crossDot: { width: 4, height: 4, backgroundColor: T.accent },
   toastWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   toast: { backgroundColor: T.panel, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 7, paddingHorizontal: 14 },
-  toastText: { color: T.text, fontFamily: FONT.medium, fontSize: 13 },
+  toastText: { color: T.text, fontWeight: '500', fontSize: 13 },
 });

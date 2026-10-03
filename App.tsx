@@ -42,9 +42,7 @@ function Shell() {
 
 export default function App() {
   const [loaded] = useFonts({
-    [FONT.regular]: require('./assets/fonts/PixelifySans-Regular.ttf'),
-    [FONT.medium]: require('./assets/fonts/PixelifySans-Medium.ttf'),
-    [FONT.bold]: require('./assets/fonts/PixelifySans-Bold.ttf'),
+    [FONT.pixel]: require('./assets/fonts/PixelifySans-Bold.ttf'),
   });
   useEffect(() => { if (loaded) SplashScreen.hideAsync().catch(() => {}); }, [loaded]);
   if (!loaded) return <View style={s.root} />;
@@ -59,5 +57,5 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', backgroundColor: T.panel, borderTopWidth: 1, borderColor: T.line },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabText: { color: T.muted, fontFamily: FONT.bold, fontSize: 13, letterSpacing: 1.5 },
+  tabText: { color: T.muted, fontWeight: '700', fontSize: 13, letterSpacing: 1.5 },
 });

@@ -1,6 +1,6 @@
 # Aloft mobile
 
-Expo (React Native) companion app for [Aloft](../aloft): a hardware glove
+Expo (React Native) companion app for [Aloft](../aloft) (web app in the `aloft` folder): a hardware glove
 (ESP32 + MPU-6050 + four buttons) streams orientation over Bluetooth LE and the
 phone turns it into a drone-style camera, an object manipulator and a primitive
 builder. This is a port of the web app's logic and Blender-ish look to a phone.
@@ -42,14 +42,19 @@ provisioning profile can be created, and the phone unlocked and trusting the Mac
 
 ## Screens
 
-**NAV** — the 3D view fills the screen (flat grey background and fog, ground grid,
-red X and blue Z axis lines, orange build plaza ring, no buildings). Top-left: mode
+**NAV** — the 3D view fills the screen (flat grey background and fog, a CAD floor grid
+in centimetres with 1 cm minor and 10 cm major lines labelled every 10 cm along X (red)
+and Z (blue), red X and blue Z axis lines, orange build plaza ring, no buildings).
+The world is in **centimetres** (1 unit = 1 cm). Top-left: mode
 name in the mode colour, a one-line hint and the FLY state (`MOVE: X` / `ROTATE`).
 Top-right: a world-axes gizmo that follows the camera; in FLY the active axis is
 bright and thick and the end being moved toward grows. The collapsible bottom sheet
 has connection status, Connect / Simulator / Recenter / ✕, live ROLL / PITCH / YAW,
-B0–B3 lamps, mode chips, ROTATE / X / Y / Z chips, the signed move-amount bar,
-Rotate: rate / absolute, Undo and Export (binary STL via the share sheet).
+B0–B3 lamps, mode chips (tap to jump to any mode, including the previous one), in FLY the
+ROTATE / X / Y / Z chips and the signed move-amount bar, in BUILD the SHAPE
+(cube / sphere / cylinder) and SIZE (S / M / L) chips with a "<edge> cm @ x, y, z cm"
+readout for the ghost, Rotate: rate / absolute, ⚡ Sens (sensitivity 0.5× → 1× → 1.5× → 2×),
+Undo and Export STL (binary STL via the share sheet, scaled from cm to mm for slicers).
 
 **TEST** — mirrors the web `/test.html`: live raw and processed values, button chips
 with GPIO labels (13, 25, 27, 26), Start / Stop recording, preset markers, event log,
@@ -58,28 +63,33 @@ classification events, 0.5 s trace) with Copy and Share.
 
 ## Glove controls
 
-Tap **B0** = next mode, hold **B0** = previous mode, tap **B3** = undo. Mode order:
-FLY, ORBIT, GRAB, SCALE, BUILD, ERASE. Mode and axis names are spoken and the phone
-vibrates on mode / FLY-state changes.
+Press **B0** = next mode (previous mode: tap a mode chip), press **B3** = undo, press
+**B2** = cycle the sensitivity multiplier on every hand-driven rate (in BUILD, B2 cycles
+the piece size small / medium / large instead). All act on the press edge. Mode order:
+FLY, ORBIT, GRAB, SCALE, BUILD, ERASE. Mode, axis, size and sensitivity are spoken and
+the phone vibrates on mode / FLY-state changes.
 
 | Mode | Controls |
 | --- | --- |
-| FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE translates along one world axis (X from pitch, Y and Z from roll); ROTATE turns with yaw and looks up/down with roll, in `rate` or `absolute` style |
-| ORBIT | tilt orbits the selection (or the plaza); tap **B1** selects what is under the crosshair |
+| FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE translates along one world axis (X from pitch, Y and Z from roll); ROTATE turns with **roll** (roll right = turn right) and looks up/down with **pitch**, in `rate` or `absolute` style. Yaw is not used for control |
+| ORBIT | tilt orbits the selection (or the plaza): roll turns, pitch up = look up; tap **B1** selects what is under the crosshair. `ORBIT.invertAzimuth` / `invertElevation` flip either |
 | GRAB | tap **B1** selects; hold **B1** + tilt moves; tilt alone rotates |
 | SCALE | pitch scales the selection |
-| BUILD | hand aims the camera; tap **B1** places the ghost (drops onto the surface below); tap **B2** cycles cube → sphere → cylinder |
+| BUILD | hand aims the camera; press **B1** places the ghost (drops onto the surface below); **B2** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips |
 | ERASE | hand aims; tap **B1** deletes the object under the crosshair |
 
 ## Simulator (no glove)
 
 Tap **Simulator** in the bottom sheet. Drag one finger on the 3D view for roll / pitch
-(springs back when released), drag two fingers horizontally for yaw, and hold the
-on-screen **1–4** buttons for B0–B3.
+(springs back when released), drag two fingers horizontally for yaw (shown on the Test
+screen; not used for control), and hold the on-screen **1–4** buttons for B0–B3.
+
+The glove firmware flips roll at the source (`SIGN_ROLL = -1`), so `INPUT.invertRoll`
+and `invertPitch` stay `false` unless a direction is wrong on your glove.
 
 ## BLE protocol
 
-The glove advertises as `Aloft-Glove` with the Nordic UART Service. The app scans
+The glove still advertises as `Aloft-Glove` (firmware name) with the Nordic UART Service. The app scans
 for the name prefix `Aloft` or the service UUID, subscribes to TX, reconnects
 silently up to 3 times after an unexpected drop, and shows "no data" when samples
 stop for 1.5 s. The protocol is unchanged from the web app.
@@ -111,9 +121,10 @@ Everything tunable is in [`src/config.ts`](src/config.ts).
 src/config.ts            all tunables (input, BLE, FLY, modes, render, UI, test bench)
 src/input/               GloveInput (smoothing, recenter, deadzone, tap/hold), BleSource, TouchSimSource
 src/modes/               FLY, ORBIT, GRAB, SCALE, BUILD, ERASE
-src/scene/               world (grid, axes, plaza), camera rig, object registry
-src/app/Engine.ts        headless port of the web main.ts; one instance shared by both screens
+src/scene/               world (cm grid + stroke-text labels, axes, plaza), camera rig, object registry
+src/core/Engine.ts       headless port of the web main.ts; one instance shared by both screens
 src/ui/                  SceneView (r3f + expo-gl), AxisGizmo, HUD, BottomSheet, widgets, theme
+                         (Pixelify Sans only for the big labels and panel titles; system sans elsewhere)
 src/screens/             MainScreen (NAV), TestScreen (TEST)
 src/report.ts            test report builder; src/export.ts STL / text sharing
 ```

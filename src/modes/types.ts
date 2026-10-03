@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ModeName, PrimitiveName } from '../config';
+import type { ModeName, PrimitiveName, SizeName } from '../config';
 import type { GloveInput } from '../input/GloveInput';
 import type { CameraRig } from '../scene/cameraRig';
 import type { ObjectRegistry } from '../scene/objects';
@@ -27,6 +27,8 @@ export interface GloveSession {
   /** Ray through the cursor, updated every frame. */
   ray: THREE.Ray;
   primitive: PrimitiveName;
+  /** BUILD piece size (scale factor from BUILD.sizeScale). */
+  size: SizeName;
   ghost: THREE.Mesh | null;
   /** Scratch space for modes (transform sessions etc). Cleared on mode change. */
   scratch: Record<string, unknown>;

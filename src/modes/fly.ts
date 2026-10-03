@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FLY, type FlyAxis, type TiltAxis } from '../config';
+import { FLY, RUNTIME, type FlyAxis, type TiltAxis } from '../config';
 import { clamp, deadzone } from '../input/filter';
 import { hapticFlyState } from '../ui/haptics';
 import { speak } from '../ui/speak';
@@ -76,8 +76,9 @@ export function applyRotate(s: GloveSession, ctx: AppContext, dt: number): void 
   } else {
     // Absolute: camera = anchor + hand angle. The anchor is captured the first frame we
     // are in this state so the camera attaches to wherever the hand is, with no jump.
-    const turnRad = THREE.MathUtils.degToRad(handDeg(s, R.turnAxis, R.invertTurn) * turnSign * R.absoluteGain);
-    const lookRad = THREE.MathUtils.degToRad(handDeg(s, R.lookAxis, R.invertLook) * R.absoluteGain);
+    const gain = R.absoluteGain * RUNTIME.sensitivity;
+    const turnRad = THREE.MathUtils.degToRad(handDeg(s, R.turnAxis, R.invertTurn) * turnSign * gain);
+    const lookRad = THREE.MathUtils.degToRad(handDeg(s, R.lookAxis, R.invertLook) * gain);
     let anchor = s.scratch.rotAnchor as { yaw: number; pitch: number } | undefined;
     if (!anchor) {
       anchor = { yaw: rig.yaw - turnRad, pitch: rig.pitch - lookRad };

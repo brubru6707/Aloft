@@ -22,10 +22,12 @@ export const T = {
 
 export const AXIS_COLORS = { X: '#ff3352', Y: '#8bdc00', Z: '#2890ff' } as const;
 
+/**
+ * Fonts. The pixel font (Pixelify Sans) is used only for the big mode name, the MOVE/ROTATE
+ * label and panel titles; everything else is the clean system sans (no fontFamily set).
+ */
 export const FONT = {
-  regular: 'PixelifySans-Regular',
-  medium: 'PixelifySans-Medium',
-  bold: 'PixelifySans-Bold',
+  pixel: 'PixelifySans-Bold',
 } as const;
 
 /** Hard 2 px drop shadow for big labels (web: text-shadow 2px 2px 0). */

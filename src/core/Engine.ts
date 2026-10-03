@@ -1,15 +1,16 @@
 import * as THREE from 'three';
-import { BLE, FLY, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, UI, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle } from '../config';
+import { BLE, BUILD, FLY, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
 import { BleSource } from '../input/BleSource';
 import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
 import type { SourceKind, SourceStatus } from '../input/types';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from '../modes';
+import { setPrimitive, setSize } from '../modes/build';
 import { applyRotate, flyAxis, flyDeflection, flyLabel, resetRotateAnchor, setFlyAxis } from '../modes/fly';
 import { CameraRig } from '../scene/cameraRig';
 import { ObjectRegistry } from '../scene/objects';
 import { createWorld, type World } from '../scene/world';
-import { hapticConnected, hapticError, hapticModeChange } from '../ui/haptics';
+import { hapticConnected, hapticError, hapticFlyState, hapticModeChange } from '../ui/haptics';
 import { speak } from '../ui/speak';
 import { UndoStack } from '../undo';
 
@@ -29,12 +30,18 @@ export interface HudState {
   stale: boolean;
   sourceKind: SourceKind | null;
   rotateStyle: RotateStyle;
+  sensitivity: number;
   undoSize: number;
   primitive: PrimitiveName;
+  size: SizeName;
+  /** BUILD readout: "<edge> cm @ x, y, z cm" for the ghost, '' otherwise. */
+  ghostInfo: string;
   toast: string;
 }
 
 type Listener = () => void;
+type Action = { button: number; gesture: string } | null;
+const is = (a: Action, button: number, gesture: string) => !!a && a.button === button && a.gesture === gesture;
 
 /**
  * Headless port of the web app's main.ts: owns the world, camera rig, glove, modes and undo.
@@ -65,22 +72,33 @@ export class Engine {
       hit: null,
       ray: new THREE.Ray(),
       primitive: 'cube',
+      size: BUILD.defaultSize,
       ghost: null,
       scratch: {},
     };
     this.ctx = { rig: this.rig, objects: this.objects, undo: this.undo, world: this.world, toast: (m) => this.toast(m) };
 
-    this.glove.on('press', ({ button }) => MODES[this.session.modeIndex].onPress?.(this.session, this.ctx, button));
+    // Button routing, same as the web main.ts: global actions first, then the mode.
+    this.glove.on('press', ({ button }) => {
+      const s = this.session;
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setMode(s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setMode(s.modeIndex - 1);
+      if (is(GLOBAL_ACTIONS.undo, button, 'press')) return this.doUndo();
+      if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return this.cycleSensitivity();   // BUILD uses B2 for size
+      MODES[s.modeIndex].onPress?.(s, this.ctx, button);
+    });
     this.glove.on('tap', ({ button }) => {
       const s = this.session;
-      if (button === GLOBAL_ACTIONS.modeNext.button && GLOBAL_ACTIONS.modeNext.gesture === 'tap') return this.setMode(s.modeIndex + 1);
-      if (button === GLOBAL_ACTIONS.undo.button && GLOBAL_ACTIONS.undo.gesture === 'tap') return this.doUndo();
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'tap')) return this.setMode(s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'tap')) return this.setMode(s.modeIndex - 1);
+      if (is(GLOBAL_ACTIONS.undo, button, 'tap')) return this.doUndo();
       MODES[s.modeIndex].onTap?.(s, this.ctx, button);
     });
     this.glove.on('holdstart', ({ button }) => {
       const s = this.session;
-      if (button === GLOBAL_ACTIONS.modePrev.button && GLOBAL_ACTIONS.modePrev.gesture === 'hold') return this.setMode(s.modeIndex - 1);
-      if (button === GLOBAL_ACTIONS.undo.button && GLOBAL_ACTIONS.undo.gesture === 'hold') return this.doUndo();
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'hold')) return this.setMode(s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'hold')) return this.setMode(s.modeIndex - 1);
+      if (is(GLOBAL_ACTIONS.undo, button, 'hold')) return this.doUndo();
       MODES[s.modeIndex].onHoldStart?.(s, this.ctx, button);
     });
     this.glove.on('holdend', ({ button }) => MODES[this.session.modeIndex].onHoldEnd?.(this.session, this.ctx, button));
@@ -103,8 +121,6 @@ export class Engine {
       if (n++ % 250 === 0) console.log(`[raw] #${n - 1} roll ${r.roll.toFixed(1)} pitch ${r.pitch.toFixed(1)} yaw ${r.yaw.toFixed(1)} buttons ${r.buttons.map(Number).join('')}`);
     });
     this.glove.on('press', ({ button }) => console.log(`[btn] press B${button}`));
-    this.glove.on('tap', ({ button }) => console.log(`[btn] tap B${button}`));
-    this.glove.on('holdstart', ({ button }) => console.log(`[btn] hold B${button}`));
 
     // Enter the initial mode so its label/hint are right from the start.
     MODES[this.session.modeIndex].enter?.(this.session, this.ctx);
@@ -151,6 +167,18 @@ export class Engine {
     this.notify();
   }
 
+  /** Step the global sensitivity multiplier (same as pressing B2 outside BUILD). */
+  cycleSensitivity(): void {
+    const i = SENSITIVITY.levels.indexOf(RUNTIME.sensitivity);
+    RUNTIME.sensitivity = SENSITIVITY.levels[(i + 1) % SENSITIVITY.levels.length];
+    this.toast(`Sensitivity ${RUNTIME.sensitivity}×`);
+    speak(`sensitivity ${RUNTIME.sensitivity}`);
+    hapticFlyState();
+  }
+
+  setPrimitive(p: PrimitiveName): void { setPrimitive(this.session, this.ctx, p); this.toast(`Shape: ${p}`); }
+  setSize(size: SizeName): void { setSize(this.session, this.ctx, size); this.toast(`Size: ${size}`); }
+
   toggleRotateStyle(): void {
     FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
     resetRotateAnchor(this.session);
@@ -184,11 +212,15 @@ export class Engine {
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, RENDER.maxFrameDt);
     this.updateCursor();
+    // Floor labels face the camera (the web uses sprites; native draws stroke text).
+    for (const l of this.world.labels) l.quaternion.copy(this.rig.camera.quaternion);
     const s = this.session;
     if (!s.glove.connected) return;
-    MODES[s.modeIndex].update(s, this.ctx, dt);
+    // Sensitivity scales every hand-driven rate by scaling the time step the modes integrate over.
+    const sdt = dt * RUNTIME.sensitivity;
+    MODES[s.modeIndex].update(s, this.ctx, sdt);
     // In modes that leave tilt free (BUILD, ERASE), the hand keeps aiming the camera.
-    if (ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, this.ctx, dt);
+    if (ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, this.ctx, sdt);
   }
 
   /** Active FLY axis / deflection for the gizmo (null / 0 outside FLY). */
@@ -205,6 +237,12 @@ export class Engine {
     const statusLabel = g.status === 'connected'
       ? `${g.sourceKind === 'sim' ? 'simulator' : g.statusDetail || 'connected'}${stale ? ' · no data' : ''}`
       : g.statusDetail || g.status;
+    let ghostInfo = '';
+    if (mode === 'BUILD' && s.ghost) {
+      const q = s.ghost.position;
+      const edge = (2 * BUILD.sizeScale[s.size]).toFixed(0);
+      ghostInfo = `${edge} ${UNITS.name} @ ${q.x.toFixed(0)}, ${q.y.toFixed(0)}, ${(-q.z).toFixed(0)} ${UNITS.name}`;
+    }
     return {
       mode,
       modeColor: MODE_COLORS[mode],
@@ -220,8 +258,11 @@ export class Engine {
       stale,
       sourceKind: g.sourceKind,
       rotateStyle: FLY.rotate.style,
+      sensitivity: RUNTIME.sensitivity,
       undoSize: this.undo.size,
       primitive: s.primitive,
+      size: s.size,
+      ghostInfo,
       toast: this.toastText,
     };
   }

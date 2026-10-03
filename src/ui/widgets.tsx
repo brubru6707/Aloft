@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { FONT, T } from './theme';
+import { T } from './theme';
 
 /** Flat Blender-style button. `active` = selection blue, `accent` = orange primary, `danger` = red. */
 export function Btn({ label, onPress, active, accent, danger, disabled, style, small }: {
@@ -96,18 +96,18 @@ const s = StyleSheet.create({
   btnActive: { backgroundColor: T.select, borderColor: T.selectBorder },
   btnAccent: { backgroundColor: T.accent, borderColor: T.accent },
   btnDanger: { backgroundColor: T.bad, borderColor: T.bad },
-  btnText: { color: T.text, fontFamily: FONT.medium, fontSize: 13 },
+  btnText: { color: T.text, fontWeight: '500', fontSize: 13 },
   btnTextSmall: { fontSize: 12 },
-  btnTextOn: { color: T.darkText, fontFamily: FONT.bold },
+  btnTextOn: { color: T.darkText, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   chip: {
     backgroundColor: T.btn, borderWidth: 1, borderColor: T.line, borderRadius: T.radius,
     paddingVertical: 5, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center',
   },
-  chipText: { color: T.text, fontFamily: FONT.medium, fontSize: 11, letterSpacing: 0.2 },
+  chipText: { color: T.text, fontWeight: '500', fontSize: 11, letterSpacing: 0.2 },
   readout: { flex: 1, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 5, paddingHorizontal: 8 },
-  readoutLabel: { color: T.muted, fontFamily: FONT.regular, fontSize: 10, letterSpacing: 1 },
-  readoutValue: { color: T.text, fontFamily: FONT.medium, fontSize: 16, fontVariant: ['tabular-nums'] },
+  readoutLabel: { color: T.muted, fontSize: 10, letterSpacing: 1 },
+  readoutValue: { color: T.text, fontWeight: '500', fontSize: 16, fontVariant: ['tabular-nums'] },
   bar: { position: 'relative', flex: 1, minWidth: 40, borderRadius: 2, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line, overflow: 'hidden' },
   barMid: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: T.lineSoft },
   barFill: { position: 'absolute', top: 0, bottom: 0 },
@@ -115,8 +115,8 @@ const s = StyleSheet.create({
     flex: 1, minHeight: 24, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: T.panel2,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 3,
   },
-  lampText: { color: T.muted, fontFamily: FONT.medium, fontSize: 11 },
-  lampSub: { color: T.muted, fontFamily: FONT.regular, fontSize: 9 },
+  lampText: { color: T.muted, fontWeight: '500', fontSize: 11 },
+  lampSub: { color: T.muted, fontSize: 9 },
   panel: { backgroundColor: T.panel, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 12, paddingHorizontal: 14, marginTop: 12 },
-  h2: { color: T.muted, fontFamily: FONT.medium, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 },
+  h2: { color: T.muted, fontWeight: '500', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 },
 });

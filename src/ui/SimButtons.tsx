@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { engine } from '../core/Engine';
-import { FONT, T } from './theme';
+import { T } from './theme';
 
 /** On-screen glove buttons 1–4 (B0–B3) for the touch simulator. Hold = hold. */
 export function SimButtons({ down }: { down: boolean[] }) {
@@ -29,6 +29,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   btnDown: { backgroundColor: T.select, borderColor: T.selectBorder },
-  num: { color: T.text, fontFamily: FONT.bold, fontSize: 18, lineHeight: 20 },
-  lbl: { color: T.muted, fontFamily: FONT.regular, fontSize: 10 },
+  num: { color: T.text, fontWeight: '700', fontSize: 18, lineHeight: 20 },
+  lbl: { color: T.muted, fontSize: 10 },
 });

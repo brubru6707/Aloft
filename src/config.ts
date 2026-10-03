@@ -4,7 +4,7 @@
  * Button indices are 0..3 and match the firmware bitmask (bit n = button n).
  */
 
-export type Gesture = 'tap' | 'hold';
+export type Gesture = 'tap' | 'hold' | 'press';   // press = act the instant the button goes down
 
 export interface ButtonAction {
   button: number;
@@ -13,16 +13,31 @@ export interface ButtonAction {
 
 /** Global actions that work in every mode. */
 export const GLOBAL_ACTIONS = {
-  modeNext: { button: 0, gesture: 'tap' } as ButtonAction,   // tap B0 = next mode
-  modePrev: { button: 0, gesture: 'hold' } as ButtonAction,  // hold B0 = previous mode
-  undo:     { button: 3, gesture: 'tap' } as ButtonAction,   // tap B3 = undo
+  // B0 advances the mode the instant it is pressed. Measured presses on this glove last ~1 s,
+  // so a tap/hold split on the same button made every long press go backwards instead.
+  modeNext: { button: 0, gesture: 'press' } as ButtonAction,
+  // Previous mode is not on the glove any more: tap a mode chip in the bottom sheet.
+  modePrev: null as ButtonAction | null,
+  undo:     { button: 3, gesture: 'press' } as ButtonAction,
 };
 
-/** Per-mode button roles. "primary" is the main action button, "secondary" the modifier. */
+/** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // GRAB: hold = move.  BUILD/ERASE: tap = place/delete.  ORBIT/GRAB/SCALE: tap = select
-  secondary: 2, // BUILD: tap = cycle primitive
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  ORBIT/GRAB/SCALE: select
 };
+
+/**
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
+ * B2 (GPIO 27) cycles through the levels in every mode except BUILD, where B2 cycles the piece
+ * size instead; the "⚡ Sens" button always cycles sensitivity.
+ */
+export const SENSITIVITY = {
+  button: 2,
+  levels: [0.5, 1, 1.5, 2],
+  startIndex: 1,
+};
+/** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
+export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
 export const MODE_ORDER = ['FLY', 'ORBIT', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
@@ -37,13 +52,16 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'Tap B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · tilt to move or look',
+  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity',
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · tap B1 to place · tap B2 to cycle shape',
+  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
+
+/** World units: 1 three.js unit = 1 cm. The floor grid, readouts and STL export use this. */
+export const UNITS = { name: 'cm', gridMinorCm: 1, gridMajorCm: 10, gridExtentCm: 600, labelEveryCm: 10, labelRangeCm: 100, stlScale: 10 /* cm -> mm for slicers */ };
 
 /** Glove identity. The phone drives one glove. */
 export const GLOVE_COLOR = '#e87d0d'; // Blender orange
@@ -59,7 +77,7 @@ export const INPUT = {
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
   invertPitch: false,     // flip if "hand up" moves the camera down on your glove
-  invertRoll: true,       // glove roll reads backwards for this mounting
+  invertRoll: false,      // the firmware already flips roll (SIGN_ROLL = -1); flip here only if rolling right reads negative
 };
 
 /** Bluetooth LE (Nordic UART Service). */
@@ -114,8 +132,10 @@ export const FLY = {
     // 'absolute': the camera angle follows the hand angle 1:1 (times gain); turn 180°, it stays there.
     // Toggled live by the "Rotate" button; this is just the start-up default.
     style: 'rate' as RotateStyle,
-    turnAxis: 'yaw' as TiltAxis,   // hand axis that turns the camera left/right
-    lookAxis: 'roll' as TiltAxis,  // hand axis that looks up/down
+    // With the board mounted on the back of the hand, turning the hand left/right shows up as
+    // ROLL (accelerometer-stabilised, no drift), so that is the turn axis. Roll right = turn right.
+    turnAxis: 'roll' as TiltAxis,  // hand axis that turns the camera left/right
+    lookAxis: 'pitch' as TiltAxis, // hand axis that looks up/down (hand up = look up)
     invertTurn: false,
     invertLook: false,
     yawRateDegPerSec: 90,          // rate style: at full turn-axis deflection
@@ -130,15 +150,25 @@ export const FLY = {
  * ORBIT/GRAB/SCALE use tilt to orbit, move or scale, so they are left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
+export const ORBIT = {
+  azimuthDegPerSec: 90,     // at full roll
+  elevationDegPerSec: 60,   // at full pitch
+  invertAzimuth: false,     // default: roll right = view turns right around the target (same feel as FLY)
+  invertElevation: true,    // default: pitch up = look up (camera moves DOWN around the target); set false for "pitch up = camera rises"
+};
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
   distance: 6,            // float distance when the cursor is not pointing at nearby ground
   maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
+  // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
+  sizes: ['small', 'medium', 'large'] as const,
+  sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
+  defaultSize: 'medium' as 'small' | 'medium' | 'large',
 };
 export type PrimitiveName = (typeof BUILD.primitives)[number];
+export type SizeName = (typeof BUILD.sizes)[number];
 
 /** Build plaza: a ring on the ground in front of the start position. */
 export const BUILD_AREA = { center: { x: 0, y: 0, z: -28 }, radius: 12 };
