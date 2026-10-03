@@ -31,7 +31,7 @@ No glove? Click **Simulator** on a glove panel and drive it from the keyboard:
 
 ## Modes
 
-Tap **B0** for the next mode, hold **B0** for the previous one. The mode name is
+Press **B0** for the next mode (previous mode: click a mode chip in the glove panel, or Shift+Tab). The mode name is
 spoken aloud and shown large in the top-left, color-coded.
 
 | Mode | Color | Controls |

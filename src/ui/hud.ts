@@ -57,7 +57,7 @@ export class Hud {
       </div>
       <div id="gloves"></div>
       <div id="help">
-        <b>Glove:</b> tap B0 next mode · hold B0 previous · B3 undo<br/>
+        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B3 undo<br/>
         <b>FLY:</b> tap B1 (pinky) alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · tilt to move or look<br/>
         <b>Simulator:</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag mouse to tilt<br/>
         <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> = buttons B0–B3 (hold = hold)

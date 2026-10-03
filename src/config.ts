@@ -3,7 +3,7 @@
  * Button indices are 0..3 and match the firmware bitmask (bit n = button n).
  */
 
-export type Gesture = 'tap' | 'hold';
+export type Gesture = 'tap' | 'hold' | 'press';   // press = act the instant the button goes down
 
 export interface ButtonAction {
   button: number;
@@ -12,9 +12,12 @@ export interface ButtonAction {
 
 /** Global actions that work in every mode. */
 export const GLOBAL_ACTIONS = {
-  modeNext: { button: 0, gesture: 'tap' } as ButtonAction,
-  modePrev: { button: 0, gesture: 'hold' } as ButtonAction,
-  undo:     { button: 3, gesture: 'tap' } as ButtonAction,
+  // B0 advances the mode the instant it is pressed. Measured presses on this glove last ~1 s,
+  // so a tap/hold split on the same button made every long press go backwards instead.
+  modeNext: { button: 0, gesture: 'press' } as ButtonAction,
+  // Previous mode is not on the glove any more: click a mode chip in the panel, or Shift+Tab.
+  modePrev: null as ButtonAction | null,
+  undo:     { button: 3, gesture: 'press' } as ButtonAction,
 };
 
 /** Per-mode button roles. "primary" is the main action button, "secondary" the modifier. */
@@ -56,7 +59,7 @@ export const INPUT = {
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
   invertPitch: false,     // flip if "hand up" moves the camera down on your glove
-  invertRoll: true,       // glove roll reads backwards for this mounting
+  invertRoll: false,      // flip if rolling right reads negative on the panel
 };
 
 /** Web Bluetooth (Nordic UART Service). */

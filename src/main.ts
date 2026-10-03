@@ -89,20 +89,26 @@ function setMode(s: GloveSession, index: number): void {
   speak(MODE_ORDER[next].toLowerCase());
 }
 
+const is = (a: { button: number; gesture: string } | null, button: number, gesture: string) => !!a && a.button === button && a.gesture === gesture;
 gloves.onAll('press', ({ gloveId, button }) => {
   const s = sessions[gloveId];
+  if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);
+  if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return setMode(s, s.modeIndex - 1);
+  if (is(GLOBAL_ACTIONS.undo, button, 'press')) return doUndo();
   MODES[s.modeIndex].onPress?.(s, ctx, button);
 });
 gloves.onAll('tap', ({ gloveId, button }) => {
   const s = sessions[gloveId];
-  if (button === GLOBAL_ACTIONS.modeNext.button && GLOBAL_ACTIONS.modeNext.gesture === 'tap') return setMode(s, s.modeIndex + 1);
-  if (button === GLOBAL_ACTIONS.undo.button && GLOBAL_ACTIONS.undo.gesture === 'tap') return doUndo();
+  if (is(GLOBAL_ACTIONS.modeNext, button, 'tap')) return setMode(s, s.modeIndex + 1);
+  if (is(GLOBAL_ACTIONS.modePrev, button, 'tap')) return setMode(s, s.modeIndex - 1);
+  if (is(GLOBAL_ACTIONS.undo, button, 'tap')) return doUndo();
   MODES[s.modeIndex].onTap?.(s, ctx, button);
 });
 gloves.onAll('holdstart', ({ gloveId, button }) => {
   const s = sessions[gloveId];
-  if (button === GLOBAL_ACTIONS.modePrev.button && GLOBAL_ACTIONS.modePrev.gesture === 'hold') return setMode(s, s.modeIndex - 1);
-  if (button === GLOBAL_ACTIONS.undo.button && GLOBAL_ACTIONS.undo.gesture === 'hold') return doUndo();
+  if (is(GLOBAL_ACTIONS.modeNext, button, 'hold')) return setMode(s, s.modeIndex + 1);
+  if (is(GLOBAL_ACTIONS.modePrev, button, 'hold')) return setMode(s, s.modeIndex - 1);
+  if (is(GLOBAL_ACTIONS.undo, button, 'hold')) return doUndo();
   MODES[s.modeIndex].onHoldStart?.(s, ctx, button);
 });
 gloves.onAll('holdend', ({ gloveId, button }) => {
