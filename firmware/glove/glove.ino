@@ -43,6 +43,15 @@ static const float   SIGN_PITCH    = 1.0f;
 static const float   SIGN_YAW      = 1.0f;
 static const uint8_t DEBOUNCE_MS   = 15;
 
+// Gyro bias handling. Yaw is pure gyro integration, so any bias error becomes a steady drift.
+static const int   CALIB_SAMPLES        = 400;    // ~1.2 s at 3 ms/sample
+static const float CALIB_MAX_SPREAD_LSB = 200.0f; // reject a calibration pass if any axis moved more than this (~3 °/s)
+static const int   CALIB_MAX_TRIES      = 8;
+static const float STILL_GYRO_DPS       = 2.5f;   // |gyro - bias| below this on every axis ...
+static const float STILL_ACCEL_G_TOL    = 0.08f;  // ... and |accel| within this of 1 g ...
+static const uint32_t STILL_HOLD_MS     = 400;    // ... for this long = "at rest": re-learn the bias slowly
+static const float BIAS_ADAPT_RATE      = 0.02f;  // per-sample blend toward the resting gyro reading (~0.5 s time constant at 200 Hz)
+
 // Nordic UART Service UUIDs
 #define NUS_SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define NUS_RX_UUID      "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"  // write  (app -> glove), unused
@@ -118,23 +127,62 @@ void mpuInit() {
   mpuWrite(0x19, 0x04);   // SMPLRT_DIV: 1 kHz / (1+4) = 200 Hz internal rate
 }
 
-// Average a few hundred gyro samples at rest to remove bias. Keep the glove still at boot.
-void calibrateGyro() {
-  const int N = 300;
-  long sx = 0, sy = 0, sz = 0;
+// Average gyro samples at rest to remove bias. A pass is accepted only if the glove held
+// still for the whole window (small min/max spread on every axis); otherwise it retries.
+bool calibratePass() {
+  long sx = 0, sy = 0, sz = 0; int n = 0;
+  int16_t mn[3] = {32767, 32767, 32767}, mx[3] = {-32768, -32768, -32768};
   int16_t ax, ay, az, gx, gy, gz;
-  for (int i = 0; i < N; i++) {
-    if (mpuRead(&ax, &ay, &az, &gx, &gy, &gz)) { sx += gx; sy += gy; sz += gz; }
+  for (int i = 0; i < CALIB_SAMPLES; i++) {
+    if (mpuRead(&ax, &ay, &az, &gx, &gy, &gz)) {
+      sx += gx; sy += gy; sz += gz; n++;
+      const int16_t g[3] = {gx, gy, gz};
+      for (int k = 0; k < 3; k++) { if (g[k] < mn[k]) mn[k] = g[k]; if (g[k] > mx[k]) mx[k] = g[k]; }
+    }
     delay(3);
   }
-  gyroBiasX = (float)sx / N;
-  gyroBiasY = (float)sy / N;
-  gyroBiasZ = (float)sz / N;
+  if (n < CALIB_SAMPLES / 2) return false;
+  for (int k = 0; k < 3; k++) if (mx[k] - mn[k] > CALIB_MAX_SPREAD_LSB) return false;
+  gyroBiasX = (float)sx / n;
+  gyroBiasY = (float)sy / n;
+  gyroBiasZ = (float)sz / n;
+  return true;
+}
+
+void calibrateGyro() {
+  for (int t = 1; t <= CALIB_MAX_TRIES; t++) {
+    if (calibratePass()) {
+      Serial.printf("Gyro bias: %.1f %.1f %.1f (pass %d)\n", gyroBiasX, gyroBiasY, gyroBiasZ, t);
+      return;
+    }
+    Serial.println("Glove moved during calibration, retrying... hold still");
+  }
+  Serial.println("Calibration never settled; using last pass. Bias will self-correct once the glove rests.");
+}
+
+// While the glove is at rest, slowly pull the bias toward the current gyro reading so
+// temperature drift (and an imperfect boot calibration) stop showing up as yaw drift.
+uint32_t stillSince = 0;
+void adaptBiasIfStill(int16_t ax, int16_t ay, int16_t az, int16_t gx, int16_t gy, int16_t gz) {
+  const float gxd = fabsf((gx - gyroBiasX) / 65.5f);
+  const float gyd = fabsf((gy - gyroBiasY) / 65.5f);
+  const float gzd = fabsf((gz - gyroBiasZ) / 65.5f);
+  const float accG = sqrtf((float)ax * ax + (float)ay * ay + (float)az * az) / 16384.0f;
+  const bool still = gxd < STILL_GYRO_DPS && gyd < STILL_GYRO_DPS && gzd < STILL_GYRO_DPS &&
+                     fabsf(accG - 1.0f) < STILL_ACCEL_G_TOL;
+  const uint32_t now = millis();
+  if (!still) { stillSince = 0; return; }
+  if (stillSince == 0) { stillSince = now; return; }
+  if (now - stillSince < STILL_HOLD_MS) return;
+  gyroBiasX += (gx - gyroBiasX) * BIAS_ADAPT_RATE;
+  gyroBiasY += (gy - gyroBiasY) * BIAS_ADAPT_RATE;
+  gyroBiasZ += (gz - gyroBiasZ) * BIAS_ADAPT_RATE;
 }
 
 void updateOrientation(float dt) {
   int16_t ax, ay, az, gx, gy, gz;
   if (!mpuRead(&ax, &ay, &az, &gx, &gy, &gz)) return;
+  adaptBiasIfStill(ax, ay, az, gx, gy, gz);
 
   const float gxd = (gx - gyroBiasX) / 65.5f;   // °/s
   const float gyd = (gy - gyroBiasY) / 65.5f;
@@ -149,7 +197,8 @@ void updateOrientation(float dt) {
   pitch = ALPHA * (pitch + gyd * dt) + (1.0f - ALPHA) * accPitch;
 
   // Yaw: gravity gives no heading reference, so integrate the gyro and wrap to ±180.
-  yaw += gzd * dt;
+  // Ignore sub-threshold rates so residual noise/bias cannot creep in while resting.
+  if (fabsf(gzd) > 0.3f) yaw += gzd * dt;
   if (yaw > 180.0f) yaw -= 360.0f;
   if (yaw < -180.0f) yaw += 360.0f;
 }

@@ -1,4 +1,4 @@
-import { GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER } from '../config';
+import { FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER } from '../config';
 import { flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -11,6 +11,8 @@ export interface HudActions {
   disconnect(gloveId: number): void;
   exportSTL(): void;
   undo(): void;
+  /** Flip FLY rotation between rate (keeps turning) and absolute (follows the hand angle). */
+  toggleRotateStyle(): void;
 }
 
 interface GlovePanel {
@@ -35,6 +37,7 @@ export class Hud {
   private panels: GlovePanel[] = [];
   private toastEl: HTMLElement;
   private toastTimer: number | null = null;
+  private rotateBtn: HTMLButtonElement;
 
   constructor(root: HTMLElement, gloves: GloveManager, actions: HudActions) {
     root.innerHTML = `
@@ -42,6 +45,7 @@ export class Hud {
       <div id="toolbar" class="panel">
         <button id="undo" title="Undo (B${GLOBAL_ACTIONS.undo.button})">↶ Undo</button>
         <button id="recenter-all" title="Zero every glove's orientation">⌖ Recenter</button>
+        <button id="rotate-style" title="FLY rotation: rate = tilt sets turn speed and keeps turning; absolute = camera follows the hand angle and stays there"></button>
         <button id="export">⬇ Export STL</button>
       </div>
       <div id="gloves"></div>
@@ -57,6 +61,9 @@ export class Hud {
     root.querySelector<HTMLButtonElement>('#undo')!.onclick = () => actions.undo();
     root.querySelector<HTMLButtonElement>('#recenter-all')!.onclick = () => gloves.gloves.forEach((g) => actions.recenter(g.gloveId));
     root.querySelector<HTMLButtonElement>('#export')!.onclick = () => actions.exportSTL();
+    this.rotateBtn = root.querySelector<HTMLButtonElement>('#rotate-style')!;
+    this.rotateBtn.onclick = () => actions.toggleRotateStyle();
+    this.syncRotateButton();
 
     const modes = root.querySelector('#modes')!;
     const glovesEl = root.querySelector('#gloves')!;
@@ -126,6 +133,13 @@ export class Hud {
       if (!BleSource.supported) { p.connect.disabled = true; p.connect.title = 'Web Bluetooth needs Chrome on https:// or localhost'; }
       this.panels.push(p);
     });
+  }
+
+  /** Reflect the current FLY rotation style on the toolbar button. */
+  syncRotateButton(): void {
+    const abs = FLY.rotate.style === 'absolute';
+    this.rotateBtn.textContent = abs ? '⟳ Rotate: absolute' : '⟳ Rotate: rate';
+    this.rotateBtn.classList.toggle('active', abs);
   }
 
   toast(msg: string): void {

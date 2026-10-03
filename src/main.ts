@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER } from './config';
+import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER } from './config';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
+import { resetRotateAnchor } from './modes/fly';
 import { CameraRig } from './scene/cameraRig';
 import { ObjectRegistry } from './scene/objects';
 import { createWorld } from './scene/world';
@@ -45,13 +46,20 @@ const sessions: GloveSession[] = gloves.gloves.map((glove) => ({
 const hud = new Hud(document.getElementById('hud')!, gloves, {
   connectBle: (id) => gloves.connectBle(id),
   toggleSim: (id) => gloves.toggleSimulator(id),
-  recenter: (id) => { gloves.recenter(id); hud.toast(`Glove ${id + 1} recentered`); },
+  recenter: (id) => { gloves.recenter(id); resetRotateAnchor(sessions[id]); hud.toast(`Glove ${id + 1} recentered`); },
   disconnect: (id) => gloves.disconnect(id),
   exportSTL: () => {
     const n = exportSTL(objects.builtGroup);
     hud.toast(n ? `Exported ${n} object${n === 1 ? '' : 's'} to STL` : 'Nothing built yet — place something in BUILD mode');
   },
   undo: doUndo,
+  toggleRotateStyle: () => {
+    FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
+    sessions.forEach(resetRotateAnchor);
+    hud.syncRotateButton();
+    hud.toast(FLY.rotate.style === 'absolute' ? 'Rotate: absolute — camera follows your hand angle' : 'Rotate: rate — tilt to keep turning');
+    speak(FLY.rotate.style);
+  },
 });
 
 const ctx: AppContext = { rig, objects, undo, world, toast: (m) => hud.toast(m) };
@@ -150,7 +158,7 @@ window.addEventListener('resize', () => {
 // Keyboard shortcuts that don't belong to the simulator.
 window.addEventListener('keydown', (e) => {
   if (e.key === 'z' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doUndo(); }
-  if (e.key === 'r' && !e.metaKey && !e.ctrlKey) gloves.recenterAll();
+  if (e.key === 'r' && !e.metaKey && !e.ctrlKey) { gloves.recenterAll(); sessions.forEach(resetRotateAnchor); }
   if (e.key === 'Tab') { e.preventDefault(); setMode(sessions[0], sessions[0].modeIndex + (e.shiftKey ? -1 : 1)); }
 });
 
@@ -158,4 +166,4 @@ frame();
 hud.toast('Click “Simulator” or “Connect Glove” to start');
 
 // Debug handle for the console / automated tests.
-(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode };
+(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx };

@@ -21,6 +21,19 @@ export function flyLabel(s: GloveSession): string {
   return a ? `MOVE: ${a}` : 'ROTATE';
 }
 
+/**
+ * Forget the absolute-rotation anchor so the camera re-attaches to the current hand
+ * angle without jumping. Call after recentering a glove or switching rotation style.
+ */
+export function resetRotateAnchor(s: GloveSession): void {
+  delete s.scratch.rotAnchor;
+}
+
+/** Signed hand angle (degrees) for an axis, with invert flags but no deadzone (absolute style). */
+function handDeg(s: GloveSession, which: TiltAxis, invert: boolean): number {
+  return s.glove.tilt[which] * (invert ? -1 : 1);
+}
+
 /** Normalised -1..1 deflection of a hand axis with the FLY deadzone and tilt range applied. */
 function deflection(s: GloveSession, which: TiltAxis): number {
   const max = FLY.fullTiltDeg;
@@ -45,6 +58,7 @@ export const flyMode: Mode = {
       // MOVE -> ROTATE, remembering where we were in the cycle.
       s.scratch.flyLastAxis = current;
       s.scratch.flyAxis = null;
+      resetRotateAnchor(s);
       speak('rotate');
     } else {
       // ROTATE -> next MOVE axis after the last one used.
@@ -67,8 +81,22 @@ export const flyMode: Mode = {
       // roll/pitch as the turn axis keep "tilt right = turn right".
       const turnSign = (R.turnAxis === 'yaw' ? 1 : -1) * (R.invertTurn ? -1 : 1);
       const lookSign = R.invertLook ? -1 : 1;
-      rig.yaw += deflection(s, R.turnAxis) * turnSign * THREE.MathUtils.degToRad(R.yawRateDegPerSec) * dt;
-      rig.pitch += deflection(s, R.lookAxis) * lookSign * THREE.MathUtils.degToRad(R.pitchRateDegPerSec) * dt;
+      if (R.style === 'rate') {
+        rig.yaw += deflection(s, R.turnAxis) * turnSign * THREE.MathUtils.degToRad(R.yawRateDegPerSec) * dt;
+        rig.pitch += deflection(s, R.lookAxis) * lookSign * THREE.MathUtils.degToRad(R.pitchRateDegPerSec) * dt;
+      } else {
+        // Absolute: camera = anchor + hand angle. The anchor is captured the first frame we
+        // are in this state so the camera attaches to wherever the hand is, with no jump.
+        const turnRad = THREE.MathUtils.degToRad(handDeg(s, R.turnAxis, R.invertTurn) * turnSign * R.absoluteGain);
+        const lookRad = THREE.MathUtils.degToRad(handDeg(s, R.lookAxis, R.invertLook) * R.absoluteGain);
+        let anchor = s.scratch.rotAnchor as { yaw: number; pitch: number } | undefined;
+        if (!anchor) {
+          anchor = { yaw: rig.yaw - turnRad, pitch: rig.pitch - lookRad };
+          s.scratch.rotAnchor = anchor;
+        }
+        rig.yaw = anchor.yaw + turnRad;
+        rig.pitch = anchor.pitch + lookRad;
+      }
     }
     rig.apply();
   },

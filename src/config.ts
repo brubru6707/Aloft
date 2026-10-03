@@ -56,7 +56,7 @@ export const INPUT = {
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
   invertPitch: false,     // flip if "hand up" moves the camera down on your glove
-  invertRoll: false,
+  invertRoll: true,       // glove roll reads backwards for this mounting
 };
 
 /** Web Bluetooth (Nordic UART Service). */
@@ -100,14 +100,20 @@ export const FLY = {
   speed: 14,               // units / s at full tilt
   minHeight: 0.6,
   rotate: {
+    // 'rate': tilt sets a turn speed, the camera keeps turning while the hand is deflected.
+    // 'absolute': the camera angle follows the hand angle 1:1 (times gain); turn 180°, it stays there.
+    // Toggled live by the "Rotate" toolbar button; this is just the start-up default.
+    style: 'rate' as RotateStyle,
     turnAxis: 'yaw' as TiltAxis,   // hand axis that turns the camera left/right
     lookAxis: 'roll' as TiltAxis,  // hand axis that looks up/down
     invertTurn: false,
     invertLook: false,
-    yawRateDegPerSec: 90,          // at full turn-axis deflection
-    pitchRateDegPerSec: 60,        // at full look-axis deflection
+    yawRateDegPerSec: 90,          // rate style: at full turn-axis deflection
+    pitchRateDegPerSec: 60,        // rate style: at full look-axis deflection
+    absoluteGain: 1.0,             // absolute style: camera degrees per hand degree
   },
 };
+export type RotateStyle = 'rate' | 'absolute';
 export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };

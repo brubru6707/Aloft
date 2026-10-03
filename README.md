@@ -51,7 +51,10 @@ own colored cursor that it steers with hand tilt, its own mode, and its own
 build color, so one person can fly while the other builds.
 
 Toolbar: **Undo**, **Recenter** (zero every glove's orientation; also per glove),
-**Export STL** (downloads every user-built object as one binary STL).
+**Rotate: rate / absolute** (FLY rotation style: *rate* keeps turning while the hand
+is deflected, *absolute* makes the camera follow the hand angle 1:1 so a 180° turn
+of the hand stays a 180° turn), **Export STL** (downloads every user-built object
+as one binary STL).
 
 ## BLE protocol
 
@@ -89,6 +92,8 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 - Buttons on GPIO 13 (B0 = mode), 14 (B1 = pinky / axis-cycle), 27 (B2), 26 (B3) to GND, `INPUT_PULLUP` (pressed = LOW). GPIO 12 is a boot strapping pin, so it is avoided; unwired buttons read as released.
 - Library: **NimBLE-Arduino** (h2zero) from the Library Manager. No IMU library needed.
 - Keep the glove still for about a second at power-on while it calibrates the gyro.
+  A pass is rejected and retried if the glove moved, and the bias keeps re-learning
+  whenever the glove rests, so yaw should not creep when your hand is still.
 - The same line stream is echoed on USB serial at 115200 baud for debugging.
 
 ## 60-second demo script
