@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { engine, type HudState } from '../core/Engine';
 import { BUILD, MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
 import { Btn, Chip, Readout, SignedBar, fmtDeg } from './widgets';
@@ -9,6 +9,13 @@ const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
   { label: 'ROTATE', axis: null }, { label: 'X', axis: 'X' }, { label: 'Y', axis: 'Y' }, { label: 'Z', axis: 'Z' },
 ];
 type Tab = 'glove' | 'build' | 'tools';
+/** Height of the bottom row (NAV / TEST, dock, B0–B3) in App.tsx: the dock sits in it, centred. */
+const BOTTOM_ROW = 40;
+/** Space taken on each side of the bottom row (App.tsx: 26 px inset + NAV/TEST on the left, B0–B3 on the right). */
+const ROW_LEFT = 26 + 80;    // measured right edge of TEST
+const ROW_RIGHT = 26 + 140;  // measured left edge of B0, from the right
+const DOCK_W = 108;
+const DOCK_NUDGE = 3;        // a touch to the right of the exact middle
 const TABS: { id: Tab; label: string }[] = [{ id: 'glove', label: 'Glove' }, { id: 'build', label: 'Build' }, { id: 'tools', label: 'Tools' }];
 const VOICE_ICON = { off: '🎙', listening: '🎙', connecting: '…', talking: '🔴', unsupported: '🎙' } as const;
 
@@ -35,13 +42,16 @@ export function TopModes({ hud, top, right }: { hud: HudState; top: number; righ
  */
 export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: HudState; bottomInset: number; onExport: () => void; landscape: boolean }) {
   const [tab, setTab] = useState<Tab | null>(null);
+  const { width: screenW } = useWindowDimensions();
+  // Centre the dock in the gap between NAV / TEST and the B0–B3 buttons.
+  const dockLeft = ROW_LEFT + Math.max(0, (screenW - ROW_LEFT - ROW_RIGHT - DOCK_W) / 2) + DOCK_NUDGE;
   const [question, setQuestion] = useState('');
   const ask = () => { const q = question.trim(); if (!q) return; setQuestion(''); void engine.askAssistant(q); };
   const statusOn = hud.connected && !hud.stale;
   const activeFly = hud.flyLabel === '' ? -1 : hud.flyAxis ? ['X', 'Y', 'Z'].indexOf(hud.flyAxis) + 1 : 0;
 
   return (
-    <View style={[s.wrap, landscape ? s.wrapLandscape : s.wrapPortrait, { paddingBottom: bottomInset + 6 }]} pointerEvents="box-none">
+    <View style={[s.wrap, landscape ? s.wrapLandscape : s.wrapPortrait, { paddingBottom: Math.max(0, bottomInset - BOTTOM_ROW) + 2 }]} pointerEvents="box-none">
       {tab ? (
         <View style={s.panel}>
           <ScrollView style={{ maxHeight: landscape ? 150 : 170 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
@@ -121,11 +131,11 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
         </View>
       ) : null}
 
-      <View style={s.dock}>
+      <View style={[s.dock, { alignSelf: 'flex-start', marginLeft: dockLeft }]}>
         <View style={s.tabs}>
           {TABS.map((t) => (
             <Pressable key={t.id} onPress={() => setTab((cur) => (cur === t.id ? null : t.id))} style={[s.tab, tab === t.id && s.tabOn]} hitSlop={4}>
-              <Text style={[s.tabText, tab === t.id && s.tabTextOn]}>{t.label}{t.id === 'glove' ? (statusOn ? ' ●' : ' ○') : ''}</Text>
+              <Text style={[s.tabText, tab === t.id && s.tabTextOn, t.id === 'glove' && statusOn && { color: T.accentHover }]}>{t.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -141,7 +151,7 @@ const s = StyleSheet.create({
   wrapLandscape: {},
   panel: { width: 290, maxWidth: '92%', backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
   body: { padding: 8, gap: 6 },
-  dock: { width: 196, backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
+  dock: { width: DOCK_W, backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
   top: { position: 'absolute', left: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grow: { flex: 1 },
@@ -152,7 +162,7 @@ const s = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 4 },
   tab: { flex: 1, paddingVertical: 4, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(48,48,48,0.7)', borderWidth: 1, borderColor: T.line },
   tabOn: { backgroundColor: T.btn, borderColor: T.accent },
-  tabText: { color: T.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+  tabText: { color: T.muted, fontSize: 9, fontWeight: '600', letterSpacing: 0.2 },
   tabTextOn: { color: T.text },
   dot: { width: 10, height: 10, borderRadius: 2 },
   status: { flex: 1, color: T.muted, fontSize: 12 },

@@ -53,7 +53,12 @@ export function VoiceAssistant() {
   const startRecognizer = () => {
     if (recognizing.current || sessionOpen.current) return;
     try {
-      ExpoSpeechRecognitionModule.start({ lang: VOICE.lang, interimResults: true, continuous: true, requiresOnDeviceRecognition: false });
+      ExpoSpeechRecognitionModule.start({
+        lang: VOICE.lang, interimResults: true, continuous: true, requiresOnDeviceRecognition: false,
+        // Listen through Bluetooth headphones / AirPods when connected, not only the phone's own mic.
+        iosCategory: { category: 'playAndRecord', categoryOptions: ['defaultToSpeaker', 'allowBluetooth'], mode: 'measurement' },
+      });
+      console.log('[x2d] wake-word listener started');
       recognizing.current = true;
       setState('listening');
     } catch (e) {
@@ -109,18 +114,24 @@ export function VoiceAssistant() {
   };
 
   // Wake-word listener events.
+  // iOS continuous recognition rarely marks a result final, so act on the live transcript: once the
+  // wake word appears, wait for a short pause (VOICE.wakeSettleMs) to catch the request that follows,
+  // then open the session with whatever came after "X2D" (or none).
+  const heardAfter = useRef<string | null>(null);
   useSpeechRecognitionEvent('result', (e) => {
-    // Wait for the final transcript so "X2D, make me a stickman" arrives whole.
-    if (!e.isFinal) return;
+    if (sessionOpen.current) return;
     const text = e.results[0]?.transcript ?? '';
     const after = afterWakeWord(text);
     if (after === null) {
-      // No wake word here. If "X2D" was heard alone a moment ago, this IS the request.
-      if (wakeTimer.current && text.trim()) openSession(text.trim());
+      if (e.isFinal && text.trim()) console.log('[x2d] heard (no wake word):', text.trim());
       return;
     }
-    if (after) openSession(after);
-    else { clearWake(); wakeTimer.current = setTimeout(() => { wakeTimer.current = null; openSession(); }, VOICE.requestGraceMs); }
+    if (heardAfter.current === null) console.log('[x2d] wake word heard:', text.trim());
+    heardAfter.current = after;
+    clearWake();
+    const fire = () => { wakeTimer.current = null; const req = heardAfter.current?.trim() || undefined; heardAfter.current = null; openSession(req); };
+    if (e.isFinal) fire();
+    else wakeTimer.current = setTimeout(fire, VOICE.wakeSettleMs);
   });
   useSpeechRecognitionEvent('end', () => {
     recognizing.current = false;
@@ -129,6 +140,7 @@ export function VoiceAssistant() {
   });
   useSpeechRecognitionEvent('error', (e) => {
     recognizing.current = false;
+    if (e.error !== 'aborted' && e.error !== 'no-speech') console.log('[x2d] wake-word listener error:', e.error, e.message ?? '');
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { wantListening.current = false; setState('off', 'mic permission denied'); }
     else if (e.error === 'language-not-supported') { wantListening.current = false; setState('unsupported', 'speech recognition unavailable'); }
     else if (wantListening.current && !sessionOpen.current) setTimeout(startRecognizer, 1000);
