@@ -62,6 +62,23 @@ MOVE axis is drawn bright and thick and the end you are moving toward grows. The
 panel's FLY row shows the same state as chips plus a bar of the current move amount.
 
 
+## Glove test bench
+
+Open **`/test.html`** (e.g. `http://localhost:5173/test.html`) for a page with no 3D
+scene that just talks to the glove. Use it to check wiring, directions and drift
+without the app in the way, and to produce a report you can paste into a chat.
+
+- **Connect BLE** or **Connect USB** (Web Serial; the firmware echoes the same stream
+  on USB, and opening the port resets the glove, so wait ~2 s and keep it still).
+- Live raw roll / pitch / yaw with bars, the same values as the app sees them after
+  recenter, invert and smoothing, and the four button chips with their GPIO numbers.
+- **Start recording**, then tap a preset marker (`still`, `turn left`, `press B0`, …)
+  or type your own just before each movement. **Stop** builds the report.
+- The report lists per-axis stats, one line per marker segment (how much roll, pitch
+  and yaw changed and the yaw rate, so drift and reversed axes are obvious), every
+  button press with its duration, the app's tap/hold classification events, and a
+  0.5 s trace. **Copy report** puts it on the clipboard.
+
 ## BLE protocol
 
 The glove advertises as `Aloft-Glove` with the Nordic UART Service.
