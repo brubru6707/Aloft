@@ -39,7 +39,7 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'Tap B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · tilt to move or look',
+  FLY:   'Tap B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look',
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
@@ -108,8 +108,10 @@ export const FLY = {
     // 'absolute': the camera angle follows the hand angle 1:1 (times gain); turn 180°, it stays there.
     // Toggled live by the "Rotate" toolbar button; this is just the start-up default.
     style: 'rate' as RotateStyle,
-    turnAxis: 'yaw' as TiltAxis,   // hand axis that turns the camera left/right
-    lookAxis: 'roll' as TiltAxis,  // hand axis that looks up/down
+    // With the board mounted on the back of the hand, turning the hand left/right shows up as
+    // ROLL (accelerometer-stabilised, no drift), so that is the turn axis. Roll right = turn right.
+    turnAxis: 'roll' as TiltAxis,  // hand axis that turns the camera left/right
+    lookAxis: 'pitch' as TiltAxis, // hand axis that looks up/down (hand up = look up)
     invertTurn: false,
     invertLook: false,
     yawRateDegPerSec: 90,          // rate style: at full turn-axis deflection
