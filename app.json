@@ -43,7 +43,15 @@
           "bluetoothAlwaysPermission": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#3d3d3d",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
     ]
   }
 }

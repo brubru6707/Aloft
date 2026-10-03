@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { engine } from '../app/Engine';
+import { engine } from '../core/Engine';
 import { FONT, T } from './theme';
 
 /** On-screen glove buttons 1–4 (B0–B3) for the touch simulator. Hold = hold. */

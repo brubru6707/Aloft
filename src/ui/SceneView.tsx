@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import * as THREE from 'three';
-import { engine } from '../app/Engine';
+import { engine } from '../core/Engine';
 import { RENDER, UI } from '../config';
 import { AxisGizmo } from './AxisGizmo';
 

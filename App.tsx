@@ -1,10 +1,11 @@
 import { useFonts } from 'expo-font';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHud } from './src/app/useHud';
+import { useHud } from './src/core/useHud';
 import { MainScreen } from './src/screens/MainScreen';
 import { TestScreen } from './src/screens/TestScreen';
 import { FONT, T } from './src/ui/theme';
@@ -45,6 +46,7 @@ export default function App() {
     [FONT.medium]: require('./assets/fonts/PixelifySans-Medium.ttf'),
     [FONT.bold]: require('./assets/fonts/PixelifySans-Bold.ttf'),
   });
+  useEffect(() => { if (loaded) SplashScreen.hideAsync().catch(() => {}); }, [loaded]);
   if (!loaded) return <View style={s.root} />;
   return (
     <SafeAreaProvider>

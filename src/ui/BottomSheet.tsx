@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { engine, type HudState } from '../app/Engine';
+import { engine, type HudState } from '../core/Engine';
 import { MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
 import { Btn, ButtonLamp, Chip, Readout, SignedBar, fmtDeg } from './widgets';
 import { FONT, T } from './theme';

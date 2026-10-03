@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { engine } from '../app/Engine';
-import { useHud } from '../app/useHud';
+import { engine } from '../core/Engine';
+import { useHud } from '../core/useHud';
 import { UI } from '../config';
 import { exportSTL } from '../export';
 import { BottomSheet } from '../ui/BottomSheet';
