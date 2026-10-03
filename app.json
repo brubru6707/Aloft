@@ -9,7 +9,7 @@
     "backgroundColor": "#3d3d3d",
     "ios": {
       "bundleIdentifier": "com.brunorodriguez.aloft",
-      "appleTeamId": "42J6KJM3HC",
+      "appleTeamId": "7GXZ24P89H",
       "supportsTablet": true,
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons.",
