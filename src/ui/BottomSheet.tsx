@@ -136,7 +136,7 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
 
 const s = StyleSheet.create({
   wrap: { position: 'absolute', bottom: 0, gap: 5, paddingHorizontal: 8 },
-  wrapPortrait: { left: 52, right: 52 },   // narrower, centred dock
+  wrapPortrait: { left: 72, right: 72 },   // narrow, centred dock
   wrapLandscape: { right: 0, width: 420 },
   panel: { backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
   body: { padding: 8, gap: 6 },

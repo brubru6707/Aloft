@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BLE, BUILD, FLY, GEMINI, GLOBAL_ACTIONS, VOICE, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
 import { geminiAvailable, isImperative, planScene } from '../ai/gemini';
 import { describeBuilt, rebuildScene, sanitize } from '../ai/scene';
+import { normalizeControl, parseControl, type ControlCommand } from '../ai/control';
 import { BleSource } from '../input/BleSource';
 import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
@@ -200,11 +201,44 @@ export class Engine {
   setPrimitive(p: PrimitiveName): void { setPrimitive(this.session, this.ctx, p); this.toast(`Shape: ${p}`); }
   setSize(size: SizeName): void { setSize(this.session, this.ctx, size); this.toast(`Size: ${size}`); }
 
-  toggleRotateStyle(): void {
-    FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
+  toggleRotateStyle(): void { this.setRotateStyle(FLY.rotate.style === 'rate' ? 'absolute' : 'rate'); }
+
+  setRotateStyle(style: RotateStyle): void {
+    FLY.rotate.style = style;
     resetRotateAnchor(this.session);
-    this.toast(FLY.rotate.style === 'absolute' ? 'Rotate: absolute — camera follows your hand angle' : 'Rotate: rate — tilt to keep turning');
-    speak(FLY.rotate.style);
+    this.toast(style === 'absolute' ? 'Rotate: absolute — camera follows your hand angle' : 'Rotate: rate — tilt to keep turning');
+    speak(style);
+    this.notify();
+  }
+
+  /**
+   * Apply a settings command from the X2D agent (set_control) or a typed request: mode, shape,
+   * size, sensitivity, FLY state, rotate style, or reset the view. Returns a sentence for the agent.
+   */
+  applyControl(cmd: ControlCommand): string {
+    switch (cmd.setting) {
+      case 'mode': this.setMode(modeIndexOf(cmd.value as ModeName)); return `Switched to ${cmd.value}.`;
+      case 'shape': this.setPrimitive(cmd.value as PrimitiveName); this.notify(); return `Shape set to ${cmd.value}.`;
+      case 'size': this.setSize(cmd.value as SizeName); this.notify(); return `Piece size set to ${cmd.value}.`;
+      case 'sensitivity': {
+        const levels = SENSITIVITY.levels;
+        const i = levels.indexOf(RUNTIME.sensitivity);
+        const next = cmd.value === 'up' ? levels[Math.min(levels.length - 1, i + 1)]
+          : cmd.value === 'down' ? levels[Math.max(0, i - 1)]
+          : levels.reduce((a, b) => (Math.abs(b - Number(cmd.value)) < Math.abs(a - Number(cmd.value)) ? b : a));
+        RUNTIME.sensitivity = next;
+        this.toast(`Sensitivity ${next}×`);
+        hapticFlyState();
+        return `Sensitivity set to ${next}.`;
+      }
+      case 'fly_state': {
+        const axis = cmd.value === 'rotate' ? null : (cmd.value as FlyAxis);
+        this.setFlyAxis(axis);
+        return axis ? `Moving along ${axis} now.` : 'Rotating now.';
+      }
+      case 'rotate_style': this.setRotateStyle(cmd.value as RotateStyle); return `Rotation style set to ${cmd.value}.`;
+      case 'reset_view': this.resetView(); return 'Centred you back at the start.';
+    }
   }
 
   toast(msg: string, ms = UI.toastMs): void {
@@ -246,6 +280,9 @@ export class Engine {
    */
   async askAssistant(request: string, opts: { forceRebuild?: boolean } = {}): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
     if (!request.trim()) return null;
+    // "switch to build", "use a cylinder", "center me" … are settings, not builds: no Gemini call.
+    const cmd = parseControl(request);
+    if (cmd) { const message = this.applyControl(cmd); return { action: 'answer', message, pieces: 0 }; }
     if (!geminiAvailable()) { this.toast('Gemini: add EXPO_PUBLIC_GEMINI_API_KEY to .env.local'); return null; }
     this.toast(`X2D: thinking about “${request}”…`, 4000);
     try {
@@ -278,6 +315,11 @@ export class Engine {
           : result.message;
       },
       [VOICE.tools.describe]: () => this.sceneSummary(),
+      [VOICE.tools.control]: (params) => {
+        const cmd = normalizeControl(params.setting, params.value);
+        if ('error' in cmd) return `Could not change that: ${cmd.error}.`;
+        return this.applyControl(cmd);
+      },
       [VOICE.tools.undo]: () => { const e = this.undo.undo(); this.toast(e ? `Undid ${e.label}` : 'Nothing to undo'); this.notify(); return e ? `Undid ${e.label}.` : 'There was nothing to undo.'; },
     };
   }

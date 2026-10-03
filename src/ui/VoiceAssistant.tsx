@@ -94,12 +94,13 @@ export function VoiceAssistant() {
         if (req) setTimeout(() => sendUserMessage(req), 300);
       },
       onUnhandledClientToolCall: (call: { tool_name?: string }) => console.warn('[x2d] agent called an unknown tool:', call?.tool_name),
-      onDisconnect: () => closeSession(),
-      onError: (m: string) => { setState('off', m); closeSession(); },
+      onDisconnect: (details?: unknown) => { console.log('[x2d] session ended by the SDK:', JSON.stringify(details ?? null)); closeSession('sdk onDisconnect'); },
+      onError: (m: string) => { console.log('[x2d] SDK error:', m); setState('off', m); closeSession('sdk onError'); },
     });
   };
 
-  const closeSession = () => {
+  const closeSession = (reason: string) => {
+    console.log('[x2d] closing session:', reason);
     if (!sessionOpen.current) return;
     sessionOpen.current = false;
     pendingRequest.current = null;
@@ -138,14 +139,14 @@ export function VoiceAssistant() {
     if (status === lastStatus.current) return;
     lastStatus.current = status;
     if (status === 'connected') setState('talking');
-    else if (status === 'error') { setState('off', message ?? 'voice error'); closeSession(); }
-    else if (status === 'disconnected' && sessionOpen.current) closeSession();
+    else if (status === 'error') { setState('off', message ?? 'voice error'); closeSession(`status error: ${message ?? ''}`); }
+    else if (status === 'disconnected' && sessionOpen.current) closeSession('status disconnected');
   }, [status, message]);
 
   // Button: start a session if idle, end it if talking, start listening if off.
   useEffect(() => {
     engine.voiceToggle = () => {
-      if (sessionOpen.current) { closeSession(); return; }
+      if (sessionOpen.current) { closeSession('mic button pressed while a session was open'); return; }
       if (!wantListening.current) void startListening();
       openSession();
     };
