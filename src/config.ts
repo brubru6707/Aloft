@@ -22,11 +22,11 @@ export const GLOBAL_ACTIONS = {
 
 /** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  GRAB/SCALE: select
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  BUILD/ERASE: place/delete.  SCALE: select
 };
 
 /**
- * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, grab, scale).
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, scale).
  * B3 (GPIO 26) cycles through the levels in every mode except BUILD, where B3 cycles the piece
  * size instead; the toolbar button always cycles sensitivity.
  */
@@ -38,12 +38,11 @@ export const SENSITIVITY = {
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
-export const MODE_ORDER = ['FLY', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
+export const MODE_ORDER = ['FLY', 'SCALE', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
   FLY:   '#e87d0d',  // Blender orange
-  GRAB:  '#ff9f3c',
   SCALE: '#8bdc00',  // Blender Y-axis green
   BUILD: '#ffd43b',
   ERASE: '#ff3352',  // Blender X-axis red
@@ -51,7 +50,6 @@ export const MODE_COLORS: Record<ModeName, string> = {
 
 export const MODE_HINTS: Record<ModeName, string> = {
   FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B3 sensitivity',
-  GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
   BUILD: 'Turn hand to aim · press B1 to place · B3 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
@@ -67,7 +65,7 @@ export const MAX_GLOVES = 2;
 
 /** Input processing. */
 export const INPUT = {
-  tapMaxMs: 500,          // press shorter than this = tap, longer = hold (B0 prev-mode, GRAB move)
+  tapMaxMs: 500,          // press shorter than this = tap, longer = hold
   smoothing: 0.35,        // exponential filter alpha (0..1, higher = less smoothing)
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
@@ -157,10 +155,9 @@ export type RotateStyle = 'rate' | 'absolute';
 /**
  * Modes (besides FLY's ROTATE state) where glove 1's hand also turns the camera.
  * Only modes that do not already use tilt for something else belong here:
- * GRAB/SCALE use tilt to move or scale, so they are left out.
+ * SCALE uses tilt to scale, so it is left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
   maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
