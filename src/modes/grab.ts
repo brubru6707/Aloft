@@ -19,6 +19,7 @@ export const grabMode: Mode = {
     if (s.glove.isDown(MODE_BUTTONS.primary)) {
       // Translate: tilt = velocity in camera space.
       if (!s.scratch.move) s.scratch.move = snapshot(sel);
+      s.scratch.rotateArmed = false; // hand must return to level before tilt rotates again
       const k = GRAB.moveUnitsPerDeg * INPUT.maxTiltDeg; // units/sec at full tilt
       ctx.rig.right(right); right.y = 0; right.normalize();
       up.set(0, 1, 0);
@@ -27,8 +28,10 @@ export const grabMode: Mode = {
       return;
     }
 
-    // Rotate when not holding the grab button.
-    if (active) {
+    // Rotate when not holding the grab button. Only after the hand has been level once
+    // since the last grab, so letting go of the button mid-tilt does not spin the object.
+    if (!active) s.scratch.rotateArmed = true;
+    if (active && s.scratch.rotateArmed) {
       if (!s.scratch.rotate) s.scratch.rotate = snapshot(sel);
       q.setFromAxisAngle(axis.set(0, 1, 0), -roll * GRAB.rotateRadPerSecAtFull * dt);
       sel.quaternion.premultiply(q);

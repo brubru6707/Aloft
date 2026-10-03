@@ -29,12 +29,12 @@ export function createWorld(): World {
   sky.scale.setScalar(4000);
   const u = sky.material.uniforms;
   u.turbidity.value = 6; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.8;
-  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(72), THREE.MathUtils.degToRad(160));
+  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(55), THREE.MathUtils.degToRad(150));
   u.sunPosition.value.copy(sun);
   scene.add(sky);
 
   // Lights
-  scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x4a4a3a, 0.9));
+  scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x6a6a5a, 1.1));
   const dir = new THREE.DirectionalLight(0xfff1dc, 2.2);
   dir.position.copy(sun).multiplyScalar(120);
   dir.castShadow = true;
@@ -48,7 +48,7 @@ export function createWorld(): World {
   // Ground + grid
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(600, 600),
-    new THREE.MeshStandardMaterial({ color: 0x2b3340, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x3d4656, roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;

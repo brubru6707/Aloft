@@ -65,6 +65,8 @@ export const BLE = {
   service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
   rxCharacteristic: '6e400002-b5a3-f393-e0a9-e50e24dcca9e', // write (phone -> glove), unused for now
   txCharacteristic: '6e400003-b5a3-f393-e0a9-e50e24dcca9e', // notify (glove -> phone)
+  reconnectAttempts: 3,   // silent reconnects after an unexpected drop
+  reconnectDelayMs: 1000,
 };
 
 /** Simulator tuning. */
@@ -88,5 +90,9 @@ export const FLY = {
 export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
-export const BUILD = { distance: 6, primitives: ['cube', 'sphere', 'cylinder'] as const };
+export const BUILD = {
+  distance: 6,            // float distance when the cursor is not pointing at nearby ground
+  maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
+  primitives: ['cube', 'sphere', 'cylinder'] as const,
+};
 export type PrimitiveName = (typeof BUILD.primitives)[number];
