@@ -13,7 +13,8 @@
   --accent-hover: #ff9f3c;
   --select: #5680c2;             /* Blender selection blue */
   --radius: 4px;
-  font-family: "Pixelify Sans", "Press Start 2P", ui-monospace, monospace;
+  font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  --pixel: "Pixelify Sans", ui-monospace, monospace;   /* used only for the big labels */
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
@@ -42,19 +43,19 @@ button:disabled { opacity: .45; cursor: default; }
 /* Mode labels: top-left stack */
 #modes { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px; }
 .mode-label {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; font-family: var(--pixel);
   font-size: 44px; font-weight: 700; letter-spacing: .04em; line-height: 1;
   color: var(--mode, #fff); text-shadow: 2px 2px 0 rgba(0,0,0,0.55);
   transition: color .2s;
 }
 .mode-label.secondary { font-size: 26px; opacity: .9; }
 .mode-label .tag {
-  font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 3px 7px; border-radius: var(--radius);
+  font-family: var(--pixel); font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 3px 7px; border-radius: var(--radius);
   background: var(--glove); color: #1d1d1d; text-shadow: none;
 }
 .mode-hint { font-size: 13px; color: var(--muted); margin-top: -2px; letter-spacing: 0; text-shadow: 1px 1px 0 rgba(0,0,0,0.5); }
 .axis-label {
-  margin-top: 6px; font-size: 56px; font-weight: 700; letter-spacing: .06em; line-height: 1;
+  margin-top: 6px; font-family: var(--pixel); font-size: 56px; font-weight: 700; letter-spacing: .06em; line-height: 1;
   color: var(--accent); text-shadow: 3px 3px 0 rgba(0,0,0,0.6);
 }
 
@@ -85,7 +86,7 @@ button:disabled { opacity: .45; cursor: default; }
 #gloves { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 10px; }
 .glove { width: 264px; --glove: #e87d0d; }
 .glove header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.glove .name { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.glove .name { font-family: var(--pixel); font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .glove .dot { width: 10px; height: 10px; border-radius: 2px; background: var(--glove); }
 .glove .status { font-size: 12px; color: var(--muted); }
 .glove .status.on { color: var(--accent-hover); }
