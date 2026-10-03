@@ -6,7 +6,7 @@ import { FONT, T, hardShadow } from './theme';
 /** Top-left overlay: mode name in the mode colour, one-line hint, FLY state label. */
 export function ModeLabel({ hud, compact }: { hud: HudState; compact?: boolean }) {
   return (
-    <View style={s.modes} pointerEvents="none">
+    <View style={[s.modes, compact && { right: 130 }]} pointerEvents="none">
       <Text style={[s.modeName, { color: hud.modeColor }, compact && { fontSize: 30 }]}>{hud.mode}</Text>
       <Text style={s.hint} numberOfLines={compact ? 1 : 2}>{hud.hint}</Text>
       {hud.flyLabel ? <Text style={[s.axisLabel, compact && { fontSize: 36 }]}>{hud.flyLabel}</Text> : null}

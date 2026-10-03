@@ -29,7 +29,7 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
   return (
     <View style={s.root}>
       <SceneView gizmoTop={insets.top + UI.gizmoMargin} />
-      <View style={[s.overlay, { top: insets.top + 10 }]} pointerEvents="box-none">
+      <View style={[s.overlay, { top: insets.top + 10, right: landscape ? 412 : 0 }]} pointerEvents="box-none">
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
