@@ -8,7 +8,6 @@ import { exportSTL } from '../export';
 import { BottomSheet, TopModes } from '../ui/BottomSheet';
 import { Crosshair, ModeLabel, Toast } from '../ui/Hud';
 import { SceneView } from '../ui/SceneView';
-import { SimButtons } from '../ui/SimButtons';
 
 /** Height of the mode/mic bar under the status bar. */
 const TOP_BAR = 32;
@@ -32,14 +31,11 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
   return (
     <View style={s.root}>
       <SceneView gizmoTop={insets.top + TOP_BAR + 6} />
-      <TopModes hud={hud} top={insets.top + 4} right={landscape ? 436 : 8} />
+      <TopModes hud={hud} top={insets.top + 4} right={landscape ? 454 : 26} />
       <View style={[s.overlay, { top: insets.top + TOP_BAR + 6, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
-      <View style={[s.simWrap, { top: height / 2 - 110, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
-        <SimButtons down={hud.buttons} pressable={hud.sourceKind === 'sim'} />
-      </View>
       <Toast text={hud.toast} top={insets.top + TOP_BAR + 58} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />
     </View>
@@ -49,5 +45,4 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#3d3d3d' },
   overlay: { position: 'absolute', left: 0, right: 0 },
-  simWrap: { position: 'absolute', right: 0, width: 60, height: 220 },
 });

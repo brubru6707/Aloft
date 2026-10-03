@@ -11,6 +11,14 @@ export interface ButtonAction {
   gesture: Gesture;
 }
 
+/**
+ * Glove buttons in finger order. The firmware reports bit n = button n by pin (GPIO 13, 25, 27, 26),
+ * but on this glove the pinky is GPIO 27 (bit 2) and the ring finger GPIO 26 (bit 3). BUTTON_MAP[i]
+ * is the firmware bit read as app button Bi, so B0..B3 go index → middle → ring → pinky. The BLE
+ * protocol itself is unchanged.
+ */
+export const BUTTON_MAP = [0, 1, 3, 2];
+
 /** Global actions that work in every mode. */
 export const GLOBAL_ACTIONS = {
   // B0 advances the mode the instant it is pressed. Measured presses on this glove last ~1 s,
@@ -18,8 +26,8 @@ export const GLOBAL_ACTIONS = {
   modeNext: { button: 0, gesture: 'press' } as ButtonAction,
   // Previous mode is not on the glove any more: tap a mode chip in the bottom sheet.
   modePrev: null as ButtonAction | null,
-  // B2 = GPIO 27 (the pinky on this glove): back to the start view and zero roll/pitch/yaw.
-  reset:    { button: 2, gesture: 'press' } as ButtonAction,
+  // B3 = the pinky (GPIO 27): back to the start view and zero roll/pitch/yaw.
+  reset:    { button: 3, gesture: 'press' } as ButtonAction,
   // Undo is on screen (Tools → Undo) and by voice ("undo that"); no glove button.
   undo:     null as ButtonAction | null,
 };
@@ -31,11 +39,11 @@ export const MODE_BUTTONS = {
 
 /**
  * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, scale).
- * B3 (GPIO 26) cycles through the levels in every mode except BUILD, where B3 cycles the piece
+ * B2 (ring finger, GPIO 26) cycles through the levels in every mode except BUILD, where B2 cycles the piece
  * size instead; the "⚡ Sens" button always cycles sensitivity.
  */
 export const SENSITIVITY = {
-  button: 3,
+  button: 2,
   levels: [0.5, 1, 1.5, 2],
   startIndex: 1,
 };
@@ -53,9 +61,9 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B3 sensitivity',
+  FLY:   'B1: MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity · B3 (pinky) reset',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · press B1 to place · B3 cycles size · shape in the panel',
+  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
 
@@ -67,7 +75,7 @@ export const GLOVE_COLOR = '#e87d0d'; // Blender orange
 export const GLOVE_DEFAULT_MODE: ModeName = 'FLY';
 
 /** Button wiring on the glove, for the Test screen labels. */
-export const BUTTON_GPIO = [13, 25, 27, 26];
+export const BUTTON_GPIO = [13, 25, 26, 27];   // pin behind each app button after BUTTON_MAP (B3 = pinky)
 
 /** Input processing. */
 export const INPUT = {
@@ -257,7 +265,7 @@ export const BUILD = {
   distance: 6,            // fallback float distance (cm) when the crosshair points at nothing
   maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
-  // Piece size. In BUILD, B3 cycles small -> medium -> large (elsewhere B3 is sensitivity).
+  // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,
   sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
   defaultSize: 'medium' as 'small' | 'medium' | 'large',
@@ -269,7 +277,7 @@ export type SizeName = (typeof BUILD.sizes)[number];
 export const BUILD_AREA = { center: { x: 0, y: 0, z: -28 }, radius: 12 };
 
 /** Camera start pose (world units / radians). */
-export const CAMERA = { fov: 70, near: 0.1, far: 2000, start: { x: 0, y: 5, z: 6 }, startPitch: -0.08 };
+export const CAMERA = { fov: 70, near: 0.1, far: 2000, start: { x: 0, y: 10, z: 6 }, startPitch: -0.2 };   // start (and B3 reset) pose: cm, radians
 
 /** Rendering (mobile only). */
 export const RENDER = {

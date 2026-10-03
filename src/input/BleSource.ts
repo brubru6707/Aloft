@@ -1,6 +1,6 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import { BleManager, State, type BleError, type Device, type Subscription } from 'react-native-ble-plx';
-import { BLE } from '../config';
+import { BLE, BUTTON_MAP } from '../config';
 import type { GloveSource, RawSample, SourceStatus } from './types';
 
 /** One BleManager for the app (creating several leaks native listeners). */
@@ -187,7 +187,7 @@ export class BleSource implements GloveSource {
     if (![roll, pitch, yaw, mask].every(Number.isFinite)) return;
     this.sampleCb?.({
       roll, pitch, yaw,
-      buttons: [!!(mask & 1), !!(mask & 2), !!(mask & 4), !!(mask & 8)],
+      buttons: BUTTON_MAP.map((bit) => !!(mask & (1 << bit))) as [boolean, boolean, boolean, boolean],   // finger order
       timestamp: performance.now(),
     });
   }

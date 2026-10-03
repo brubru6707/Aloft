@@ -50,7 +50,7 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                 <View style={s.row}>
                   <View style={[s.dot, { backgroundColor: statusOn ? T.accentHover : T.muted }]} />
                   <Text style={[s.status, statusOn && { color: T.accentHover }, hud.status === 'error' && { color: T.bad }]} numberOfLines={1}>{hud.statusLabel}</Text>
-                  <Text style={s.note}>B2 = reset</Text>
+                  <Text style={s.note}>B3 (pinky) = reset</Text>
                 </View>
                 <View style={s.row}>
                   <Btn small style={s.grow} label={hud.status === 'connecting' && hud.sourceKind === 'ble' ? 'Connecting…' : 'Connect'} active={hud.sourceKind === 'ble' && hud.connected} onPress={() => engine.connectBle()} />
@@ -136,12 +136,12 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
 
 const s = StyleSheet.create({
   wrap: { position: 'absolute', bottom: 0, gap: 5, paddingHorizontal: 8 },
-  wrapPortrait: { left: 0, right: 0 },
+  wrapPortrait: { left: 52, right: 52 },   // narrower, centred dock
   wrapLandscape: { right: 0, width: 420 },
   panel: { backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
   body: { padding: 8, gap: 6 },
   dock: { backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
-  top: { position: 'absolute', left: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  top: { position: 'absolute', left: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grow: { flex: 1 },
   modeChip: { paddingVertical: 5 },

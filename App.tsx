@@ -8,12 +8,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHud } from './src/core/useHud';
 import { MainScreen } from './src/screens/MainScreen';
+import { SimButtons } from './src/ui/SimButtons';
 import { TestScreen } from './src/screens/TestScreen';
 import { VOICE } from './src/config';
 import { VoiceAssistant } from './src/ui/VoiceAssistant';
 import { FONT, T } from './src/ui/theme';
 
 type Tab = 'nav' | 'test';
+const BOTTOM_ROW = 40;   // NAV / TEST (left) and B0–B3 (right)
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('nav');
@@ -26,16 +28,21 @@ function Shell() {
     else deactivateKeepAwake('aloft').catch(() => {});
   }, [hud.connected]);
 
-  const barHeight = Math.max(8, insets.bottom - 14);   // no bottom bar any more: just keep clear of the home indicator
+  const bottomPad = Math.max(4, insets.bottom - 18);   // the row sits down in the home-indicator area
+  const barHeight = BOTTOM_ROW + bottomPad;           // screens keep their content above this row
   return (
     <View style={s.root}>
       {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} /> : <TestScreen tabBarHeight={barHeight} />}
-      <View style={s.switcher}>
-        {(['nav', 'test'] as Tab[]).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabOn]} hitSlop={6}>
-            <Text style={[s.tabText, tab === t && { color: T.darkText }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
-          </Pressable>
-        ))}
+      <View style={[s.bottomRow, { paddingBottom: bottomPad, height: barHeight }]} pointerEvents="box-none">
+        <View style={s.switcher}>
+          {(['nav', 'test'] as Tab[]).map((t) => (
+            <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabOn]} hitSlop={6}>
+              <Text style={[s.tabText, tab === t && { color: T.darkText }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {/* B0–B3: light while held on the glove; pressable when the simulator is on. */}
+        <SimButtons down={hud.buttons} pressable={hud.sourceKind === 'sim'} />
       </View>
       <StatusBar style="light" />
     </View>
@@ -60,9 +67,10 @@ export default function App() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
-  // Left-edge NAV / TEST switch, vertically centred, out of the way of the 3D view and the dock.
-  switcher: { position: 'absolute', left: 4, top: '45%', gap: 4 },
-  tab: { width: 40, paddingVertical: 6, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)' },
+  // Bottom row: NAV / TEST on the left, B0–B3 on the right.
+  bottomRow: { position: 'absolute', left: 26, right: 26, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  switcher: { flexDirection: 'row', gap: 4 },
+  tab: { width: 38, paddingVertical: 5, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)' },
   tabOn: { backgroundColor: T.accent, borderColor: T.accent },
   tabText: { color: T.muted, fontWeight: '700', fontSize: 9, letterSpacing: 0.8 },
 });

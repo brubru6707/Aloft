@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { engine } from '../core/Engine';
 import { T } from './theme';
 
-const ROLE = ['mode', 'action', 'reset', 'sens'];   // what each glove button does (B2 = GPIO 27 is the pinky on this glove)
+const ROLE = ['mode', 'action', 'sens', 'reset'];   // what each glove button does (B3 = pinky, GPIO 27)
 
 /**
  * B0–B3 on the right edge. Each lights while that glove button is held. With the touch
@@ -11,7 +11,7 @@ const ROLE = ['mode', 'action', 'reset', 'sens'];   // what each glove button do
  */
 export function SimButtons({ down, pressable }: { down: boolean[]; pressable: boolean }) {
   return (
-    <View style={s.col} pointerEvents="box-none">
+    <View style={s.row} pointerEvents="box-none">
       {[0, 1, 2, 3].map((b) => (
         <Pressable
           key={b}
@@ -29,9 +29,9 @@ export function SimButtons({ down, pressable }: { down: boolean[]; pressable: bo
 }
 
 const s = StyleSheet.create({
-  col: { position: 'absolute', right: 6, gap: 5 },
+  row: { flexDirection: 'row', gap: 4 },
   btn: {
-    width: 42, height: 42, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
+    width: 34, height: 36, borderRadius: T.radius, backgroundColor: 'rgba(40,40,40,0.5)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)',
     alignItems: 'center', justifyContent: 'center',
   },
   btnDown: { backgroundColor: T.select, borderColor: T.selectBorder },
