@@ -41,6 +41,10 @@ button:disabled { opacity: .45; cursor: default; }
   background: var(--glove); color: #06090f; text-shadow: none;
 }
 .mode-hint { font-size: 13px; color: var(--muted); margin-top: -4px; letter-spacing: 0; }
+.axis-label {
+  margin-top: 8px; font-size: 56px; font-weight: 900; letter-spacing: .08em; line-height: 1;
+  color: #fff; text-shadow: 0 2px 22px color-mix(in srgb, var(--mode, #fff) 70%, transparent);
+}
 
 /* Toolbar: top-right */
 #toolbar { position: absolute; top: 18px; right: 18px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 520px; }

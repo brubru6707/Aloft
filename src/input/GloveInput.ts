@@ -9,8 +9,10 @@ import { Emitter, type GloveEvents, type GloveSample, type GloveSource, type Raw
  */
 export class GloveInput extends Emitter<GloveEvents> {
   readonly state: GloveSample;
-  /** Smoothed, recentered orientation before deadzone (for recenter + HUD). */
+  /** Smoothed, recentered, inverted-per-config orientation BEFORE the global deadzone/clamp. */
   private smoothed = { roll: 0, pitch: 0, yaw: 0 };
+  /** Read-only view of the smoothed orientation, for modes that apply their own deadzone (FLY). */
+  get tilt(): Readonly<{ roll: number; pitch: number; yaw: number }> { return this.smoothed; }
   private rawLatest = { roll: 0, pitch: 0, yaw: 0 };
   private offset = { roll: 0, pitch: 0, yaw: 0 };
   private filters = [new AngleFilter(INPUT.smoothing), new AngleFilter(INPUT.smoothing), new AngleFilter(INPUT.smoothing)];

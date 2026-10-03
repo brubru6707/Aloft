@@ -36,7 +36,7 @@ spoken aloud and shown large in the top-left, color-coded.
 
 | Mode | Color | Controls |
 | --- | --- | --- |
-| **FLY** (default) | cyan | tilt pitch = look up/down, roll = turn (with bank), hold **B1** = forward, hold **B2** = boost |
+| **FLY** (default) | cyan | tap **B1** (pinky) to alternate `MOVE: X` → `ROTATE` → `MOVE: Y` → `ROTATE` → `MOVE: Z` → `ROTATE` … (shown large and spoken). MOVE translates along that one world axis: X from pitch (tilt forward/back), Y (up/down) and Z (forward/back) from roll. ROTATE turns the camera with hand yaw and looks up/down with roll. Deadzone, tilt mapping, signs and rates live in `FLY` in `src/config.ts` |
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
@@ -86,7 +86,7 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 [`firmware/glove/glove.ino`](firmware/glove/glove.ino) — ESP32 Arduino sketch.
 
 - MPU-6050 (GY-521) on I2C, SDA = GPIO 21, SCL = GPIO 22.
-- Buttons on GPIO 13, 12, 14, 27 to GND, `INPUT_PULLUP` (pressed = LOW).
+- Buttons on GPIO 13 (B0 = mode), 14 (B1 = pinky / axis-cycle), 27 (B2), 26 (B3) to GND, `INPUT_PULLUP` (pressed = LOW). GPIO 12 is a boot strapping pin, so it is avoided; unwired buttons read as released.
 - Library: **NimBLE-Arduino** (h2zero) from the Library Manager. No IMU library needed.
 - Keep the glove still for about a second at power-on while it calibrates the gyro.
 - The same line stream is echoed on USB serial at 115200 baud for debugging.
@@ -97,9 +97,9 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
    in the next hundred years. Our answer: you stop pointing at a screen and just
    use your hand." Click **Connect Glove**, pick `Aloft-Glove`. The HUD shows
    live roll, pitch, yaw.
-2. **(0:10)** FLY. Tilt forward, hold B1, lean into a turn. Fly down a street
-   between the towers, tap B2 for a boost. "Tilt to steer, squeeze to go. It's
-   a drone you wear."
+2. **(0:10)** FLY. Turn your hand to look down a street. Tap B1 (pinky):
+   *"x"*, tilt forward to slide along it. Tap: *"rotate"*, look up at a tower.
+   Tap: *"y"*, roll to rise above it. "One axis at a time, one tilt, no joystick."
 3. **(0:25)** Tap B0 — the app says *"orbit"*. Point at a tower, tap B1, tilt
    to circle it. Tap B0 again, *"grab"*: hold B1 and slide it over.
 4. **(0:35)** Fly to the glowing plaza. Tap B0 twice to *"build"*. Place a cube,

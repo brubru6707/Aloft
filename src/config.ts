@@ -36,7 +36,7 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'Tilt to steer · hold B1 forward · hold B2 boost',
+  FLY:   'Tap B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · tilt to move or look',
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
@@ -79,13 +79,34 @@ export const SIM = {
 };
 
 /** Mode tuning. */
+/**
+ * FLY: the "pinky" button alternates between a MOVE axis and ROTATE.
+ *   tap -> MOVE: X, tap -> ROTATE, tap -> MOVE: Y, tap -> ROTATE, tap -> MOVE: Z, tap -> ROTATE, tap -> MOVE: X ...
+ * MOVE: only the active world axis translates, driven by one hand tilt.
+ * ROTATE: the hand turns the camera (turnAxis) and looks up/down (lookAxis).
+ * Direction flips: axisSign / invertTurn / invertLook below, or INPUT.invertRoll / INPUT.invertPitch.
+ */
+export type FlyAxis = 'X' | 'Y' | 'Z';
+export type TiltInput = 'roll' | 'pitch';
+export type TiltAxis = TiltInput | 'yaw';
 export const FLY = {
-  yawRateDegPerSec: 90,    // at full roll
-  pitchRateDegPerSec: 60,  // at full pitch
-  speed: 14,               // units / s
-  boost: 3,
-  bankVisual: 0.6,         // how much the camera visually banks with roll
+  axisCycleButton: 1,                       // B1 = pinky button (GPIO 14 on the glove).
+  axisOrder: ['X', 'Y', 'Z'] as FlyAxis[],  // MOVE cycle order; ROTATE sits between each
+  axisControl: { X: 'pitch', Y: 'roll', Z: 'roll' } as Record<FlyAxis, TiltInput>,
+  // +1 or -1 per axis. Defaults: tilt forward (nose down) = +X, roll right = +Y (up), roll right = forward (-Z).
+  axisSign: { X: -1, Y: 1, Z: -1 } as Record<FlyAxis, 1 | -1>,
+  deadzoneDeg: 5,          // tilt below this does nothing; speed ramps smoothly from 0 past it
+  fullTiltDeg: 45,         // tilt at which the camera moves at full speed
+  speed: 14,               // units / s at full tilt
   minHeight: 0.6,
+  rotate: {
+    turnAxis: 'yaw' as TiltAxis,   // hand axis that turns the camera left/right
+    lookAxis: 'roll' as TiltAxis,  // hand axis that looks up/down
+    invertTurn: false,
+    invertLook: false,
+    yawRateDegPerSec: 90,          // at full turn-axis deflection
+    pitchRateDegPerSec: 60,        // at full look-axis deflection
+  },
 };
 export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };

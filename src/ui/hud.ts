@@ -1,4 +1,5 @@
 import { GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER } from '../config';
+import { flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
 import type { GloveSession } from '../modes/types';
@@ -25,6 +26,7 @@ interface GlovePanel {
   modeLabel: HTMLElement;
   modeName: HTMLElement;
   modeHint: HTMLElement;
+  axisLabel: HTMLElement;
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -45,6 +47,7 @@ export class Hud {
       <div id="gloves"></div>
       <div id="help">
         <b>Glove:</b> tap B0 next mode · hold B0 previous · B3 undo<br/>
+        <b>FLY:</b> tap B1 (pinky) alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · tilt to move or look<br/>
         <b>Simulator:</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag mouse to tilt<br/>
         <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> = buttons B0–B3 (hold = hold)
       </div>
@@ -93,8 +96,11 @@ export class Hud {
       modeLabel.innerHTML = `<span class="tag">G${g.gloveId + 1}</span><span class="name"></span>`;
       const modeHint = document.createElement('div');
       modeHint.className = 'mode-hint';
+      const axisLabel = document.createElement('div');
+      axisLabel.className = 'axis-label';
+      axisLabel.style.display = 'none';
       const wrap = document.createElement('div');
-      wrap.append(modeLabel, modeHint);
+      wrap.append(modeLabel, modeHint, axisLabel);
       wrap.style.display = 'none';
       modes.appendChild(wrap);
 
@@ -111,6 +117,7 @@ export class Hud {
         modeLabel: wrap,
         modeName: modeLabel.querySelector('.name')!,
         modeHint,
+        axisLabel,
       };
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
@@ -158,6 +165,13 @@ export class Hud {
         p.modeName.textContent = modeName;
         p.modeHint.textContent = MODE_HINTS[modeName];
         p.modeLabel.querySelector<HTMLElement>('.mode-label')!.style.setProperty('--mode', MODE_COLORS[modeName]);
+      }
+      // FLY: active translation axis, large so it reads from across the room.
+      const axisText = modeName === 'FLY' ? flyLabel(s) : '';
+      if (p.axisLabel.textContent !== axisText) {
+        p.axisLabel.textContent = axisText;
+        p.axisLabel.style.display = axisText ? '' : 'none';
+        p.axisLabel.style.setProperty('--mode', MODE_COLORS[modeName]);
       }
 
       // Cursor
