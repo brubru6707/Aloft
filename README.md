@@ -40,7 +40,7 @@ spoken aloud and shown large in the top-left, color-coded.
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
-| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the crosshair points: on top of the ground or piece you aim at (so pieces stack), or against the side you aim at; the shape is chosen with the SHAPE chips in the glove panel and **B3** (or the SIZE chips) cycles small / medium / large |
+| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the crosshair points: on top of the ground or piece you aim at (so pieces stack), or stuck to the side you aim at, at that height, so you can build outwards; the shape is chosen with the SHAPE chips in the glove panel and **B3** (or the SIZE chips) cycles small / medium / large |
 | **ERASE** | red | hand rotates the camera to aim; tap **B1** deletes the object under the cursor |
 
 **B3** cycles the sensitivity multiplier (0.5×, 1×, 1.5×, 2×, also a toolbar button) and **B2** = undo in every mode (build, move, rotate, scale, erase). All mappings
