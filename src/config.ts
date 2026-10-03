@@ -22,11 +22,11 @@ export const GLOBAL_ACTIONS = {
 
 /** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  ORBIT/GRAB/SCALE: select
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  GRAB/SCALE: select
 };
 
 /**
- * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, grab, scale).
  * B3 (GPIO 26) cycles through the levels in every mode except BUILD, where B3 cycles the piece
  * size instead; the toolbar button always cycles sensitivity.
  */
@@ -38,12 +38,11 @@ export const SENSITIVITY = {
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
-export const MODE_ORDER = ['FLY', 'ORBIT', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
+export const MODE_ORDER = ['FLY', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
   FLY:   '#e87d0d',  // Blender orange
-  ORBIT: '#5680c2',  // Blender selection blue
   GRAB:  '#ff9f3c',
   SCALE: '#8bdc00',  // Blender Y-axis green
   BUILD: '#ffd43b',
@@ -52,7 +51,6 @@ export const MODE_COLORS: Record<ModeName, string> = {
 
 export const MODE_HINTS: Record<ModeName, string> = {
   FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B3 sensitivity',
-  ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
   BUILD: 'Turn hand to aim · press B1 to place · B3 cycles size · shape in the panel',
@@ -142,15 +140,9 @@ export type RotateStyle = 'rate' | 'absolute';
 /**
  * Modes (besides FLY's ROTATE state) where glove 1's hand also turns the camera.
  * Only modes that do not already use tilt for something else belong here:
- * ORBIT/GRAB/SCALE use tilt to orbit, move or scale, so they are left out.
+ * GRAB/SCALE use tilt to move or scale, so they are left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const ORBIT = {
-  azimuthDegPerSec: 90,     // at full roll
-  elevationDegPerSec: 60,   // at full pitch
-  invertAzimuth: true,      // roll left = camera swings left around the target (the target slides right in view)
-  invertElevation: true,    // default: pitch up = look up (camera moves DOWN around the target); set false for "pitch up = camera rises"
-};
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {

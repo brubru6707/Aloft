@@ -34,7 +34,7 @@ export class CameraRig {
     return out.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
   }
 
-  /** Point the camera at a target from its current position (used after orbiting). */
+  /** Point the camera at a target from its current position. */
   lookAt(target: THREE.Vector3): void {
     const d = target.clone().sub(this.camera.position);
     this.yaw = Math.atan2(-d.x, -d.z);

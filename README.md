@@ -37,7 +37,6 @@ spoken aloud and shown large in the top-left, color-coded.
 | Mode | Color | Controls |
 | --- | --- | --- |
 | **FLY** (default) | cyan | tap **B1** (pinky) to alternate `MOVE: X` → `ROTATE` → `MOVE: Y` → `ROTATE` → `MOVE: Z` → `ROTATE` … (shown large and spoken). MOVE translates along that one world axis: X (left/right) from roll, Y (up/down) and Z (forward/back) from pitch (hand up = up, tilt forward = forward). ROTATE turns the camera with hand roll (roll right = turn right) and looks up/down with pitch. Deadzone, tilt mapping, signs and rates live in `FLY` in `src/config.ts` |
-| **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
 | **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the crosshair points: on top of the ground or piece you aim at (so pieces stack), or stuck to the side you aim at, at that height, so you can build outwards; the shape is chosen with the SHAPE chips in the glove panel and **B3** (or the SIZE chips) cycles small / medium / large |
@@ -133,8 +132,8 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 2. **(0:10)** FLY. Turn your hand to look down a street. Tap B1 (pinky):
    *"x"*, tilt forward to slide along it. Tap: *"rotate"*, look up at a tower.
    Tap: *"y"*, roll to rise above it. "One axis at a time, one tilt, no joystick."
-3. **(0:25)** Tap B0 — the app says *"orbit"*. Point at a tower, tap B1, tilt
-   to circle it. Tap B0 again, *"grab"*: hold B1 and slide it over.
+3. **(0:25)** Tap B0 — the app says *"grab"*. Point at a piece, tap B1, then hold B1
+   and slide it over.
 4. **(0:35)** Fly to the glowing plaza. Tap B0 twice to *"build"*. Place a cube,
    pick sphere in the panel, place one on top, press B3 for a large one. Switch to
    *"scale"* and grow it. Press B2 to undo the last change.
