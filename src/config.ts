@@ -117,9 +117,9 @@ export const FLY = {
   //   Z (forward/back) <- pitch: tilt forward (nose down, negative pitch) = forward (-Z)
   axisControl: { X: 'roll', Y: 'pitch', Z: 'pitch' } as Record<FlyAxis, TiltInput>,
   axisSign: { X: 1, Y: 1, Z: 1 } as Record<FlyAxis, 1 | -1>,
-  deadzoneDeg: 5,          // tilt below this does nothing; speed ramps smoothly from 0 past it
-  fullTiltDeg: 45,         // tilt at which the camera moves at full speed
-  speed: 14,               // units / s at full tilt
+  deadzoneDeg: 2,          // tilt below this does nothing; speed ramps smoothly from 0 past it
+  fullTiltDeg: 25,         // tilt at which the camera moves (or turns) at full speed; a relaxed 10-15° already moves briskly
+  speed: 20,               // cm / s at full tilt (times the sensitivity multiplier)
   minHeight: 0.6,
   rotate: {
     // 'rate': tilt sets a turn speed, the camera keeps turning while the hand is deflected.

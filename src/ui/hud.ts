@@ -198,9 +198,11 @@ export class Hud {
       const p = this.panels[i];
       const g = s.glove;
       const st = g.state;
-      p.rpy[0].textContent = fmt(st.roll);
-      p.rpy[1].textContent = fmt(st.pitch);
-      p.rpy[2].textContent = fmt(st.yaw);
+      // Show the smoothed, recentred tilt (what FLY reads), not the post-deadzone state, so a
+      // small tilt never reads as 0 while the camera is moving.
+      p.rpy[0].textContent = fmt(g.tilt.roll);
+      p.rpy[1].textContent = fmt(g.tilt.pitch);
+      p.rpy[2].textContent = fmt(g.tilt.yaw);
       st.buttons.forEach((b, k) => p.buttons[k].classList.toggle('down', b));
 
       const stale = g.connected && g.sourceKind === 'ble' && performance.now() - g.lastSampleAt > 1500;
