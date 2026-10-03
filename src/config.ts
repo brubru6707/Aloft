@@ -27,7 +27,8 @@ export const MODE_BUTTONS = {
 
 /**
  * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
- * B2 (GPIO 27) cycles through the levels; the toolbar button does the same.
+ * B2 (GPIO 27) cycles through the levels in every mode except BUILD, where B2 cycles the piece
+ * size instead; the toolbar button always cycles sensitivity.
  */
 export const SENSITIVITY = {
   button: 2,
@@ -54,9 +55,12 @@ export const MODE_HINTS: Record<ModeName, string> = {
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · press B1 to place · pick the shape in the panel',
+  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
+
+/** World units: 1 three.js unit = 1 cm. The floor grid, readouts and STL export use this. */
+export const UNITS = { name: 'cm', gridMinorCm: 1, gridMajorCm: 10, gridExtentCm: 600, labelEveryCm: 10, labelRangeCm: 100, stlScale: 10 /* cm -> mm for slicers */ };
 
 /** Glove identity. Up to two gloves. */
 export const GLOVE_COLORS = ['#e87d0d', '#5680c2']; // Blender orange, Blender selection blue
@@ -150,5 +154,10 @@ export const BUILD = {
   distance: 6,            // float distance when the cursor is not pointing at nearby ground
   maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
+  // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
+  sizes: ['small', 'medium', 'large'] as const,
+  sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
+  defaultSize: 'medium' as 'small' | 'medium' | 'large',
 };
 export type PrimitiveName = (typeof BUILD.primitives)[number];
+export type SizeName = (typeof BUILD.sizes)[number];

@@ -26,9 +26,10 @@ export class ObjectRegistry {
   createPrimitive(kind: PrimitiveName, color: string): THREE.Mesh {
     let geo: THREE.BufferGeometry;
     switch (kind) {
-      case 'sphere': geo = new THREE.SphereGeometry(1, 32, 20); break;
-      case 'cylinder': geo = new THREE.CylinderGeometry(0.8, 0.8, 2, 32); break;
-      default: geo = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+      // Medium size = 2 cm across (1 unit = 1 cm); small/large scale by BUILD.sizeScale.
+      case 'sphere': geo = new THREE.SphereGeometry(1, 32, 20); break;           // Ø 2 cm
+      case 'cylinder': geo = new THREE.CylinderGeometry(1, 1, 2, 32); break;     // Ø 2 cm, 2 cm tall
+      default: geo = new THREE.BoxGeometry(2, 2, 2);                             // 2 cm cube
     }
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.15 }));
     mesh.castShadow = mesh.receiveShadow = true;

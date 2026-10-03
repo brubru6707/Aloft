@@ -1,4 +1,4 @@
-import { BUILD, FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName } from '../config';
+import { BUILD, FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, UNITS, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -20,6 +20,8 @@ export interface HudActions {
   cycleSensitivity(): void;
   /** Choose the BUILD primitive for a glove. */
   setPrimitive(gloveId: number, p: PrimitiveName): void;
+  /** Choose the BUILD piece size for a glove (same as B2 in BUILD). */
+  setSize(gloveId: number, size: SizeName): void;
 }
 
 interface GlovePanel {
@@ -42,6 +44,8 @@ interface GlovePanel {
   modeChips: HTMLElement[];
   shapeRow: HTMLElement;
   shapeChips: HTMLElement[];
+  sizeChips: HTMLElement[];
+  pos: HTMLElement;
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -65,7 +69,7 @@ export class Hud {
       </div>
       <div id="gloves"></div>
       <div id="help">
-        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B2 sensitivity · B3 undo<br/>
+        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B2 sensitivity (size in BUILD) · B3 undo<br/>
         <b>FLY:</b> tap B1 (pinky) alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · tilt to move or look<br/>
         <b>Simulator:</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag mouse to tilt<br/>
         <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> = buttons B0–B3 (hold = hold)
@@ -102,7 +106,7 @@ export class Hud {
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
-        <div class="shapes" title="BUILD shape: click to choose"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}</div>
+        <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
@@ -151,9 +155,12 @@ export class Hud {
         flyAmt: panel.querySelector('.fly .amt u')!,
         modeChips: [...panel.querySelectorAll<HTMLElement>('.modes i')],
         shapeRow: panel.querySelector('.shapes')!,
-        shapeChips: [...panel.querySelectorAll<HTMLElement>('.shapes i')],
+        shapeChips: [...panel.querySelectorAll<HTMLElement>('.shapes i[data-shape]')],
+        sizeChips: [...panel.querySelectorAll<HTMLElement>('.shapes i[data-size]')],
+        pos: panel.querySelector('.shapes .pos')!,
       };
       p.shapeChips.forEach((chip) => (chip.onclick = () => actions.setPrimitive(g.gloveId, chip.dataset.shape as PrimitiveName)));
+      p.sizeChips.forEach((chip) => { chip.title = chip.dataset.size!; chip.onclick = () => actions.setSize(g.gloveId, chip.dataset.size as SizeName); });
       p.modeChips.forEach((chip, idx) => (chip.onclick = () => actions.setMode(g.gloveId, idx)));
       p.flyChips.forEach((chip) => (chip.onclick = () => actions.setFlyAxis(g.gloveId, (chip.dataset.axis || null) as FlyAxis | null)));
       p.connect.onclick = () => actions.connectBle(g.gloveId);
@@ -222,6 +229,12 @@ export class Hud {
       p.modeChips.forEach((c, k) => c.classList.toggle('on', k === s.modeIndex));
       p.shapeRow.style.display = modeName === 'BUILD' ? '' : 'none';
       p.shapeChips.forEach((c) => c.classList.toggle('on', c.dataset.shape === s.primitive));
+      p.sizeChips.forEach((c) => c.classList.toggle('on', c.dataset.size === s.size));
+      if (modeName === 'BUILD' && s.ghost) {
+        const q = s.ghost.position;
+        const edge = (2 * BUILD.sizeScale[s.size]).toFixed(0);
+        p.pos.textContent = `${edge} ${UNITS.name} @ ${q.x.toFixed(0)}, ${q.y.toFixed(0)}, ${(-q.z).toFixed(0)} ${UNITS.name}`;
+      }
       const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
       p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
       // Deflection bar: fills from the centre toward − or + along the active axis.

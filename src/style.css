@@ -67,8 +67,10 @@ button:disabled { opacity: .45; cursor: default; }
 }
 .glove .modes i:hover { background: var(--btn-hover); }
 .glove .modes i.on { background: var(--mode); border-color: var(--line); color: #1d1d1d; }
-.glove .shapes { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11px; }
+.glove .shapes { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11px; flex-wrap: wrap; }
 .glove .shapes span { color: var(--muted); letter-spacing: .08em; margin-right: 2px; }
+.glove .shapes span.gap { margin-left: 6px; }
+.glove .shapes .pos { margin-left: auto; font-weight: 500; font-size: 10px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .glove .shapes i {
   font-style: normal; font-weight: 500; padding: 3px 7px; border-radius: var(--radius); cursor: pointer;
   border: 1px solid var(--line); background: var(--btn); color: var(--text); transition: all .1s;

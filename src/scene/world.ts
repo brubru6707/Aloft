@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { UNITS } from '../config';
 
 export const BUILD_AREA = { center: new THREE.Vector3(0, 0, -28), radius: 12 };
 
@@ -37,11 +38,34 @@ export function createWorld(): World {
   ground.receiveShadow = true;
   ground.name = 'ground';
   scene.add(ground);
-  const grid = new THREE.GridHelper(600, 120, 0x545454, 0x4a4a4a);
-  (grid.material as THREE.Material).transparent = true;
-  (grid.material as THREE.Material).opacity = 0.7;
-  grid.position.y = 0.01;
-  scene.add(grid);
+  // CAD-style floor: 1 cm minor lines (faint), 10 cm major lines (brighter), labels every 10 cm.
+  const ext = UNITS.gridExtentCm;
+  const minor = new THREE.GridHelper(ext, ext / UNITS.gridMinorCm, 0x4a4a4a, 0x4a4a4a);
+  (minor.material as THREE.Material).transparent = true;
+  (minor.material as THREE.Material).opacity = 0.35;
+  minor.position.y = 0.01;
+  scene.add(minor);
+  const major = new THREE.GridHelper(ext, ext / UNITS.gridMajorCm, 0x6a6a6a, 0x6a6a6a);
+  (major.material as THREE.Material).transparent = true;
+  (major.material as THREE.Material).opacity = 0.8;
+  major.position.y = 0.012;
+  scene.add(major);
+  // Measurement labels along X (red) and Z (blue) near the origin.
+  const label = (text: string, color: string) => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 48;
+    const g = c.getContext('2d')!;
+    g.font = 'bold 26px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = color; g.fillText(text, 64, 24);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    sp.scale.set(6, 2.25, 1);
+    return sp;
+  };
+  for (let v = -UNITS.labelRangeCm; v <= UNITS.labelRangeCm; v += UNITS.labelEveryCm) {
+    if (v === 0) continue;
+    const lx = label(`${v} ${UNITS.name}`, '#ff6b7f'); lx.position.set(v, 0.6, 1.8); scene.add(lx);
+    const lz = label(`${-v} ${UNITS.name}`, '#6fb4ff'); lz.position.set(1.8, 0.6, v); scene.add(lz);   // -Z is "forward", shown positive
+  }
+  const origin = label('0', '#e6e6e6'); origin.position.set(1.8, 0.6, 1.8); scene.add(origin);
   // Blender-style axis lines through the origin: X red, Z blue (Y is up here).
   const axisLine = (a: THREE.Vector3, b: THREE.Vector3, color: number) => {
     const g = new THREE.BufferGeometry().setFromPoints([a, b]);

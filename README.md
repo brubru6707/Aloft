@@ -40,7 +40,7 @@ spoken aloud and shown large in the top-left, color-coded.
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
-| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); the shape is chosen with the SHAPE chips in the glove panel |
+| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); the shape is chosen with the SHAPE chips in the glove panel and **B2** (or the SIZE chips) cycles small / medium / large |
 | **ERASE** | red | hand rotates the camera to aim; tap **B1** deletes the object under the cursor |
 
 **B2** cycles the sensitivity multiplier (0.5×, 1×, 1.5×, 2×, also a toolbar button) and **B3** = undo in every mode (build, move, rotate, scale, erase). All mappings
@@ -54,7 +54,12 @@ Toolbar: **Undo**, **Recenter** (zero every glove's orientation; also per glove)
 **Rotate: rate / absolute** (FLY rotation style: *rate* keeps turning while the hand
 is deflected, *absolute* makes the camera follow the hand angle 1:1 so a 180° turn
 of the hand stays a 180° turn), **Export STL** (downloads every user-built object
-as one binary STL).
+as one binary STL, scaled from the world's centimetres to millimetres for slicers).
+
+The world is in **centimetres** (1 unit = 1 cm). The floor is a CAD-style grid with
+1 cm minor and 10 cm major lines, labelled every 10 cm along X (red) and Z (blue).
+A medium cube is 2 cm; small is 1 cm and large is 4 cm. While building, the glove
+panel shows the piece size and the ghost's position in cm.
 
 A small world-axes gizmo sits top-right under the toolbar. It turns with the camera so
 you can always see where world X (red), Y (green) and Z (blue) point; in FLY the active

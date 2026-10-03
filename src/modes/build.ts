@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BUILD, MODE_BUTTONS, type PrimitiveName } from '../config';
+import { BUILD, MODE_BUTTONS, SENSITIVITY, type PrimitiveName, type SizeName } from '../config';
+import { speak } from '../ui/speak';
 import type { AppContext, GloveSession, Mode } from './types';
 
 const point = new THREE.Vector3();
@@ -7,7 +8,7 @@ const point = new THREE.Vector3();
 function halfHeight(mesh: THREE.Mesh): number {
   mesh.geometry.computeBoundingBox();
   const bb = mesh.geometry.boundingBox!;
-  return (bb.max.y - bb.min.y) / 2;
+  return ((bb.max.y - bb.min.y) / 2) * mesh.scale.y;
 }
 
 const down = new THREE.Vector3(0, -1, 0);
@@ -32,6 +33,7 @@ function placementPoint(s: GloveSession, ctx: AppContext, out: THREE.Vector3, hh
 function rebuildGhost(s: GloveSession, ctx: AppContext): void {
   if (s.ghost) { s.ghost.parent?.remove(s.ghost); s.ghost = null; }
   const ghost = ctx.objects.createPrimitive(s.primitive, s.color);
+  ghost.scale.setScalar(BUILD.sizeScale[s.size]);
   const m = ghost.material as THREE.MeshStandardMaterial;
   m.transparent = true; m.opacity = 0.35; m.depthWrite = false;
   ghost.castShadow = ghost.receiveShadow = false;
@@ -44,6 +46,12 @@ function rebuildGhost(s: GloveSession, ctx: AppContext): void {
 /** Choose the primitive for a glove (from the panel chips); refreshes the ghost if in BUILD. */
 export function setPrimitive(s: GloveSession, ctx: AppContext, p: PrimitiveName): void {
   s.primitive = p;
+  if (s.ghost) rebuildGhost(s, ctx);
+}
+
+/** Choose the piece size for a glove (B2 in BUILD, or the panel chips); refreshes the ghost. */
+export function setSize(s: GloveSession, ctx: AppContext, size: SizeName): void {
+  s.size = size;
   if (s.ghost) rebuildGhost(s, ctx);
 }
 
@@ -60,10 +68,20 @@ export const buildMode: Mode = {
   },
   // Act on the press edge so it works no matter how long the button is held.
   onPress(s, ctx, button) {
+    if (button === SENSITIVITY.button) {
+      // In BUILD, B2 is the size button: small -> medium -> large.
+      const i = BUILD.sizes.indexOf(s.size);
+      const next = BUILD.sizes[(i + 1) % BUILD.sizes.length];
+      setSize(s, ctx, next);
+      ctx.toast(`Size: ${next}`);
+      speak(next);
+      return;
+    }
     if (button !== MODE_BUTTONS.primary) return;
     const mesh = ctx.objects.createPrimitive(s.primitive, s.color);
+    mesh.scale.setScalar(BUILD.sizeScale[s.size]);
     const hh = halfHeight(mesh);
-    mesh.userData.halfHeight = hh;
+    mesh.userData.halfHeight = hh / mesh.scale.y;   // unscaled; SCALE mode multiplies by the live scale
     mesh.position.copy(placementPoint(s, ctx, point, hh));
     mesh.rotation.y = ctx.rig.yaw;
     ctx.objects.add(mesh);

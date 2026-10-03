@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY } from './config';
-import { setPrimitive } from './modes/build';
+import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY } from './config';
+import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
@@ -41,6 +41,7 @@ const sessions: GloveSession[] = gloves.gloves.map((glove) => ({
   hit: null,
   ray: new THREE.Ray(),
   primitive: 'cube',
+  size: BUILD.defaultSize,
   ghost: null,
   scratch: {},
 }));
@@ -64,6 +65,7 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
   },
   cycleSensitivity,
   setPrimitive: (id, p) => { setPrimitive(sessions[id], ctx, p); hud.toast(`Shape: ${p}`); },
+  setSize: (id, size) => { setSize(sessions[id], ctx, size); hud.toast(`Size: ${size}`); },
   toggleRotateStyle: () => {
     FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
     sessions.forEach(resetRotateAnchor);
@@ -106,7 +108,7 @@ gloves.onAll('press', ({ gloveId, button }) => {
   if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);
   if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return setMode(s, s.modeIndex - 1);
   if (is(GLOBAL_ACTIONS.undo, button, 'press')) return doUndo();
-  if (button === SENSITIVITY.button) return cycleSensitivity();
+  if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return cycleSensitivity();   // BUILD uses B2 for size
   MODES[s.modeIndex].onPress?.(s, ctx, button);
 });
 gloves.onAll('tap', ({ gloveId, button }) => {
