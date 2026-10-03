@@ -13,14 +13,18 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Aloft uses the microphone to hear the \"X2D\" wake word and to talk with the X2D voice assistant.",
+        "NSSpeechRecognitionUsageDescription": "Aloft listens for the \"X2D\" wake word to start the voice assistant."
       }
     },
     "android": {
       "package": "com.brunorodriguez.aloft",
       "permissions": [
         "android.permission.BLUETOOTH_SCAN",
-        "android.permission.BLUETOOTH_CONNECT"
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#3d3d3d",
@@ -50,6 +54,15 @@
           "backgroundColor": "#3d3d3d",
           "image": "./assets/splash-icon.png",
           "imageWidth": 160
+        }
+      ],
+      "expo-speech-recognition",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "microphonePermission": "Aloft uses the microphone to talk with the X2D voice assistant.",
+          "cameraPermission": "Aloft does not use the camera."
         }
       ]
     ]

@@ -13,16 +13,32 @@ function halfHeight(mesh: THREE.Mesh): number {
 
 const down = new THREE.Vector3(0, -1, 0);
 const dropRay = new THREE.Raycaster();
+const aimRay = new THREE.Raycaster();
+const normal = new THREE.Vector3();
 
 /**
- * Where a new object goes: BUILD.distance in front of the cursor, then dropped straight
- * down onto the first thing below it (ground or another built object) so pieces stack.
+ * Where a new object goes: exactly where the crosshair points. The cursor ray is cast at
+ * the ground and every existing piece; the new piece is centred on the hit point pushed
+ * out along the hit face by its half size, so aiming at the top of a block stacks on it
+ * and aiming at a side sticks the piece to that side at the aimed height (it does not
+ * fall; you can build outwards from a tower). If the crosshair points at nothing, fall
+ * back to BUILD.distance ahead, dropped onto the first surface below.
  */
 function placementPoint(s: GloveSession, ctx: AppContext, out: THREE.Vector3, hh: number): THREE.Vector3 {
+  const targets = [ctx.world.ground, ...ctx.objects.selectables.filter((m) => m !== s.ghost)];
+  aimRay.set(s.ray.origin, s.ray.direction);
+  aimRay.far = BUILD.maxAimDistance;
+  const aim = aimRay.intersectObjects(targets, false);
+  if (aim.length && aim[0].face) {
+    const hit = aim[0];
+    normal.copy(hit.face!.normal).transformDirection(hit.object.matrixWorld);
+    out.copy(hit.point).addScaledVector(normal, hh);
+    if (out.y < hh) out.y = hh;   // never below the floor
+    return out;
+  }
   out.copy(s.ray.origin).addScaledVector(s.ray.direction, BUILD.distance);
   dropRay.set(out, down);
   dropRay.far = BUILD.maxDropDistance;
-  const targets = [ctx.world.ground, ...ctx.objects.selectables.filter((m) => m !== s.ghost)];
   const hits = dropRay.intersectObjects(targets, false);
   if (hits.length) out.y = hits[0].point.y + hh;
   else if (out.y < hh) out.y = hh;
@@ -48,13 +64,13 @@ export function setPrimitive(s: GloveSession, ctx: AppContext, p: PrimitiveName)
   if (s.ghost) rebuildGhost(s, ctx);
 }
 
-/** Choose the piece size (B2 in BUILD, or the SIZE chips); refreshes the ghost. */
+/** Choose the piece size (B3 in BUILD, or the SIZE chips); refreshes the ghost. */
 export function setSize(s: GloveSession, ctx: AppContext, size: SizeName): void {
   s.size = size;
   if (s.ghost) rebuildGhost(s, ctx);
 }
 
-/** BUILD: ghost preview in front of the cursor; B1 places, B2 cycles the size, shape from the chips. */
+/** BUILD: ghost preview where the crosshair points; B1 places, B3 cycles the size, shape from the chips. */
 export const buildMode: Mode = {
   name: 'BUILD',
   enter(s, ctx) { rebuildGhost(s, ctx); },
@@ -69,7 +85,7 @@ export const buildMode: Mode = {
   // Act on the press edge so it works no matter how long the button is held.
   onPress(s, ctx, button) {
     if (button === SENSITIVITY.button) {
-      // In BUILD, B2 is the size button: small -> medium -> large.
+      // In BUILD, the sensitivity button (B3) is the size button: small -> medium -> large.
       const i = BUILD.sizes.indexOf(s.size);
       const next = BUILD.sizes[(i + 1) % BUILD.sizes.length];
       setSize(s, ctx, next);

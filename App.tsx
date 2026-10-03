@@ -1,3 +1,4 @@
+import { ConversationProvider } from '@elevenlabs/react-native';
 import { useFonts } from 'expo-font';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,6 +9,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { useHud } from './src/core/useHud';
 import { MainScreen } from './src/screens/MainScreen';
 import { TestScreen } from './src/screens/TestScreen';
+import { VOICE } from './src/config';
+import { VoiceAssistant } from './src/ui/VoiceAssistant';
 import { FONT, T } from './src/ui/theme';
 
 type Tab = 'nav' | 'test';
@@ -48,7 +51,10 @@ export default function App() {
   if (!loaded) return <View style={s.root} />;
   return (
     <SafeAreaProvider>
-      <Shell />
+      <ConversationProvider agentId={VOICE.agentId} connectionType="webrtc">
+        <Shell />
+        <VoiceAssistant />
+      </ConversationProvider>
     </SafeAreaProvider>
   );
 }

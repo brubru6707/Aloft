@@ -18,45 +18,41 @@ export const GLOBAL_ACTIONS = {
   modeNext: { button: 0, gesture: 'press' } as ButtonAction,
   // Previous mode is not on the glove any more: tap a mode chip in the bottom sheet.
   modePrev: null as ButtonAction | null,
-  undo:     { button: 3, gesture: 'press' } as ButtonAction,
+  undo:     { button: 2, gesture: 'press' } as ButtonAction,   // B2 = GPIO 27
 };
 
 /** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  ORBIT/GRAB/SCALE: select
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  BUILD/ERASE: place/delete.  SCALE: select
 };
 
 /**
- * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
- * B2 (GPIO 27) cycles through the levels in every mode except BUILD, where B2 cycles the piece
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, scale).
+ * B3 (GPIO 26) cycles through the levels in every mode except BUILD, where B3 cycles the piece
  * size instead; the "⚡ Sens" button always cycles sensitivity.
  */
 export const SENSITIVITY = {
-  button: 2,
+  button: 3,
   levels: [0.5, 1, 1.5, 2],
   startIndex: 1,
 };
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
-export const MODE_ORDER = ['FLY', 'ORBIT', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
+export const MODE_ORDER = ['FLY', 'SCALE', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
   FLY:   '#e87d0d',  // Blender orange
-  ORBIT: '#5680c2',  // Blender selection blue
-  GRAB:  '#ff9f3c',
   SCALE: '#8bdc00',  // Blender Y-axis green
   BUILD: '#ffd43b',
   ERASE: '#ff3352',  // Blender X-axis red
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity',
-  ORBIT: 'Tilt to orbit the selection · tap B1 to select',
-  GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
+  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B3 sensitivity',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
+  BUILD: 'Turn hand to aim · press B1 to place · B3 cycles size · shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
 
@@ -72,12 +68,30 @@ export const BUTTON_GPIO = [13, 25, 27, 26];
 
 /** Input processing. */
 export const INPUT = {
-  tapMaxMs: 500,          // press shorter than this = tap, longer = hold (B0 prev-mode, GRAB move)
+  tapMaxMs: 500,          // press shorter than this = tap, longer = hold
   smoothing: 0.35,        // exponential filter alpha (0..1, higher = less smoothing)
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
   invertPitch: false,     // flip if "hand up" moves the camera down on your glove
   invertRoll: false,      // the firmware already flips roll (SIGN_ROLL = -1); flip here only if rolling right reads negative
+  connectSettleMs: 1000,  // after a connect the pose is zeroed on the first sample and again after this long
+};
+
+/** X2D voice assistant (ElevenLabs Agents). The agent is public, so only its id is needed. */
+export const VOICE = {
+  agentId: 'agent_8201m413w8nyf63thnzzcrexwx1t',   // "Aloft X2D" in the ElevenLabs dashboard
+  wakeWords: ['x2d', 'x 2 d', 'x two d', 'x to d', 'x too d', 'ex 2 d', 'ex two d', 'extudy'],
+  lang: 'en-US',
+  autoListen: true,       // start watching for the wake word as soon as the app opens (asks for the mic once)
+};
+
+/** Gemini (Google AI Studio). Key lives in .env.local as EXPO_PUBLIC_GEMINI_API_KEY. */
+export const GEMINI = {
+  model: 'gemini-3.8-flash',   // the API retired gemini-2.5-flash for new keys
+  maxOutputTokens: 200,
+  retries: 2,              // extra attempts on 503 (overloaded) / 429 (rate limited), with backoff
+  answerToastMs: 6000,
+  systemPrompt: 'You are the assistant inside Aloft, a hand-controlled 3D building app where the world is in centimetres. Answer in one or two short sentences, plain text, no markdown.',
 };
 
 /** Bluetooth LE (Nordic UART Service). */
@@ -120,12 +134,15 @@ export const FLY = {
   axisCycleButton: 1,                       // B1 = pinky button (GPIO 25 on the glove). Acts on the press edge.
   cycleCooldownMs: 200,                     // ignore a second press within this (contact bounce / double report)
   axisOrder: ['X', 'Y', 'Z'] as FlyAxis[],  // MOVE cycle order; ROTATE sits between each
-  axisControl: { X: 'pitch', Y: 'roll', Z: 'roll' } as Record<FlyAxis, TiltInput>,
-  // +1 or -1 per axis. Defaults: tilt forward (nose down) = +X, roll right = +Y (up), roll right = forward (-Z).
-  axisSign: { X: -1, Y: 1, Z: -1 } as Record<FlyAxis, 1 | -1>,
-  deadzoneDeg: 5,          // tilt below this does nothing; speed ramps smoothly from 0 past it
-  fullTiltDeg: 45,         // tilt at which the camera moves at full speed
-  speed: 14,               // units / s at full tilt
+  // Sideways from sideways tilt, forward/up from forward/up tilt:
+  //   X (left/right)   <- roll:  roll right  = +X (right)
+  //   Y (up/down)      <- pitch: hand up     = +Y (up)
+  //   Z (forward/back) <- pitch: tilt forward (nose down, negative pitch) = forward (-Z)
+  axisControl: { X: 'roll', Y: 'pitch', Z: 'pitch' } as Record<FlyAxis, TiltInput>,
+  axisSign: { X: 1, Y: 1, Z: 1 } as Record<FlyAxis, 1 | -1>,
+  deadzoneDeg: 2,          // tilt below this does nothing; speed ramps smoothly from 0 past it
+  fullTiltDeg: 25,         // tilt at which the camera moves (or turns) at full speed; a relaxed 10-15° already moves briskly
+  speed: 20,               // cm / s at full tilt (times the sensitivity multiplier)
   minHeight: 0.6,
   rotate: {
     // 'rate': tilt sets a turn speed, the camera keeps turning while the hand is deflected.
@@ -147,22 +164,16 @@ export const FLY = {
 /**
  * Modes (besides FLY's ROTATE state) where the hand also turns the camera.
  * Only modes that do not already use tilt for something else belong here:
- * ORBIT/GRAB/SCALE use tilt to orbit, move or scale, so they are left out.
+ * SCALE uses tilt to scale, so it is left out.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
-export const ORBIT = {
-  azimuthDegPerSec: 90,     // at full roll
-  elevationDegPerSec: 60,   // at full pitch
-  invertAzimuth: false,     // default: roll right = view turns right around the target (same feel as FLY)
-  invertElevation: true,    // default: pitch up = look up (camera moves DOWN around the target); set false for "pitch up = camera rises"
-};
-export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
-  distance: 6,            // float distance when the cursor is not pointing at nearby ground
-  maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
+  maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
+  distance: 6,            // fallback float distance (cm) when the crosshair points at nothing
+  maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
-  // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
+  // Piece size. In BUILD, B3 cycles small -> medium -> large (elsewhere B3 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,
   sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
   defaultSize: 'medium' as 'small' | 'medium' | 'large',

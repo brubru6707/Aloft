@@ -29,7 +29,7 @@ export function Toast({ text, bottom }: { text: string; bottom: number }) {
   if (!text) return null;
   return (
     <View style={[s.toastWrap, { bottom }]} pointerEvents="none">
-      <View style={s.toast}><Text style={s.toastText}>{text}</Text></View>
+      <View style={s.toast}><Text style={s.toastText} numberOfLines={6}>{text}</Text></View>
     </View>
   );
 }
@@ -42,7 +42,7 @@ const s = StyleSheet.create({
   crossWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   cross: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: T.accent, alignItems: 'center', justifyContent: 'center' },
   crossDot: { width: 4, height: 4, backgroundColor: T.accent },
-  toastWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  toast: { backgroundColor: T.panel, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 7, paddingHorizontal: 14 },
+  toastWrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
+  toast: { maxWidth: 520, backgroundColor: T.panel, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 7, paddingHorizontal: 14 },
   toastText: { color: T.text, fontWeight: '500', fontSize: 13 },
 });

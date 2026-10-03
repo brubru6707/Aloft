@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BLE, BUILD, FLY, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
+import { BLE, BUILD, FLY, GEMINI, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
+import { askGemini, geminiAvailable } from '../ai/gemini';
 import { BleSource } from '../input/BleSource';
 import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
@@ -14,6 +15,8 @@ import { hapticConnected, hapticError, hapticFlyState, hapticModeChange } from '
 import { speak } from '../ui/speak';
 import { UndoStack } from '../undo';
 
+export type VoiceState = 'off' | 'listening' | 'connecting' | 'talking' | 'unsupported';
+
 /** Plain-data view of the engine for the React overlays, refreshed at UI.hudRefreshHz. */
 export interface HudState {
   mode: ModeName;
@@ -22,7 +25,7 @@ export interface HudState {
   flyLabel: string;        // '' outside FLY
   flyAxis: FlyAxis | null;
   deflection: number;      // -1..1 along the active MOVE axis
-  roll: number; pitch: number; yaw: number;   // post-deadzone state, degrees
+  roll: number; pitch: number; yaw: number;   // smoothed, recentred tilt (what FLY reads), degrees
   buttons: [boolean, boolean, boolean, boolean];
   status: SourceStatus;
   statusLabel: string;
@@ -36,6 +39,8 @@ export interface HudState {
   size: SizeName;
   /** BUILD readout: "<edge> cm @ x, y, z cm" for the ghost, '' otherwise. */
   ghostInfo: string;
+  voiceState: VoiceState;
+  geminiAvailable: boolean;
   toast: string;
 }
 
@@ -59,6 +64,10 @@ export class Engine {
   private toastText = '';
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<Listener>();
+  /** X2D voice assistant state, published by the VoiceAssistant component. */
+  voiceState: VoiceState = 'off';
+  /** Set by the VoiceAssistant component: start / end a voice session. */
+  voiceToggle: (() => void) | null = null;
   /** Live simulator, when one is attached. */
   get sim(): TouchSimSource | null { return this.glove.source instanceof TouchSimSource ? this.glove.source : null; }
 
@@ -102,6 +111,7 @@ export class Engine {
       MODES[s.modeIndex].onHoldStart?.(s, this.ctx, button);
     });
     this.glove.on('holdend', ({ button }) => MODES[this.session.modeIndex].onHoldEnd?.(this.session, this.ctx, button));
+    this.glove.on('recentered', () => { resetRotateAnchor(this.session); console.log('[glove] auto-recentered'); });
     this.glove.on('status', ({ status, source, detail }) => {
       console.log(`[glove] ${source ?? '-'} ${status}${detail ? ' · ' + detail : ''}`);
       if (status === 'connected') {
@@ -186,11 +196,49 @@ export class Engine {
     speak(FLY.rotate.style);
   }
 
-  toast(msg: string): void {
+  toast(msg: string, ms = UI.toastMs): void {
     this.toastText = msg;
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { this.toastText = ''; this.notify(); }, UI.toastMs);
+    this.toastTimer = setTimeout(() => { this.toastText = ''; this.notify(); }, ms);
     this.notify();
+  }
+
+  // ---------- assistants ----------
+  setVoiceState(state: VoiceState, detail?: string): void {
+    this.voiceState = state;
+    if (detail) this.toast(`X2D: ${detail}`);
+    else if (state === 'talking') this.toast('X2D is listening');
+    this.notify();
+  }
+  toggleVoice(): void {
+    if (this.voiceToggle) this.voiceToggle();
+    else this.toast('X2D: voice assistant not available');
+  }
+
+  /** Summarise what is in the scene so Gemini can answer questions about it. */
+  sceneSummary(): string {
+    const built = this.objects.built;
+    const cam = this.rig.camera.position;
+    const lines = [`camera at x=${cam.x.toFixed(0)} y=${cam.y.toFixed(0)} z=${cam.z.toFixed(0)} cm; mode ${MODE_ORDER[this.session.modeIndex]}; ${built.length} built piece(s)`];
+    built.slice(0, 30).forEach((m, i) => {
+      const edge = (2 * m.scale.x).toFixed(0);
+      lines.push(`${i + 1}. ${m.name} ${edge} cm at x=${m.position.x.toFixed(0)} y=${m.position.y.toFixed(0)} z=${m.position.z.toFixed(0)}`);
+    });
+    return lines.join('\n');
+  }
+
+  /** Ask Gemini about the scene (or anything); show and speak the answer. */
+  async askAssistant(question: string): Promise<void> {
+    if (!question.trim()) return;
+    if (!geminiAvailable()) { this.toast('Gemini: add EXPO_PUBLIC_GEMINI_API_KEY to .env.local'); return; }
+    this.toast('Gemini: thinking…');
+    try {
+      const answer = await askGemini(question, this.sceneSummary());
+      this.toast(answer, GEMINI.answerToastMs);
+      speak(answer);
+    } catch (err) {
+      this.toast(`Gemini: ${err instanceof Error ? err.message : String(err)}`, 5000);
+    }
   }
 
   /** Subscribe to "something changed that the HUD should show now" (status, mode, toast). */
@@ -250,7 +298,7 @@ export class Engine {
       flyLabel: mode === 'FLY' ? flyLabel(s) : '',
       flyAxis: mode === 'FLY' ? flyAxis(s) : null,
       deflection: mode === 'FLY' ? flyDeflection(s) : 0,
-      roll: g.state.roll, pitch: g.state.pitch, yaw: g.state.yaw,
+      roll: g.tilt.roll, pitch: g.tilt.pitch, yaw: g.tilt.yaw,
       buttons: [...g.state.buttons] as HudState['buttons'],
       status: g.status,
       statusLabel,
@@ -263,6 +311,8 @@ export class Engine {
       primitive: s.primitive,
       size: s.size,
       ghostInfo,
+      voiceState: this.voiceState,
+      geminiAvailable: geminiAvailable(),
       toast: this.toastText,
     };
   }

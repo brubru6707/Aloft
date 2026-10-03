@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { engine, type HudState } from '../core/Engine';
 import { BUILD, MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
 import { Btn, ButtonLamp, Chip, Readout, SignedBar, fmtDeg } from './widgets';
 import { FONT, T } from './theme';
+
+const VOICE_LABEL = { off: '🎙 X2D', listening: '🎙 X2D · listening', connecting: '🎙 X2D · connecting…', talking: '🔴 X2D · talking', unsupported: '🎙 X2D (unavailable)' } as const;
 
 const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
   { label: 'ROTATE', axis: null }, { label: 'X', axis: 'X' }, { label: 'Y', axis: 'Y' }, { label: 'Z', axis: 'Z' },
@@ -15,6 +17,8 @@ const FLY_CHIPS: { label: string; axis: FlyAxis | null }[] = [
  */
 export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: HudState; bottomInset: number; onExport: () => void; landscape: boolean }) {
   const [open, setOpen] = useState(true);
+  const [question, setQuestion] = useState('');
+  const ask = () => { const q = question.trim(); if (!q) return; setQuestion(''); void engine.askAssistant(q); };
   const statusOn = hud.connected && !hud.stale;
   const activeFly = hud.flyLabel === '' ? -1 : hud.flyAxis ? ['X', 'Y', 'Z'].indexOf(hud.flyAxis) + 1 : 0;
 
@@ -85,8 +89,22 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
             <Btn small style={s.grow} label={`⚡ Sens: ${hud.sensitivity}×`} active={hud.sensitivity !== 1} onPress={() => engine.cycleSensitivity()} />
           </View>
           <View style={s.row}>
+            <Btn small style={s.grow} label={VOICE_LABEL[hud.voiceState]} active={hud.voiceState === 'talking' || hud.voiceState === 'connecting'} disabled={hud.voiceState === 'unsupported'} onPress={() => engine.toggleVoice()} />
             <Btn small style={s.grow} label={`↶ Undo${hud.undoSize ? ` (${hud.undoSize})` : ''}`} onPress={() => engine.doUndo()} />
             <Btn small style={s.grow} label="⬇ Export STL" onPress={onExport} />
+          </View>
+          <View style={s.row}>
+            <TextInput
+              style={s.ask}
+              value={question}
+              onChangeText={setQuestion}
+              placeholder={hud.geminiAvailable ? '✨ ask Gemini about the scene…' : '✨ Gemini: add EXPO_PUBLIC_GEMINI_API_KEY to .env.local'}
+              placeholderTextColor={T.muted}
+              returnKeyType="send"
+              onSubmitEditing={ask}
+              blurOnSubmit
+            />
+            <Btn small label="Ask" accent disabled={!question.trim()} onPress={ask} />
           </View>
         </ScrollView>
       ) : null}
@@ -114,4 +132,5 @@ const s = StyleSheet.create({
   grow: { flex: 1 },
   rowLabel: { color: T.muted, fontSize: 11, letterSpacing: 1, marginRight: 2 },
   pos: { marginLeft: 'auto', color: T.muted, fontSize: 10, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  ask: { flex: 1, backgroundColor: T.panel2, color: T.text, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 7, paddingHorizontal: 10, fontSize: 13 },
 });

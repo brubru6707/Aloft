@@ -63,19 +63,22 @@ classification events, 0.5 s trace) with Copy and Share.
 
 ## Glove controls
 
-Press **B0** = next mode (previous mode: tap a mode chip), press **B3** = undo, press
-**B2** = cycle the sensitivity multiplier on every hand-driven rate (in BUILD, B2 cycles
-the piece size small / medium / large instead). All act on the press edge. Mode order:
-FLY, ORBIT, GRAB, SCALE, BUILD, ERASE. Mode, axis, size and sensitivity are spoken and
-the phone vibrates on mode / FLY-state changes.
+Press **B0** (GPIO 13) = next mode (previous mode: tap a mode chip), **B1** (GPIO 25,
+pinky) = FLY MOVE/ROTATE cycle, place, delete, select, **B2** (GPIO 27) = undo, **B3**
+(GPIO 26) = cycle the sensitivity multiplier 0.5× / 1× / 1.5× / 2× on every hand-driven
+rate (in BUILD, B3 cycles the piece size small / medium / large instead). All act on the
+press edge. Mode order: FLY, SCALE, BUILD, ERASE. Mode, axis, size and sensitivity are
+spoken and the phone vibrates on mode / FLY-state changes.
+
+On connect the glove zeroes itself: the pose at the first sample becomes 0/0/0, and it
+zeroes once more 1 s later when the glove's filter has settled (`INPUT.connectSettleMs`).
+The sheet's ROLL / PITCH / YAW show the smoothed tilt the modes read, not the post-deadzone value.
 
 | Mode | Controls |
 | --- | --- |
-| FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE translates along one world axis (X from pitch, Y and Z from roll); ROTATE turns with **roll** (roll right = turn right) and looks up/down with **pitch**, in `rate` or `absolute` style. Yaw is not used for control |
-| ORBIT | tilt orbits the selection (or the plaza): roll turns, pitch up = look up; tap **B1** selects what is under the crosshair. `ORBIT.invertAzimuth` / `invertElevation` flip either |
-| GRAB | tap **B1** selects; hold **B1** + tilt moves; tilt alone rotates |
-| SCALE | pitch scales the selection |
-| BUILD | hand aims the camera; press **B1** places the ghost (drops onto the surface below); **B2** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips |
+| FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE: X ← roll (right = +X), Y ← pitch (up = +Y), Z ← pitch (tilt forward = forward); deadzone 2°, full speed at 25°, 20 cm/s × sensitivity. ROTATE turns with **roll** (roll right = turn right) and looks up/down with **pitch**, in `rate` or `absolute` style. Yaw is not used for control |
+| SCALE | pitch scales the selection; press **B1** selects what is under the crosshair |
+| BUILD | hand aims the camera; press **B1** places the ghost exactly where the crosshair points: on top of the floor or piece you aim at (stacking), or stuck to the side you aim at, at that height; never below the floor; if nothing is hit, 6 cm ahead dropped onto the surface below. **B3** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips |
 | ERASE | hand aims; tap **B1** deletes the object under the crosshair |
 
 ## Simulator (no glove)
@@ -86,6 +89,24 @@ screen; not used for control), and hold the on-screen **1–4** buttons for B0�
 
 The glove firmware flips roll at the source (`SIGN_ROLL = -1`), so `INPUT.invertRoll`
 and `invertPitch` stay `false` unless a direction is wrong on your glove.
+
+## X2D voice assistant and Gemini
+
+- **X2D** (ElevenLabs Agents): the app listens for the wake word "X2D" with the phone's
+  speech recognition (expo-speech-recognition, local). Hearing it, or tapping **🎙 X2D**
+  in the sheet, opens a WebRTC voice session with the public "Aloft X2D" agent
+  (`@elevenlabs/react-native` on LiveKit), which answers "Hello" and then listens. Tap
+  the button again to hang up. The listener pauses while a session is open and resumes
+  after. The agent id and wake-word spellings are under `VOICE` in `src/config.ts`.
+  Permissions: iOS `NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription`,
+  Android `RECORD_AUDIO`.
+- **Gemini**: the **✨ ask Gemini…** box in the sheet sends a question plus a summary of
+  the scene (camera, mode, every built piece with size and position in cm) to
+  `gemini-3.8-flash` and shows and speaks the answer. Put your key in `.env.local` as
+  `EXPO_PUBLIC_GEMINI_API_KEY=…` (copy `.env.example`; `.env.local` is git-ignored) and
+  restart Metro. **A key in a client app is visible to anyone with the binary**, so use a
+  key you can revoke and keep this for local use. Model, prompt and retries are under
+  `GEMINI` in `src/config.ts`.
 
 ## BLE protocol
 
@@ -120,11 +141,12 @@ Everything tunable is in [`src/config.ts`](src/config.ts).
 ```
 src/config.ts            all tunables (input, BLE, FLY, modes, render, UI, test bench)
 src/input/               GloveInput (smoothing, recenter, deadzone, tap/hold), BleSource, TouchSimSource
-src/modes/               FLY, ORBIT, GRAB, SCALE, BUILD, ERASE
+src/modes/               FLY, SCALE, BUILD, ERASE
 src/scene/               world (cm grid + stroke-text labels, axes, plaza), camera rig, object registry
 src/core/Engine.ts       headless port of the web main.ts; one instance shared by both screens
 src/ui/                  SceneView (r3f + expo-gl), AxisGizmo, HUD, BottomSheet, widgets, theme
                          (Pixelify Sans only for the big labels and panel titles; system sans elsewhere)
 src/screens/             MainScreen (NAV), TestScreen (TEST)
+src/ui/VoiceAssistant.tsx X2D wake word + ElevenLabs session;  src/ai/gemini.ts  Gemini REST client
 src/report.ts            test report builder; src/export.ts STL / text sharing
 ```
