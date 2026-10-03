@@ -85,6 +85,7 @@ export class Engine {
     });
     this.glove.on('holdend', ({ button }) => MODES[this.session.modeIndex].onHoldEnd?.(this.session, this.ctx, button));
     this.glove.on('status', ({ status, source, detail }) => {
+      console.log(`[glove] ${source ?? '-'} ${status}${detail ? ' · ' + detail : ''}`);
       if (status === 'connected') {
         this.toast(source === 'sim' ? 'Simulator on' : `Connected to ${detail ?? 'glove'}`);
         hapticConnected();
@@ -95,6 +96,15 @@ export class Engine {
       }
       this.notify();
     });
+
+    // Trace a sample now and then so a dev log shows live data without flooding.
+    let n = 0;
+    this.glove.on('raw', (r) => {
+      if (n++ % 250 === 0) console.log(`[raw] #${n - 1} roll ${r.roll.toFixed(1)} pitch ${r.pitch.toFixed(1)} yaw ${r.yaw.toFixed(1)} buttons ${r.buttons.map(Number).join('')}`);
+    });
+    this.glove.on('press', ({ button }) => console.log(`[btn] press B${button}`));
+    this.glove.on('tap', ({ button }) => console.log(`[btn] tap B${button}`));
+    this.glove.on('holdstart', ({ button }) => console.log(`[btn] hold B${button}`));
 
     // Enter the initial mode so its label/hint are right from the start.
     MODES[this.session.modeIndex].enter?.(this.session, this.ctx);
