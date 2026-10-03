@@ -111,9 +111,12 @@ export const FLY = {
   axisCycleButton: 1,                       // B1 = pinky button (GPIO 25 on the glove). Acts on the press edge.
   cycleCooldownMs: 200,                     // ignore a second press within this (contact bounce / double report)
   axisOrder: ['X', 'Y', 'Z'] as FlyAxis[],  // MOVE cycle order; ROTATE sits between each
-  axisControl: { X: 'pitch', Y: 'roll', Z: 'roll' } as Record<FlyAxis, TiltInput>,
-  // +1 or -1 per axis. Defaults: tilt forward (nose down) = +X, roll right = +Y (up), roll right = forward (-Z).
-  axisSign: { X: -1, Y: 1, Z: -1 } as Record<FlyAxis, 1 | -1>,
+  // Sideways from sideways tilt, forward/up from forward/up tilt:
+  //   X (left/right)   <- roll:  roll right  = +X (right)
+  //   Y (up/down)      <- pitch: hand up     = +Y (up)
+  //   Z (forward/back) <- pitch: tilt forward (nose down, negative pitch) = forward (-Z)
+  axisControl: { X: 'roll', Y: 'pitch', Z: 'pitch' } as Record<FlyAxis, TiltInput>,
+  axisSign: { X: 1, Y: 1, Z: 1 } as Record<FlyAxis, 1 | -1>,
   deadzoneDeg: 5,          // tilt below this does nothing; speed ramps smoothly from 0 past it
   fullTiltDeg: 45,         // tilt at which the camera moves at full speed
   speed: 14,               // units / s at full tilt

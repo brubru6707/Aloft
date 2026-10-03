@@ -36,7 +36,7 @@ spoken aloud and shown large in the top-left, color-coded.
 
 | Mode | Color | Controls |
 | --- | --- | --- |
-| **FLY** (default) | cyan | tap **B1** (pinky) to alternate `MOVE: X` → `ROTATE` → `MOVE: Y` → `ROTATE` → `MOVE: Z` → `ROTATE` … (shown large and spoken). MOVE translates along that one world axis: X from pitch (tilt forward/back), Y (up/down) and Z (forward/back) from roll. ROTATE turns the camera with hand roll (roll right = turn right) and looks up/down with pitch. Deadzone, tilt mapping, signs and rates live in `FLY` in `src/config.ts` |
+| **FLY** (default) | cyan | tap **B1** (pinky) to alternate `MOVE: X` → `ROTATE` → `MOVE: Y` → `ROTATE` → `MOVE: Z` → `ROTATE` … (shown large and spoken). MOVE translates along that one world axis: X (left/right) from roll, Y (up/down) and Z (forward/back) from pitch (hand up = up, tilt forward = forward). ROTATE turns the camera with hand roll (roll right = turn right) and looks up/down with pitch. Deadzone, tilt mapping, signs and rates live in `FLY` in `src/config.ts` |
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
