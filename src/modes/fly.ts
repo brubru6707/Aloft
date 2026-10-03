@@ -51,6 +51,9 @@ export const flyMode: Mode = {
     if (s.scratch.flyAxis === undefined) s.scratch.flyAxis = null;      // start in ROTATE
     if (s.scratch.flyLastAxis === undefined) s.scratch.flyLastAxis = null;
   },
+  // A press that lasts longer than the tap threshold arrives as a hold; treat it the same,
+  // so a slow or firm press still cycles exactly once.
+  onHoldStart(s, ctx, button) { flyMode.onTap!(s, ctx, button); },
   onTap(s, _ctx, button) {
     if (button !== FLY.axisCycleButton) return;
     const current = flyAxis(s);

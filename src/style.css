@@ -41,6 +41,13 @@ button:disabled { opacity: .45; cursor: default; }
   background: var(--glove); color: #06090f; text-shadow: none;
 }
 .mode-hint { font-size: 13px; color: var(--muted); margin-top: -4px; letter-spacing: 0; }
+.glove .fly { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; }
+.glove .fly span { color: var(--muted); letter-spacing: .1em; margin-right: 2px; }
+.glove .fly i {
+  font-style: normal; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid var(--line); color: var(--muted); transition: all .15s;
+}
+.glove .fly i.on { background: var(--glove); color: #06090f; border-color: var(--glove); }
 .axis-label {
   margin-top: 8px; font-size: 56px; font-weight: 900; letter-spacing: .08em; line-height: 1;
   color: #fff; text-shadow: 0 2px 22px color-mix(in srgb, var(--mode, #fff) 70%, transparent);

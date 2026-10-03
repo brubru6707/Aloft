@@ -29,6 +29,8 @@ interface GlovePanel {
   modeName: HTMLElement;
   modeHint: HTMLElement;
   axisLabel: HTMLElement;
+  flyRow: HTMLElement;
+  flyChips: HTMLElement[];
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -83,6 +85,7 @@ export class Hud {
           <div><span>YAW</span><b>+0°</b></div>
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
+        <div class="fly" title="FLY state: pinky button (B1) alternates ROTATE and a MOVE axis"><span>FLY</span><i>ROTATE</i><i>X</i><i>Y</i><i>Z</i></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
           <button class="sim">Simulator</button>
@@ -125,6 +128,8 @@ export class Hud {
         modeName: modeLabel.querySelector('.name')!,
         modeHint,
         axisLabel,
+        flyRow: panel.querySelector('.fly')!,
+        flyChips: [...panel.querySelectorAll<HTMLElement>('.fly i')],
       };
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
@@ -180,8 +185,11 @@ export class Hud {
         p.modeHint.textContent = MODE_HINTS[modeName];
         p.modeLabel.querySelector<HTMLElement>('.mode-label')!.style.setProperty('--mode', MODE_COLORS[modeName]);
       }
-      // FLY: active translation axis, large so it reads from across the room.
+      // FLY: active translation axis, large so it reads from across the room, plus chips in the panel.
       const axisText = modeName === 'FLY' ? flyLabel(s) : '';
+      p.flyRow.style.display = modeName === 'FLY' ? '' : 'none';
+      const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
+      p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
       if (p.axisLabel.textContent !== axisText) {
         p.axisLabel.textContent = axisText;
         p.axisLabel.style.display = axisText ? '' : 'none';
