@@ -136,8 +136,8 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 3. **(0:25)** Tap B0 — the app says *"orbit"*. Point at a tower, tap B1, tilt
    to circle it. Tap B0 again, *"grab"*: hold B1 and slide it over.
 4. **(0:35)** Fly to the glowing plaza. Tap B0 twice to *"build"*. Place a cube,
-   tap B2, place a sphere on top, cycle to a cylinder. Switch to *"scale"* and
-   grow it. Tap B3 to undo the last change.
+   pick sphere in the panel, place one on top, press B3 for a large one. Switch to
+   *"scale"* and grow it. Press B2 to undo the last change.
 5. **(0:50)** Hand the second glove to a teammate: a magenta cursor appears and
    they drop shapes while you keep flying. "Two people, one world, no mice."
 6. **(0:55)** Click **Export STL**. "And what you built is a real file you can
