@@ -32,12 +32,13 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
     <View style={[s.wrap, landscape ? s.wrapLandscape : s.wrapPortrait, { paddingBottom: bottomInset + 6 }]} pointerEvents="box-none">
       {tab ? (
         <View style={s.panel}>
-          <ScrollView style={{ maxHeight: landscape ? 200 : 260 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: landscape ? 160 : 180 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
             {tab === 'glove' ? (
               <>
                 <View style={s.row}>
                   <View style={[s.dot, { backgroundColor: statusOn ? T.accentHover : T.muted }]} />
                   <Text style={[s.status, statusOn && { color: T.accentHover }, hud.status === 'error' && { color: T.bad }]} numberOfLines={1}>{hud.statusLabel}</Text>
+                  <Text style={s.note}>B2 = reset</Text>
                 </View>
                 <View style={s.row}>
                   <Btn small style={s.grow} label={hud.status === 'connecting' && hud.sourceKind === 'ble' ? 'Connecting…' : 'Connect'} active={hud.sourceKind === 'ble' && hud.connected} onPress={() => engine.connectBle()} />
@@ -131,20 +132,20 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
 }
 
 const s = StyleSheet.create({
-  wrap: { position: 'absolute', bottom: 0, gap: 6, paddingHorizontal: 8 },
+  wrap: { position: 'absolute', bottom: 0, gap: 5, paddingHorizontal: 8 },
   wrapPortrait: { left: 0, right: 0 },
   wrapLandscape: { right: 0, width: 420 },
   panel: { backgroundColor: 'rgba(40,40,40,0.96)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
-  body: { padding: 10, gap: 8 },
-  dock: { backgroundColor: 'rgba(40,40,40,0.96)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius, padding: 6, gap: 6 },
+  body: { padding: 8, gap: 6 },
+  dock: { backgroundColor: 'rgba(40,40,40,0.96)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius, padding: 5, gap: 5 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grow: { flex: 1 },
-  modeChip: { paddingVertical: 8 },
-  mic: { width: 44, height: 34, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: T.btn, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
+  modeChip: { paddingVertical: 6 },
+  mic: { width: 40, height: 30, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: T.btn, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
   micOn: { backgroundColor: T.select, borderColor: T.selectBorder },
   micText: { fontSize: 16 },
   tabs: { flexDirection: 'row', gap: 4 },
-  tab: { flex: 1, paddingVertical: 6, borderRadius: T.radius, alignItems: 'center', backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line },
+  tab: { flex: 1, paddingVertical: 4, borderRadius: T.radius, alignItems: 'center', backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line },
   tabOn: { backgroundColor: T.btn, borderColor: T.accent },
   tabText: { color: T.muted, fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
   tabTextOn: { color: T.text },

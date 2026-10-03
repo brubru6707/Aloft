@@ -12,6 +12,19 @@ function squash(text: string): string {
 }
 const WAKE = VOICE.wakeWords.map(squash);
 
+/** Text after the wake word, '' if it stood alone, null if absent (same rule as the web app). */
+function afterWakeWord(text: string): string | null {
+  const words = text.trim().split(/\s+/);
+  for (let n = 1; n <= Math.min(3, words.length); n++) {
+    for (let start = 0; start + n <= words.length; start++) {
+      if (WAKE.includes(squash(words.slice(start, start + n).join(' ')))) {
+        return words.slice(start + n).join(' ').replace(/^[,.!?\s]+/, '');
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * X2D voice assistant (ElevenLabs Agents), native port of the web ui/voice.ts.
  *
@@ -25,7 +38,10 @@ const WAKE = VOICE.wakeWords.map(squash);
  * Renders nothing; it publishes its state to the engine for the bottom sheet.
  */
 export function VoiceAssistant() {
-  const { startSession, endSession } = useConversationControls();
+  const { startSession, endSession, sendUserMessage } = useConversationControls();
+  const pendingRequest = useRef<string | null>(null);   // words said after "X2D", handed to the agent once connected
+  const wakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearWake = () => { if (wakeTimer.current) { clearTimeout(wakeTimer.current); wakeTimer.current = null; } };
   const { status, message } = useConversationStatus();
   const wantListening = useRef(false);
   const recognizing = useRef(false);
@@ -59,15 +75,25 @@ export function VoiceAssistant() {
     if (!sessionOpen.current) setState('off');
   };
 
-  const openSession = () => {
-    if (sessionOpen.current) return;
+  const openSession = (request?: string) => {
+    clearWake();
+    if (sessionOpen.current) { if (request) sendUserMessage(request); return; }
+    pendingRequest.current = request ?? null;
     sessionOpen.current = true;
     setState('connecting');
     if (recognizing.current) { ExpoSpeechRecognitionModule.abort(); recognizing.current = false; }   // do not transcribe the agent's own voice
     startSession({
       agentId: VOICE.agentId,
       connectionType: 'webrtc',
-      onConnect: () => setState('talking'),
+      // The agent builds through these (build_scene → Gemini → pieces), like the web app.
+      clientTools: engine.agentTools(),
+      onConnect: () => {
+        setState('talking');
+        const req = pendingRequest.current;
+        pendingRequest.current = null;
+        if (req) setTimeout(() => sendUserMessage(req), 300);
+      },
+      onUnhandledClientToolCall: (call: { tool_name?: string }) => console.warn('[x2d] agent called an unknown tool:', call?.tool_name),
       onDisconnect: () => closeSession(),
       onError: (m: string) => { setState('off', m); closeSession(); },
     });
@@ -76,16 +102,24 @@ export function VoiceAssistant() {
   const closeSession = () => {
     if (!sessionOpen.current) return;
     sessionOpen.current = false;
+    pendingRequest.current = null;
     try { endSession(); } catch { /* already closed */ }
     if (wantListening.current) startRecognizer(); else setState('off');
   };
 
   // Wake-word listener events.
   useSpeechRecognitionEvent('result', (e) => {
-    for (const r of e.results) {
-      const heard = squash(r.transcript);
-      if (WAKE.some((w) => heard.includes(w))) { openSession(); break; }
+    // Wait for the final transcript so "X2D, make me a stickman" arrives whole.
+    if (!e.isFinal) return;
+    const text = e.results[0]?.transcript ?? '';
+    const after = afterWakeWord(text);
+    if (after === null) {
+      // No wake word here. If "X2D" was heard alone a moment ago, this IS the request.
+      if (wakeTimer.current && text.trim()) openSession(text.trim());
+      return;
     }
+    if (after) openSession(after);
+    else { clearWake(); wakeTimer.current = setTimeout(() => { wakeTimer.current = null; openSession(); }, VOICE.requestGraceMs); }
   });
   useSpeechRecognitionEvent('end', () => {
     recognizing.current = false;

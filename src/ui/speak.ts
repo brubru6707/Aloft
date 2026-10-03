@@ -1,5 +1,5 @@
 import * as Speech from 'expo-speech';
-import { UI } from '../config';
+import { UI, VOICE } from '../config';
 
 /**
  * Single entry point for speech (expo-speech). Callers only ever use speak(text).
@@ -8,6 +8,7 @@ let lastText = '';
 let lastAt = 0;
 
 export function speak(text: string): void {
+  if (!VOICE.localSpeech) return;   // only the ElevenLabs agent talks
   // Debounce identical phrases that fire in quick succession.
   const now = performance.now();
   if (text === lastText && now - lastAt < UI.speechDebounceMs) return;

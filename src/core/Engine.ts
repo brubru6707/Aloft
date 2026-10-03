@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { BLE, BUILD, FLY, GEMINI, GLOBAL_ACTIONS, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
-import { askGemini, geminiAvailable } from '../ai/gemini';
+import { BLE, BUILD, FLY, GEMINI, GLOBAL_ACTIONS, VOICE, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
+import { geminiAvailable, isImperative, planScene } from '../ai/gemini';
+import { describeBuilt, rebuildScene, sanitize } from '../ai/scene';
 import { BleSource } from '../input/BleSource';
 import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
@@ -92,6 +93,7 @@ export class Engine {
       const s = this.session;
       if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setMode(s.modeIndex + 1);
       if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setMode(s.modeIndex - 1);
+      if (is(GLOBAL_ACTIONS.reset, button, 'press')) return this.resetView();
       if (is(GLOBAL_ACTIONS.undo, button, 'press')) return this.doUndo();
       if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return this.cycleSensitivity();   // BUILD uses B2 for size
       MODES[s.modeIndex].onPress?.(s, this.ctx, button);
@@ -152,6 +154,15 @@ export class Engine {
   }
 
   // ---------- actions ----------
+  /** Pinky (B2): camera back to the start pose and the glove zeroed to 0/0/0. */
+  resetView(): void {
+    this.rig.reset();
+    this.glove.recenter();
+    resetRotateAnchor(this.session);
+    this.toast('Reset: start view, roll / pitch / yaw = 0');
+    hapticFlyState();
+  }
+
   doUndo(): void {
     const e = this.undo.undo();
     this.toast(e ? `Undid ${e.label}` : 'Nothing to undo');
@@ -219,26 +230,56 @@ export class Engine {
   sceneSummary(): string {
     const built = this.objects.built;
     const cam = this.rig.camera.position;
+    const f = (v: number) => (Math.round(v * 10) / 10).toString();
     const lines = [`camera at x=${cam.x.toFixed(0)} y=${cam.y.toFixed(0)} z=${cam.z.toFixed(0)} cm; mode ${MODE_ORDER[this.session.modeIndex]}; ${built.length} built piece(s)`];
-    built.slice(0, 30).forEach((m, i) => {
-      const edge = (2 * m.scale.x).toFixed(0);
-      lines.push(`${i + 1}. ${m.name} ${edge} cm at x=${m.position.x.toFixed(0)} y=${m.position.y.toFixed(0)} z=${m.position.z.toFixed(0)}`);
+    built.slice(0, 40).forEach((m, i) => {
+      lines.push(`${i + 1}. ${m.name} ${f(2 * m.scale.x)}×${f(2 * m.scale.y)}×${f(2 * m.scale.z)} cm at x=${f(m.position.x)} y=${f(m.position.y)} z=${f(m.position.z)}`);
     });
     return lines.join('\n');
   }
 
   /** Ask Gemini about the scene (or anything); show and speak the answer. */
-  async askAssistant(question: string): Promise<void> {
-    if (!question.trim()) return;
-    if (!geminiAvailable()) { this.toast('Gemini: add EXPO_PUBLIC_GEMINI_API_KEY to .env.local'); return; }
-    this.toast('Gemini: thinking…');
+  /**
+   * Hand a typed or spoken request to Gemini with the scene (same as the web app). A question gets
+   * an answer in a toast; an instruction ("make it an actual stickman") rebuilds the pieces as one
+   * undoable step. Returns the plan so the voice agent's build_scene tool can report back.
+   */
+  async askAssistant(request: string, opts: { forceRebuild?: boolean } = {}): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
+    if (!request.trim()) return null;
+    if (!geminiAvailable()) { this.toast('Gemini: add EXPO_PUBLIC_GEMINI_API_KEY to .env.local'); return null; }
+    this.toast(`X2D: thinking about “${request}”…`, 4000);
     try {
-      const answer = await askGemini(question, this.sceneSummary());
-      this.toast(answer, GEMINI.answerToastMs);
-      speak(answer);
+      const plan = await planScene(request, describeBuilt(this.ctx), this.sceneSummary(), opts.forceRebuild ?? isImperative(request));
+      if (plan.action === 'rebuild' && plan.pieces?.length) {
+        const specs = plan.pieces.map(sanitize).filter((p): p is NonNullable<typeof p> => !!p).slice(0, GEMINI.maxPieces);
+        const n = rebuildScene(specs, this.ctx, this.session.color, `X2D: ${request.slice(0, 40)}`);
+        this.toast(`${plan.message} (${n} pieces)`, GEMINI.answerToastMs);
+        this.notify();
+        return { action: 'rebuild', message: plan.message, pieces: n };
+      }
+      this.toast(plan.message, GEMINI.answerToastMs);
+      return { action: 'answer', message: plan.message, pieces: 0 };
     } catch (err) {
-      this.toast(`Gemini: ${err instanceof Error ? err.message : String(err)}`, 5000);
+      this.toast(`X2D: ${err instanceof Error ? err.message : String(err)}`, 5000);
+      return null;
     }
+  }
+
+  /** Client tools for the ElevenLabs agent (names in VOICE.tools): you talk, the agent calls these, Gemini builds. */
+  agentTools(): Record<string, (params: Record<string, unknown>) => Promise<string> | string> {
+    return {
+      [VOICE.tools.build]: async (params) => {
+        const request = String(params.request ?? params.description ?? '').trim();
+        if (!request) return 'No request given. Ask the user what to build.';
+        const result = await this.askAssistant(request, { forceRebuild: true });
+        if (!result) return 'The build failed (Gemini did not return a usable layout). Apologise briefly and offer to try again.';
+        return result.action === 'rebuild'
+          ? `Built it: ${result.message} (${result.pieces} pieces, now in the scene). Tell the user in one short sentence.`
+          : result.message;
+      },
+      [VOICE.tools.describe]: () => this.sceneSummary(),
+      [VOICE.tools.undo]: () => { const e = this.undo.undo(); this.toast(e ? `Undid ${e.label}` : 'Nothing to undo'); this.notify(); return e ? `Undid ${e.label}.` : 'There was nothing to undo.'; },
+    };
   }
 
   /** Subscribe to "something changed that the HUD should show now" (status, mode, toast). */
