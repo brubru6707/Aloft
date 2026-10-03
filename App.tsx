@@ -1,24 +1,61 @@
-import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { StyleSheet, Text, View } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHud } from './src/app/useHud';
+import { MainScreen } from './src/screens/MainScreen';
+import { TestScreen } from './src/screens/TestScreen';
+import { FONT, T } from './src/ui/theme';
 
-/** Step 1: plain screen to prove the dev build runs on the phone. */
-export default function App() {
-  const [loaded] = useFonts({
-    'PixelifySans-Regular': require('./assets/fonts/PixelifySans-Regular.ttf'),
-    'PixelifySans-Bold': require('./assets/fonts/PixelifySans-Bold.ttf'),
-  });
+type Tab = 'nav' | 'test';
+const TAB_BAR = 44;
+
+function Shell() {
+  const [tab, setTab] = useState<Tab>('nav');
+  const insets = useSafeAreaInsets();
+  const hud = useHud();
+
+  // Keep the screen on while a glove (or the simulator) is connected.
+  useEffect(() => {
+    if (hud.connected) activateKeepAwakeAsync('aloft').catch(() => {});
+    else deactivateKeepAwake('aloft').catch(() => {});
+  }, [hud.connected]);
+
+  const barHeight = TAB_BAR + insets.bottom;
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, loaded && { fontFamily: 'PixelifySans-Bold' }]}>Aloft</Text>
-      <Text style={[styles.sub, loaded && { fontFamily: 'PixelifySans-Regular' }]}>dev build is running</Text>
+    <View style={s.root}>
+      {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} /> : <TestScreen tabBarHeight={barHeight} />}
+      <View style={[s.tabBar, { height: barHeight, paddingBottom: insets.bottom }]}>
+        {(['nav', 'test'] as Tab[]).map((t) => (
+          <Pressable key={t} onPress={() => setTab(t)} style={s.tab}>
+            <Text style={[s.tabText, tab === t && { color: T.accent }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
+          </Pressable>
+        ))}
+      </View>
       <StatusBar style="light" />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#3d3d3d', alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#e87d0d', fontSize: 44, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 0 },
-  sub: { color: '#9a9a9a', fontSize: 14, marginTop: 8 },
+export default function App() {
+  const [loaded] = useFonts({
+    [FONT.regular]: require('./assets/fonts/PixelifySans-Regular.ttf'),
+    [FONT.medium]: require('./assets/fonts/PixelifySans-Medium.ttf'),
+    [FONT.bold]: require('./assets/fonts/PixelifySans-Bold.ttf'),
+  });
+  if (!loaded) return <View style={s.root} />;
+  return (
+    <SafeAreaProvider>
+      <Shell />
+    </SafeAreaProvider>
+  );
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.bg },
+  tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', backgroundColor: T.panel, borderTopWidth: 1, borderColor: T.line },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabText: { color: T.muted, fontFamily: FONT.bold, fontSize: 13, letterSpacing: 1.5 },
 });
