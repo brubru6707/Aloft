@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES } from './config';
+import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY } from './config';
+import { setPrimitive } from './modes/build';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
@@ -61,6 +62,8 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
     if (MODE_ORDER[s.modeIndex] !== 'FLY') setMode(s, modeIndexOf('FLY'));
     setFlyAxis(s, axis);
   },
+  cycleSensitivity,
+  setPrimitive: (id, p) => { setPrimitive(sessions[id], ctx, p); hud.toast(`Shape: ${p}`); },
   toggleRotateStyle: () => {
     FLY.rotate.style = FLY.rotate.style === 'rate' ? 'absolute' : 'rate';
     sessions.forEach(resetRotateAnchor);
@@ -71,6 +74,14 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
 });
 
 const ctx: AppContext = { rig, objects, undo, world, toast: (m) => hud.toast(m) };
+
+function cycleSensitivity(): void {
+  const i = SENSITIVITY.levels.indexOf(RUNTIME.sensitivity);
+  RUNTIME.sensitivity = SENSITIVITY.levels[(i + 1) % SENSITIVITY.levels.length];
+  hud.syncSensitivityButton();
+  hud.toast(`Sensitivity ${RUNTIME.sensitivity}×`);
+  speak(`sensitivity ${RUNTIME.sensitivity}`);
+}
 
 function doUndo(): void {
   const e = undo.undo();
@@ -95,6 +106,7 @@ gloves.onAll('press', ({ gloveId, button }) => {
   if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);
   if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return setMode(s, s.modeIndex - 1);
   if (is(GLOBAL_ACTIONS.undo, button, 'press')) return doUndo();
+  if (button === SENSITIVITY.button) return cycleSensitivity();
   MODES[s.modeIndex].onPress?.(s, ctx, button);
 });
 gloves.onAll('tap', ({ gloveId, button }) => {
@@ -160,9 +172,11 @@ function frame(): void {
   for (const s of sessions) {
     // Glove 0 drives without a connection only in the sense of showing the mode; modes need input.
     if (!s.glove.connected) continue;
-    MODES[s.modeIndex].update(s, ctx, dt);
+    // Sensitivity scales every hand-driven rate by scaling the time step the modes integrate over.
+    const sdt = dt * RUNTIME.sensitivity;
+    MODES[s.modeIndex].update(s, ctx, sdt);
     // Glove 1 owns the camera: in modes that leave tilt free (BUILD, ERASE), it keeps aiming.
-    if (s.glove.gloveId === 0 && ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, ctx, dt);
+    if (s.glove.gloveId === 0 && ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, ctx, sdt);
   }
   hud.update(sessions, window.innerWidth, window.innerHeight);
   renderer.render(world.scene, rig.camera);

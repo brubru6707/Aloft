@@ -1,4 +1,4 @@
-import { FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, type FlyAxis } from '../config';
+import { BUILD, FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -16,6 +16,10 @@ export interface HudActions {
   /** Mouse shortcuts for what the glove buttons do: pick a mode, or a FLY state, directly. */
   setMode(gloveId: number, modeIndex: number): void;
   setFlyAxis(gloveId: number, axis: FlyAxis | null): void;
+  /** Step the global sensitivity multiplier (same as pressing B2). */
+  cycleSensitivity(): void;
+  /** Choose the BUILD primitive for a glove. */
+  setPrimitive(gloveId: number, p: PrimitiveName): void;
 }
 
 interface GlovePanel {
@@ -36,6 +40,8 @@ interface GlovePanel {
   flyChips: HTMLElement[];
   flyAmt: HTMLElement;
   modeChips: HTMLElement[];
+  shapeRow: HTMLElement;
+  shapeChips: HTMLElement[];
 }
 
 const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(0) + '°';
@@ -45,6 +51,7 @@ export class Hud {
   private toastEl: HTMLElement;
   private toastTimer: number | null = null;
   private rotateBtn: HTMLButtonElement;
+  private sensBtn: HTMLButtonElement;
 
   constructor(root: HTMLElement, gloves: GloveManager, actions: HudActions) {
     root.innerHTML = `
@@ -53,11 +60,12 @@ export class Hud {
         <button id="undo" title="Undo (B${GLOBAL_ACTIONS.undo.button})">↶ Undo</button>
         <button id="recenter-all" title="Zero every glove's orientation">⌖ Recenter</button>
         <button id="rotate-style" title="FLY rotation: rate = tilt sets turn speed and keeps turning; absolute = camera follows the hand angle and stays there"></button>
+        <button id="sensitivity" title="Sensitivity multiplier on every hand-driven rate (B2 cycles it too)"></button>
         <button id="export">⬇ Export STL</button>
       </div>
       <div id="gloves"></div>
       <div id="help">
-        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B3 undo<br/>
+        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B2 sensitivity · B3 undo<br/>
         <b>FLY:</b> tap B1 (pinky) alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · tilt to move or look<br/>
         <b>Simulator:</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag mouse to tilt<br/>
         <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> = buttons B0–B3 (hold = hold)
@@ -71,6 +79,9 @@ export class Hud {
     this.rotateBtn = root.querySelector<HTMLButtonElement>('#rotate-style')!;
     this.rotateBtn.onclick = () => actions.toggleRotateStyle();
     this.syncRotateButton();
+    this.sensBtn = root.querySelector<HTMLButtonElement>('#sensitivity')!;
+    this.sensBtn.onclick = () => actions.cycleSensitivity();
+    this.syncSensitivityButton();
 
     const modes = root.querySelector('#modes')!;
     const glovesEl = root.querySelector('#gloves')!;
@@ -91,6 +102,7 @@ export class Hud {
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
+        <div class="shapes" title="BUILD shape: click to choose"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}</div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
@@ -138,7 +150,10 @@ export class Hud {
         flyChips: [...panel.querySelectorAll<HTMLElement>('.fly i')],
         flyAmt: panel.querySelector('.fly .amt u')!,
         modeChips: [...panel.querySelectorAll<HTMLElement>('.modes i')],
+        shapeRow: panel.querySelector('.shapes')!,
+        shapeChips: [...panel.querySelectorAll<HTMLElement>('.shapes i')],
       };
+      p.shapeChips.forEach((chip) => (chip.onclick = () => actions.setPrimitive(g.gloveId, chip.dataset.shape as PrimitiveName)));
       p.modeChips.forEach((chip, idx) => (chip.onclick = () => actions.setMode(g.gloveId, idx)));
       p.flyChips.forEach((chip) => (chip.onclick = () => actions.setFlyAxis(g.gloveId, (chip.dataset.axis || null) as FlyAxis | null)));
       p.connect.onclick = () => actions.connectBle(g.gloveId);
@@ -148,6 +163,12 @@ export class Hud {
       if (!BleSource.supported) { p.connect.disabled = true; p.connect.title = 'Web Bluetooth needs Chrome on https:// or localhost'; }
       this.panels.push(p);
     });
+  }
+
+  /** Reflect the current sensitivity on the toolbar button. */
+  syncSensitivityButton(): void {
+    this.sensBtn.textContent = `⚡ Sens: ${RUNTIME.sensitivity}×`;
+    this.sensBtn.classList.toggle('active', RUNTIME.sensitivity !== 1);
   }
 
   /** Reflect the current FLY rotation style on the toolbar button. */
@@ -199,6 +220,8 @@ export class Hud {
       const axisText = modeName === 'FLY' ? flyLabel(s) : '';
       p.flyRow.style.display = modeName === 'FLY' ? '' : 'none';
       p.modeChips.forEach((c, k) => c.classList.toggle('on', k === s.modeIndex));
+      p.shapeRow.style.display = modeName === 'BUILD' ? '' : 'none';
+      p.shapeChips.forEach((c) => c.classList.toggle('on', c.dataset.shape === s.primitive));
       const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
       p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
       // Deflection bar: fills from the centre toward − or + along the active axis.

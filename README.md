@@ -40,10 +40,10 @@ spoken aloud and shown large in the top-left, color-coded.
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
-| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); tap **B2** cycles cube → sphere → cylinder |
+| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); the shape is chosen with the SHAPE chips in the glove panel |
 | **ERASE** | red | hand rotates the camera to aim; tap **B1** deletes the object under the cursor |
 
-**B3** = undo in every mode (build, move, rotate, scale, erase). All mappings
+**B2** cycles the sensitivity multiplier (0.5×, 1×, 1.5×, 2×, also a toolbar button) and **B3** = undo in every mode (build, move, rotate, scale, erase). All mappings
 and tuning live in [`src/config.ts`](src/config.ts).
 
 The crosshair in the screen center is glove 1's cursor. A second glove gets its

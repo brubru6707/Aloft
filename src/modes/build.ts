@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BUILD, MODE_BUTTONS } from '../config';
+import { BUILD, MODE_BUTTONS, type PrimitiveName } from '../config';
 import type { AppContext, GloveSession, Mode } from './types';
 
 const point = new THREE.Vector3();
@@ -41,6 +41,12 @@ function rebuildGhost(s: GloveSession, ctx: AppContext): void {
   s.ghost = ghost;
 }
 
+/** Choose the primitive for a glove (from the panel chips); refreshes the ghost if in BUILD. */
+export function setPrimitive(s: GloveSession, ctx: AppContext, p: PrimitiveName): void {
+  s.primitive = p;
+  if (s.ghost) rebuildGhost(s, ctx);
+}
+
 export const buildMode: Mode = {
   name: 'BUILD',
   enter(s, ctx) { rebuildGhost(s, ctx); },
@@ -54,12 +60,6 @@ export const buildMode: Mode = {
   },
   // Act on the press edge so it works no matter how long the button is held.
   onPress(s, ctx, button) {
-    if (button === MODE_BUTTONS.secondary) {
-      s.primitive = ctx.objects.nextPrimitive(s.primitive);
-      rebuildGhost(s, ctx);
-      ctx.toast(`Shape: ${s.primitive}`);
-      return;
-    }
     if (button !== MODE_BUTTONS.primary) return;
     const mesh = ctx.objects.createPrimitive(s.primitive, s.color);
     const hh = halfHeight(mesh);

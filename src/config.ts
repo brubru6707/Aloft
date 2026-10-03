@@ -20,11 +20,22 @@ export const GLOBAL_ACTIONS = {
   undo:     { button: 3, gesture: 'press' } as ButtonAction,
 };
 
-/** Per-mode button roles. "primary" is the main action button, "secondary" the modifier. */
+/** Per-mode button roles. "primary" is the main action button. */
 export const MODE_BUTTONS = {
-  primary: 1,   // FLY: hold = forward.  GRAB: hold = move.  BUILD/ERASE: tap = place/delete.  ORBIT/GRAB/SCALE: tap = select
-  secondary: 2, // FLY: hold = boost.  BUILD: tap = cycle primitive
+  primary: 1,   // FLY: pinky MOVE/ROTATE cycle.  GRAB: hold = move.  BUILD/ERASE: place/delete.  ORBIT/GRAB/SCALE: select
 };
+
+/**
+ * Sensitivity: one multiplier on every hand-driven rate (turn, look, move, orbit, grab, scale).
+ * B2 (GPIO 27) cycles through the levels; the toolbar button does the same.
+ */
+export const SENSITIVITY = {
+  button: 2,
+  levels: [0.5, 1, 1.5, 2],
+  startIndex: 1,
+};
+/** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
+export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
 export const MODE_ORDER = ['FLY', 'ORBIT', 'GRAB', 'SCALE', 'BUILD', 'ERASE'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
@@ -39,11 +50,11 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'Tap B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look',
+  FLY:   'B1 (pinky): MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity',
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Turn hand to aim · tap B1 to place · tap B2 to cycle shape',
+  BUILD: 'Turn hand to aim · press B1 to place · pick the shape in the panel',
   ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
 

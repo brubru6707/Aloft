@@ -21,7 +21,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #hud button, #hud select { pointer-events: auto; }
-#hud .glove .modes i, #hud .glove .fly i { pointer-events: auto; }
+#hud .glove .modes i, #hud .glove .fly i, #hud .glove .shapes i { pointer-events: auto; }
 
 button {
   font: inherit; font-size: 13px; font-weight: 500;
@@ -67,6 +67,14 @@ button:disabled { opacity: .45; cursor: default; }
 }
 .glove .modes i:hover { background: var(--btn-hover); }
 .glove .modes i.on { background: var(--mode); border-color: var(--line); color: #1d1d1d; }
+.glove .shapes { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11px; }
+.glove .shapes span { color: var(--muted); letter-spacing: .08em; margin-right: 2px; }
+.glove .shapes i {
+  font-style: normal; font-weight: 500; padding: 3px 7px; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid var(--line); background: var(--btn); color: var(--text); transition: all .1s;
+}
+.glove .shapes i:hover { background: var(--btn-hover); }
+.glove .shapes i.on { background: var(--mode, var(--accent)); color: #1d1d1d; border-color: var(--line); }
 .glove .fly { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11px; }
 .glove .fly span { color: var(--muted); letter-spacing: .08em; margin-right: 2px; }
 .glove .fly i {
