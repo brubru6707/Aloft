@@ -44,6 +44,7 @@ export class BleSource implements GloveSource {
       this.characteristic.addEventListener('characteristicvaluechanged', this.onValue);
       await this.characteristic.startNotifications();
       this.buffer = '';
+      this.reconnectAttempts = 0;
       this.statusCb?.('connected', this.name);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -67,9 +68,34 @@ export class BleSource implements GloveSource {
     this.device = null;
   }
 
-  private onDisconnected = () => {
-    this.cleanup();
-    this.statusCb?.('disconnected', 'glove disconnected');
+  private reconnectAttempts = 0;
+
+  /** The glove dropped. Try to reconnect to the same device (no chooser) a few times. */
+  private onDisconnected = async () => {
+    const dev = this.device;
+    this.characteristic?.removeEventListener('characteristicvaluechanged', this.onValue);
+    this.characteristic = null;
+    if (!dev || this.reconnectAttempts >= BLE.reconnectAttempts) {
+      this.cleanup();
+      this.statusCb?.('disconnected', 'glove disconnected');
+      return;
+    }
+    this.reconnectAttempts++;
+    this.statusCb?.('connecting', `reconnecting (${this.reconnectAttempts}/${BLE.reconnectAttempts})…`);
+    await new Promise((r) => setTimeout(r, BLE.reconnectDelayMs));
+    if (this.device !== dev) return; // disconnect() was called meanwhile
+    try {
+      const server = await dev.gatt!.connect();
+      const service = await server.getPrimaryService(BLE.service);
+      this.characteristic = await service.getCharacteristic(BLE.txCharacteristic);
+      this.characteristic.addEventListener('characteristicvaluechanged', this.onValue);
+      await this.characteristic.startNotifications();
+      this.buffer = '';
+      this.reconnectAttempts = 0;
+      this.statusCb?.('connected', this.name);
+    } catch {
+      this.onDisconnected();
+    }
   };
 
   private onValue = (e: Event) => {
