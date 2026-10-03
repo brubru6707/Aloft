@@ -20,6 +20,9 @@ export class GloveInput extends Emitter<GloveEvents> {
   private holdFired = [false, false, false, false];
   private rawDown = [false, false, false, false];
   private checkTimer: number | null = null;
+  /** Auto-recenter schedule after a connect: on the first sample, then again once settled. */
+  private recenterOnSample = false;
+  private settleRecenterAt = 0;
 
   source: GloveSource | null = null;
   status: SourceStatus = 'disconnected';
@@ -45,6 +48,11 @@ export class GloveInput extends Emitter<GloveEvents> {
       this.status = status;
       this.statusDetail = detail ?? '';
       if (status !== 'connected') this.resetButtons();
+      if (status === 'connected') {
+        // Whatever pose the hand is in at connect time becomes zero roll/pitch/yaw.
+        this.recenterOnSample = true;
+        this.settleRecenterAt = performance.now() + INPUT.connectSettleMs;
+      }
       this.emit('status', { gloveId: this.gloveId, status, source: source.kind, detail });
     });
     source.onSample((s) => this.ingest(s));
@@ -86,6 +94,13 @@ export class GloveInput extends Emitter<GloveEvents> {
   private ingest(s: RawSample): void {
     this.lastSampleAt = s.timestamp;
     this.rawLatest = { roll: s.roll, pitch: s.pitch, yaw: s.yaw };
+    if (this.recenterOnSample || (this.settleRecenterAt && s.timestamp >= this.settleRecenterAt)) {
+      // First sample after connect: zero immediately. Once more after the settle time, when the
+      // glove's own filter has converged, so the resting pose is exactly 0/0/0.
+      if (this.recenterOnSample) this.recenterOnSample = false; else this.settleRecenterAt = 0;
+      this.recenter();
+      this.emit('recentered', { gloveId: this.gloveId });
+    }
 
     const r0 = wrapDeg(s.roll - this.offset.roll) * (INPUT.invertRoll ? -1 : 1);
     const p0 = wrapDeg(s.pitch - this.offset.pitch) * (INPUT.invertPitch ? -1 : 1);

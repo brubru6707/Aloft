@@ -121,7 +121,8 @@ roll,pitch,yaw,buttonsBitmask\n
 - `buttonsBitmask`: integer, bit *n* set = button *n* pressed (`5` = B0 and B2).
 - Rate: 50 Hz.
 
-Client side the app applies an exponential smoothing filter, a deadzone,
+Client side the app zeroes roll/pitch/yaw automatically when a glove connects (on the
+first sample and again a second later), applies an exponential smoothing filter, a deadzone,
 per-glove recentering, and classifies each button press as a **tap**
 (< 250 ms) or a **hold**. If a BLE link drops it retries the same device three
 times before giving up. Everything input-related is in [`src/input/`](src/input/).

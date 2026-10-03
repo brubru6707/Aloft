@@ -73,6 +73,7 @@ export const INPUT = {
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering
   invertPitch: false,     // flip if "hand up" moves the camera down on your glove
   invertRoll: false,      // flip if rolling right reads negative on the panel
+  connectSettleMs: 1000,  // after a connect the pose is zeroed on the first sample and again after this long
 };
 
 /** X2D voice assistant (ElevenLabs Agents). The agent is public, so only its id is needed. */

@@ -39,6 +39,8 @@ export interface GloveEvents {
   press: ButtonEvent;      // raw down edge
   release: ButtonEvent;    // raw up edge
   status: { gloveId: number; status: SourceStatus; source: SourceKind | null; detail?: string };
+  /** The glove zeroed itself (auto-recenter after connect). */
+  recentered: { gloveId: number };
 }
 
 export type Listener<T> = (e: T) => void;

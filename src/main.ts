@@ -160,6 +160,7 @@ gloves.onAll('holdend', ({ gloveId, button }) => {
   const s = sessions[gloveId];
   MODES[s.modeIndex].onHoldEnd?.(s, ctx, button);
 });
+gloves.onAll('recentered', ({ gloveId }) => resetRotateAnchor(sessions[gloveId]));
 gloves.onAll('status', ({ gloveId, status, source, detail }) => {
   const s = sessions[gloveId];
   if (status === 'connected') {
