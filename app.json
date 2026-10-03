@@ -1,17 +1,34 @@
 {
   "expo": {
-    "name": "aloft-mobile",
+    "name": "Aloft",
     "slug": "aloft-mobile",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "0.1.0",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#3d3d3d",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3d3d3d"
+    },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.brunorodriguez.aloft",
+      "appleTeamId": "42J6KJM3HC",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.brunorodriguez.aloft",
+      "permissions": [
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#3d3d3d",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +37,19 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons."
+        }
+      ],
+      "expo-font",
+      "expo-sharing"
+    ]
   }
 }
