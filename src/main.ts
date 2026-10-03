@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER } from './config';
+import { FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES } from './config';
 import { exportSTL } from './export';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
-import { flyAxis, flyDeflection, resetRotateAnchor } from './modes/fly';
+import { applyRotate, flyAxis, flyDeflection, resetRotateAnchor } from './modes/fly';
 import { AxisGizmo } from './ui/axisGizmo';
 import { CameraRig } from './scene/cameraRig';
 import { ObjectRegistry } from './scene/objects';
@@ -149,6 +149,8 @@ function frame(): void {
     // Glove 0 drives without a connection only in the sense of showing the mode; modes need input.
     if (!s.glove.connected) continue;
     MODES[s.modeIndex].update(s, ctx, dt);
+    // Glove 1 owns the camera: in modes that leave tilt free (BUILD, ERASE), it keeps aiming.
+    if (s.glove.gloveId === 0 && ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, ctx, dt);
   }
   hud.update(sessions, window.innerWidth, window.innerHeight);
   renderer.render(world.scene, rig.camera);

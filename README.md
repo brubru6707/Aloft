@@ -40,8 +40,8 @@ spoken aloud and shown large in the top-left, color-coded.
 | **ORBIT** | violet | tilt orbits the camera around the selected object (or the build plaza); tap **B1** selects what is under the cursor |
 | **GRAB** | orange | tap **B1** to select; hold **B1** + tilt to move it; tilt without the button to rotate it |
 | **SCALE** | green | pitch up/down scales the selection |
-| **BUILD** | yellow | tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); tap **B2** cycles cube → sphere → cylinder |
-| **ERASE** | red | tap **B1** deletes the object under the cursor |
+| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the ghost preview sits (it drops onto the surface below, so pieces stack); tap **B2** cycles cube → sphere → cylinder |
+| **ERASE** | red | hand rotates the camera to aim; tap **B1** deletes the object under the cursor |
 
 **B3** = undo in every mode (build, move, rotate, scale, erase). All mappings
 and tuning live in [`src/config.ts`](src/config.ts).

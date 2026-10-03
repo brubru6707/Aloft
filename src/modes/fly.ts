@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FLY, type FlyAxis, type TiltAxis } from '../config';
 import { clamp, deadzone } from '../input/filter';
 import { speak } from '../ui/speak';
-import type { GloveSession, Mode } from './types';
+import type { AppContext, GloveSession, Mode } from './types';
 
 const AXIS_VECTORS: Record<FlyAxis, THREE.Vector3> = {
   X: new THREE.Vector3(1, 0, 0),
@@ -47,6 +47,37 @@ function deflection(s: GloveSession, which: TiltAxis): number {
 }
 
 /**
+ * Turn / look with the hand using the current FLY.rotate style. Used by FLY's ROTATE
+ * state and by any mode listed in ROTATE_IN_MODES (e.g. BUILD, ERASE), so you can keep
+ * aiming the camera while placing or deleting.
+ */
+export function applyRotate(s: GloveSession, ctx: AppContext, dt: number): void {
+  const { rig } = ctx;
+  const R = FLY.rotate;
+  // Glove yaw is CCW-positive like the rig's yaw, so yaw as the turn axis needs no flip;
+  // roll/pitch as the turn axis keep "tilt right = turn right".
+  const turnSign = (R.turnAxis === 'yaw' ? 1 : -1) * (R.invertTurn ? -1 : 1);
+  const lookSign = R.invertLook ? -1 : 1;
+  if (R.style === 'rate') {
+    rig.yaw += deflection(s, R.turnAxis) * turnSign * THREE.MathUtils.degToRad(R.yawRateDegPerSec) * dt;
+    rig.pitch += deflection(s, R.lookAxis) * lookSign * THREE.MathUtils.degToRad(R.pitchRateDegPerSec) * dt;
+  } else {
+    // Absolute: camera = anchor + hand angle. The anchor is captured the first frame we
+    // are in this state so the camera attaches to wherever the hand is, with no jump.
+    const turnRad = THREE.MathUtils.degToRad(handDeg(s, R.turnAxis, R.invertTurn) * turnSign * R.absoluteGain);
+    const lookRad = THREE.MathUtils.degToRad(handDeg(s, R.lookAxis, R.invertLook) * R.absoluteGain);
+    let anchor = s.scratch.rotAnchor as { yaw: number; pitch: number } | undefined;
+    if (!anchor) {
+      anchor = { yaw: rig.yaw - turnRad, pitch: rig.pitch - lookRad };
+      s.scratch.rotAnchor = anchor;
+    }
+    rig.yaw = anchor.yaw + turnRad;
+    rig.pitch = anchor.pitch + lookRad;
+  }
+  rig.apply();
+}
+
+/**
  * FLY. The pinky button alternates MOVE and ROTATE:
  *   MOVE: X -> ROTATE -> MOVE: Y -> ROTATE -> MOVE: Z -> ROTATE -> MOVE: X ...
  * MOVE translates along one world axis from one hand tilt; ROTATE turns/looks with the hand.
@@ -88,27 +119,8 @@ export const flyMode: Mode = {
       const amount = deflection(s, FLY.axisControl[axis]);
       if (amount !== 0) rig.camera.position.addScaledVector(AXIS_VECTORS[axis], amount * FLY.axisSign[axis] * FLY.speed * dt);
     } else {
-      const R = FLY.rotate;
-      // Glove yaw is CCW-positive like the rig's yaw, so yaw as the turn axis needs no flip;
-      // roll/pitch as the turn axis keep "tilt right = turn right".
-      const turnSign = (R.turnAxis === 'yaw' ? 1 : -1) * (R.invertTurn ? -1 : 1);
-      const lookSign = R.invertLook ? -1 : 1;
-      if (R.style === 'rate') {
-        rig.yaw += deflection(s, R.turnAxis) * turnSign * THREE.MathUtils.degToRad(R.yawRateDegPerSec) * dt;
-        rig.pitch += deflection(s, R.lookAxis) * lookSign * THREE.MathUtils.degToRad(R.pitchRateDegPerSec) * dt;
-      } else {
-        // Absolute: camera = anchor + hand angle. The anchor is captured the first frame we
-        // are in this state so the camera attaches to wherever the hand is, with no jump.
-        const turnRad = THREE.MathUtils.degToRad(handDeg(s, R.turnAxis, R.invertTurn) * turnSign * R.absoluteGain);
-        const lookRad = THREE.MathUtils.degToRad(handDeg(s, R.lookAxis, R.invertLook) * R.absoluteGain);
-        let anchor = s.scratch.rotAnchor as { yaw: number; pitch: number } | undefined;
-        if (!anchor) {
-          anchor = { yaw: rig.yaw - turnRad, pitch: rig.pitch - lookRad };
-          s.scratch.rotAnchor = anchor;
-        }
-        rig.yaw = anchor.yaw + turnRad;
-        rig.pitch = anchor.pitch + lookRad;
-      }
+      applyRotate(s, ctx, dt);
+      return;
     }
     rig.apply();
   },

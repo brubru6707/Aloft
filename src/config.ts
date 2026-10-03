@@ -40,8 +40,8 @@ export const MODE_HINTS: Record<ModeName, string> = {
   ORBIT: 'Tilt to orbit the selection · tap B1 to select',
   GRAB:  'Hold B1 + move hand to drag · tilt to rotate · tap B1 to select',
   SCALE: 'Pitch up/down to scale · tap B1 to select',
-  BUILD: 'Tap B1 to place · tap B2 to cycle shape',
-  ERASE: 'Tap B1 to delete the object under the cursor',
+  BUILD: 'Turn hand to aim · tap B1 to place · tap B2 to cycle shape',
+  ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
 };
 
 /** Glove identity. Up to two gloves. */
@@ -115,6 +115,13 @@ export const FLY = {
   },
 };
 export type RotateStyle = 'rate' | 'absolute';
+
+/**
+ * Modes (besides FLY's ROTATE state) where glove 1's hand also turns the camera.
+ * Only modes that do not already use tilt for something else belong here:
+ * ORBIT/GRAB/SCALE use tilt to orbit, move or scale, so they are left out.
+ */
+export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
 export const ORBIT = { azimuthDegPerSec: 90, elevationDegPerSec: 60 };
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
