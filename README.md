@@ -9,6 +9,12 @@ builder. This is a port of the web app's logic and Blender-ish look to a phone.
 
 BLE does not work in Expo Go, so this is a **development build** (expo-dev-client).
 
+The project is on **Expo SDK 54**: SDK 55 needs Xcode 26.2+ and SDK 56/57 need
+Xcode 26.4+, and the Mac this was built on has Xcode 26.1.1 (its Swift compiler
+rejects the newer `expo-modules-jsi` sources). After updating Xcode, upgrade with
+`npm install expo@latest && npx expo install --fix` and re-add the `expo-sharing` /
+`expo-asset` entries to `plugins` in `app.json`.
+
 ```bash
 npm install
 npx expo prebuild --platform ios      # or android; generates ios/ and android/ from app.json
