@@ -135,12 +135,13 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
 }
 
 const s = StyleSheet.create({
-  wrap: { position: 'absolute', bottom: 0, gap: 5, paddingHorizontal: 8 },
-  wrapPortrait: { left: 72, right: 72 },   // narrow, centred dock
-  wrapLandscape: { right: 0, width: 420 },
-  panel: { backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
+  // The dock is a fixed small width, centred, in both orientations; an open panel is a bit wider.
+  wrap: { position: 'absolute', bottom: 0, left: 0, right: 0, gap: 5, alignItems: 'center' },
+  wrapPortrait: {},
+  wrapLandscape: {},
+  panel: { width: 290, maxWidth: '92%', backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
   body: { padding: 8, gap: 6 },
-  dock: { backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
+  dock: { width: 196, backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
   top: { position: 'absolute', left: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grow: { flex: 1 },
