@@ -20,6 +20,7 @@ const BUTTON_GPIO = [13, 25, 27, 26];
 const glove = new GloveInput(0);
 let source: GloveSource | null = null;
 let raw: RawSample | null = null;
+let rawZero = { roll: 0, pitch: 0, yaw: 0 };   // display offset so the raw readouts can be recentred too
 let rawCount = 0; let rateWindow: number[] = [];
 let recording = false; let recStart = 0;
 let recs: Rec[] = []; let markers: Marker[] = []; let events: Ev[] = [];
@@ -36,14 +37,14 @@ app.innerHTML = `
       <button id="ble" class="primary">Connect BLE</button>
       <button id="usb">Connect USB</button>
       <button id="disc" disabled>Disconnect</button>
-      <button id="recenter">Recenter (app view)</button>
+      <button id="recenter">Recenter</button>
       <span id="status" class="status">disconnected</span>
       <span id="rate" class="status"></span>
     </div>
   </section>
 
   <section class="panel">
-    <h2>Live · raw from glove</h2>
+    <h2>Live · raw from glove (minus Recenter offset)</h2>
     <div class="readouts">
       ${['ROLL', 'PITCH', 'YAW'].map((n) => `<div class="readout"><span>${n}</span><b id="raw-${n.toLowerCase()}">—</b><div class="bar"><i id="bar-${n.toLowerCase()}"></i></div></div>`).join('')}
     </div>
@@ -139,7 +140,7 @@ $('usb').onclick = () => connect(new SerialSource());
 if (!BleSource.supported) { $<HTMLButtonElement>('ble').disabled = true; $('ble').title = 'Web Bluetooth needs Chrome on https:// or localhost'; }
 if (!SerialSource.supported) { $<HTMLButtonElement>('usb').disabled = true; $('usb').title = 'Web Serial needs Chrome'; }
 $('disc').onclick = () => { glove.detach(); source = null; setStatus('disconnected'); };
-$('recenter').onclick = () => { glove.recenter(); log('recenter'); };
+$('recenter').onclick = () => { glove.recenter(); if (raw) rawZero = { roll: raw.roll, pitch: raw.pitch, yaw: raw.yaw }; log('recenter'); };
 
 $('rec').onclick = () => {
   recording = true; recStart = now(); recs = []; markers = []; events = [];
@@ -185,8 +186,9 @@ $('download').onclick = () => {
 function refresh(): void {
   if (raw) {
     for (const k of ['roll', 'pitch', 'yaw'] as const) {
-      $(`raw-${k}`).textContent = fmt(raw[k]) + '°';
-      const v = Math.max(-90, Math.min(90, raw[k])) / 90;
+      const rv = ((raw[k] - rawZero[k] + 540) % 360) - 180;   // raw minus the recentre offset, wrapped
+      $(`raw-${k}`).textContent = fmt(rv) + '°';
+      const v = Math.max(-90, Math.min(90, rv)) / 90;
       const bar = $(`bar-${k}`);
       bar.style.left = v < 0 ? `${50 + v * 50}%` : '50%';
       bar.style.width = `${Math.abs(v) * 50}%`;
