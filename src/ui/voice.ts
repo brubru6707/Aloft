@@ -41,6 +41,7 @@ export class VoiceAssistant {
   private session: Awaited<ReturnType<typeof Conversation.startSession>> | null = null;
   private stateCb: ((s: VoiceState, detail?: string) => void) | null = null;
   private requestCb: ((text: string) => void) | null = null;
+  private wakeTimer: number | null = null;   // wake word heard alone: waiting briefly for the request
 
   onState(cb: (s: VoiceState, detail?: string) => void): void { this.stateCb = cb; }
   /** Called with the words that followed the wake word, e.g. "make it an actual stickman". */
@@ -63,9 +64,14 @@ export class VoiceAssistant {
         // ("X2D, make it an actual stickman") is captured whole.
         if (!result.isFinal) continue;
         const after = this.afterWakeWord(text);
-        if (after === null) continue;
+        if (after === null) {
+          // No wake word in this result. If "X2D" was heard alone a moment ago, this IS the request.
+          if (this.wakeTimer !== null && text.trim()) { this.clearWakeTimer(); this.requestCb?.(text.trim()); break; }
+          continue;
+        }
+        this.clearWakeTimer();
         if (after.trim().length > 0) this.requestCb?.(after.trim());
-        else void this.startSession();
+        else this.wakeTimer = window.setTimeout(() => { this.wakeTimer = null; void this.startSession(); }, VOICE.requestGraceMs);
         break;
       }
     };
@@ -77,6 +83,10 @@ export class VoiceAssistant {
     this.recognition = r;
     this.wantListening = true;
     try { r.start(); this.setState('listening'); } catch { this.setState('off', 'could not start listening'); }
+  }
+
+  private clearWakeTimer(): void {
+    if (this.wakeTimer !== null) { clearTimeout(this.wakeTimer); this.wakeTimer = null; }
   }
 
   /** Text following the wake word, '' if the wake word stood alone, null if absent. */
@@ -95,6 +105,7 @@ export class VoiceAssistant {
 
   stopListening(): void {
     this.wantListening = false;
+    this.clearWakeTimer();
     this.recognition?.abort();
     this.recognition = null;
     if (!this.session) this.setState('off');
@@ -104,6 +115,7 @@ export class VoiceAssistant {
   async startSession(): Promise<void> {
     if (this.session || this.state === 'connecting') return;
     this.setState('connecting');
+    this.clearWakeTimer();
     this.recognition?.abort();   // do not transcribe the agent's own voice
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });

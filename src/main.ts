@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { BUILD, FLY, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, VOICE } from './config';
-import { geminiAvailable, listGeminiModels, planScene } from './ai/gemini';
+import { BUILD, FLY, GEMINI, GLOBAL_ACTIONS, GLOVE_DEFAULT_MODE, INPUT, MODE_ORDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, VOICE } from './config';
+import { geminiAvailable, isImperative, listGeminiModels, planScene } from './ai/gemini';
 import { describeBuilt, rebuildScene, sanitize } from './ai/scene';
 import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
@@ -95,35 +95,38 @@ function cycleSensitivity(): void {
 function sceneSummary(): string {
   const built = objects.built;
   const cam = rig.camera.position;
+  const f = (v: number) => (Math.round(v * 10) / 10).toString();
   const lines = [`camera at x=${cam.x.toFixed(0)} y=${cam.y.toFixed(0)} z=${cam.z.toFixed(0)} cm; mode ${MODE_ORDER[sessions[0].modeIndex]}; ${built.length} built piece(s)`];
-  built.slice(0, 30).forEach((m, i) => {
-    const edge = (2 * m.scale.x).toFixed(0);
-    lines.push(`${i + 1}. ${m.name} ${edge} cm at x=${m.position.x.toFixed(0)} y=${m.position.y.toFixed(0)} z=${m.position.z.toFixed(0)}`);
+  built.slice(0, 40).forEach((m, i) => {
+    lines.push(`${i + 1}. ${m.name} ${f(2 * m.scale.x)}×${f(2 * m.scale.y)}×${f(2 * m.scale.z)} cm at x=${f(m.position.x)} y=${f(m.position.y)} z=${f(m.position.z)}`);
   });
   return lines.join('\n');
 }
 
 /**
  * Hand a spoken or typed request to Gemini with the scene. A question gets a spoken
- * answer; an edit request ("make it an actual stickman") rebuilds the pieces as one
- * undoable step and says what was done.
+ * answer; an instruction ("make it an actual stickman") rebuilds the pieces as one
+ * undoable step and says what was done. Returns the plan so scripts can check it.
  */
-async function askAssistant(request: string): Promise<void> {
-  if (!request.trim()) return;
-  if (!geminiAvailable()) { hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return; }
+async function askAssistant(request: string): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
+  if (!request.trim()) return null;
+  if (!geminiAvailable()) { hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return null; }
   hud.toast(`X2D: thinking about “${request}”…`, 4000);
   try {
-    const plan = await planScene(request, describeBuilt(ctx), sceneSummary());
-    if (plan.action === 'rebuild' && Array.isArray(plan.pieces)) {
-      const specs = plan.pieces.map(sanitize).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 40);
+    const plan = await planScene(request, describeBuilt(ctx), sceneSummary(), isImperative(request));
+    if (plan.action === 'rebuild' && plan.pieces?.length) {
+      const specs = plan.pieces.map(sanitize).filter((p): p is NonNullable<typeof p> => !!p).slice(0, GEMINI.maxPieces);
       const n = rebuildScene(specs, ctx, sessions[0].color, `X2D: ${request.slice(0, 40)}`);
       hud.toast(`${plan.message} (${n} pieces, B2 to undo)`, 6000);
-    } else {
-      hud.toast(plan.message, 6000);
+      speak(plan.message);
+      return { action: 'rebuild', message: plan.message, pieces: n };
     }
+    hud.toast(plan.message, 6000);
     speak(plan.message);
+    return { action: 'answer', message: plan.message, pieces: 0 };
   } catch (err) {
     hud.toast(`X2D: ${err instanceof Error ? err.message : String(err)}`, 5000);
+    return null;
   }
 }
 
@@ -257,4 +260,4 @@ frame();
 hud.toast('Click “Simulator” or “Connect Glove” to start');
 
 // Debug handle for the console / automated tests.
-(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, askAssistant, sceneSummary, listGeminiModels };
+(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, askAssistant, isImperative, sceneSummary, listGeminiModels };

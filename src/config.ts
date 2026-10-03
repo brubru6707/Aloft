@@ -80,26 +80,83 @@ export const VOICE = {
   wakeWords: ['x2d', 'x 2 d', 'x two d', 'x to d', 'x too d', 'ex 2 d', 'ex two d', 'extudy'],
   lang: 'en-US',
   autoListen: true,       // start watching for the wake word as soon as the page loads (asks for the mic once)
+  // "X2D" alone opens a voice session with the agent, but speech-to-text often splits "X2D, make it a stickman" into two
+  // results. Wait this long for the request before opening the session, so the request goes to Gemini and not to the agent.
+  requestGraceMs: 1500,
 };
 
 /** Gemini (Google AI Studio). Key lives in .env.local as VITE_GEMINI_API_KEY. */
 export const GEMINI = {
-  model: 'gemini-3.8-flash',   // the API retired gemini-2.5-flash for new keys
-  fallbackModels: ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'],   // tried in order when the main model returns 503/404/429
+  // Free-tier keys get ~20 requests/day per model and the newest flash is often 503 (overloaded),
+  // so the chain matters. gemini-3.1-pro-preview has no free quota (429) and gemini-2.5-flash is retired (404).
+  model: 'gemini-3.5-flash',   // follows the JSON schema well and is rarely overloaded
+  fallbackModels: ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite'],   // tried in order on 503/404/429
   maxOutputTokens: 200,
   retries: 1,              // extra attempt per model on 503 (overloaded) / 429 (rate limited), then the next model
-  maxPlanTokens: 4000,     // a rebuild plan is JSON with up to ~40 pieces
+  // Thinking tokens count against this limit on Gemini 3.x, so it must be far above the JSON itself (~40 pieces ≈ 2500 tokens).
+  maxPlanTokens: 16000,
+  maxPieces: 40,
+  /** Requests that read as an instruction about the scene are forced to action=rebuild (client-side classifier). */
+  imperativePattern: /\b(make|build|fix|improve|rebuild|redo|remake|turn|add|give|change|refine|better|actual|proper|look like|looks like|replace|remove|delete|put|create|design|move|scale|resize|stretch|shrink|enlarge|rotate|colou?r|paint|convert|transform|upgrade|do it|clean|straighten|align|center|centre|smooth|taller|shorter|bigger|smaller|wider|thinner)\b/i,
+  /** A request that opens like this is a question even if it contains one of the verbs above ("how many pieces make the arm?"). */
+  questionPattern: /^\s*(how (many|big|tall|wide|long|far|high)|what('s| is| are| unit| colou?r| size| shape)|which|where|is there|are there|do i have|does it|count|tell me)\b/i,
+  // Structured output (generationConfig.responseSchema). pieces is always present: [] for an answer.
+  planSchema: {
+    type: 'OBJECT',
+    properties: {
+      action: { type: 'STRING', enum: ['answer', 'rebuild'] },
+      message: { type: 'STRING' },
+      pieces: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            shape: { type: 'STRING', enum: ['cube', 'sphere', 'cylinder'] },
+            size: { type: 'ARRAY', items: { type: 'NUMBER' } },
+            pos: { type: 'ARRAY', items: { type: 'NUMBER' } },
+            rot: { type: 'ARRAY', items: { type: 'NUMBER' } },
+            color: { type: 'STRING' },
+          },
+          required: ['shape', 'size', 'pos', 'rot', 'color'],
+          propertyOrdering: ['shape', 'size', 'pos', 'rot', 'color'],
+        },
+      },
+    },
+    required: ['action', 'message', 'pieces'],
+    propertyOrdering: ['action', 'message', 'pieces'],
+  },
   planPrompt: [
-    'You receive the user\'s built pieces and a request, and you reply with JSON only.',
-    'Decide: if the request asks to change, improve, fix, rebuild or add to what was built, reply with',
-    '{"action":"rebuild","message":"<one short spoken sentence>","pieces":[...]} where pieces is the COMPLETE new',
-    'layout that replaces every current piece. Otherwise reply {"action":"answer","message":"<one or two short sentences>"}.',
+    'You are the BUILDER. The user cannot and will not build anything themselves: whatever they ask for, you produce the finished',
+    'layout and the app places it. Never explain how to build, never list steps, never mention buttons, modes, gloves or tools.',
+    'Reply with JSON only: {"action":"answer"|"rebuild","message":"...","pieces":[...]}.',
+    'action="answer" ONLY for a genuine question about the scene (how many, how big, where, what unit, what colour). message answers',
+    'it in one or two short sentences and pieces is [].',
+    'action="rebuild" for ANY instruction, wish or complaint about the scene: make, fix, improve, rebuild, turn it into, add, give it,',
+    'change, refine, better, actual, proper, look like, etc. Even when the scene is empty, build the thing from scratch at the plaza',
+    'centre (x=0, z=-28). pieces is the COMPLETE new layout that replaces every current piece (at most 40). message is one short spoken',
+    'sentence saying what you built, never an explanation.',
     'Piece format: {"shape":"cube|sphere|cylinder","size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
-    'Units are centimetres. Y is up and the floor is y=0, so a piece\'s centre y must be at least h/2. rot is degrees.',
-    'A cube is a box w×h×d. A sphere uses w as its diameter. A cylinder stands along Y: w = diameter, h = length;',
-    'rotate it with rot to make limbs. Keep the new build near the old one\'s centre and roughly its overall size,',
-    'keep the user\'s colour unless asked otherwise, and use at most 40 pieces. Make it look like what they asked for.',
+    'Units are centimetres. Y is up and the floor is y=0, so a piece\'s centre y must be at least h/2 (a tilted cylinder of length h',
+    'rotated by a degrees about Z has centre y ≥ h/2·cos(a)). rot is degrees about x, y, z. A cube is a box w×h×d. A sphere uses w as',
+    'its diameter. A cylinder stands along Y: size=[diameter,length,diameter]; rotate it about Z (or X) to make limbs. Limbs must',
+    'CONNECT at joints: an arm of length L rotated by a degrees about Z, hanging from a shoulder at (sx,sy), has its centre at',
+    '(sx + sin(a)·L/2, sy − cos(a)·L/2) with a negative angle for the left arm and a positive one for the right. Keep the new build near',
+    'the old one\'s centre and roughly its overall height, keep the user\'s colour unless asked otherwise, and make every part touch its neighbour.',
+    'Example 1. Request: "how many pieces are there?" with 7 cubes → {"action":"answer","message":"There are seven cubes, all 2 cm.","pieces":[]}',
+    'Example 2. Request: "make it an actual stickman" with 7 orange cubes about 10 cm tall at z=-28 →',
+    '{"action":"rebuild","message":"Here is your stickman.","pieces":[',
+    '{"shape":"sphere","size":[2.6,2.6,2.6],"pos":[0,10.3,-28],"rot":[0,0,0],"color":"#e87d0d"},',
+    '{"shape":"cylinder","size":[0.8,4.6,0.8],"pos":[0,6.7,-28],"rot":[0,0,0],"color":"#e87d0d"},',
+    '{"shape":"cylinder","size":[0.6,4,0.6],"pos":[-1.4,7.6,-28],"rot":[0,0,-45],"color":"#e87d0d"},',
+    '{"shape":"cylinder","size":[0.6,4,0.6],"pos":[1.4,7.6,-28],"rot":[0,0,45],"color":"#e87d0d"},',
+    '{"shape":"cylinder","size":[0.7,4.6,0.7],"pos":[-0.7,2.2,-28],"rot":[0,0,-18],"color":"#e87d0d"},',
+    '{"shape":"cylinder","size":[0.7,4.6,0.7],"pos":[0.7,2.2,-28],"rot":[0,0,18],"color":"#e87d0d"}]}',
   ].join(' '),
+  /** Appended to the prompt when the client-side classifier decides the request is an instruction. */
+  forceRebuildNote: 'The request below is an INSTRUCTION, not a question: action MUST be "rebuild" and pieces MUST hold the complete layout.',
+  /** Second turn when the first reply was unusable. */
+  reaskNoPieces: 'You returned action=rebuild with no pieces. Return the full piece list now, as JSON only.',
+  reaskNotQuestion: 'This was an instruction, not a question. Return action=rebuild with the complete layout as JSON only.',
   systemPrompt: 'You are the assistant inside Aloft, a hand-controlled 3D building app where the world is in centimetres. Answer in one or two short sentences, plain text, no markdown.',
 };
 

@@ -78,12 +78,20 @@ panel's FLY row shows the same state as chips plus a bar of the current move amo
   typed text. The agent id and wake
   word spellings are under `VOICE` in `src/config.ts`; the agent itself is edited in the
   ElevenLabs dashboard (prompt, voice, LLM). Chrome asks for the microphone once.
-- **Gemini**: the **✨ ask Gemini…** box in the toolbar sends a question plus a summary of
-  the scene (camera, mode, every built piece with size and position in cm) to Gemini.
-  The answer is shown and spoken. Put your key in `.env.local` as
-  `VITE_GEMINI_API_KEY=…` (see `.env.example`; the file is git-ignored) and restart
-  `npm run dev`. Model and prompt are under `GEMINI` in `src/config.ts`. Anything in a
-  browser bundle is visible to whoever loads the page, so this is for local use.
+- **Gemini**: the **✨ ask Gemini…** box in the toolbar takes the same requests as "X2D, …".
+  A question ("how many pieces are there?") gets a spoken answer; anything that reads as an
+  instruction ("make it an actual stickman", "build me a small table") makes Gemini return the
+  finished layout, which replaces your pieces as one undoable step. It never coaches you: it is
+  the builder. Under the hood the request goes out with Gemini structured output (a JSON schema
+  with `action`, `message`, `pieces`), a client-side classifier forces `rebuild` for imperative
+  requests, and an unusable reply (an answer to an instruction, or a rebuild with no pieces) is
+  re-asked once. Put your key in `.env.local` as `VITE_GEMINI_API_KEY=…` (see `.env.example`;
+  the file is git-ignored) and restart `npm run dev`. Model chain, schema, prompt and the
+  classifier are under `GEMINI` in `src/config.ts`. Free-tier keys allow about 20 requests per
+  day per model, and the newest flash is often overloaded (503), so requests fall through
+  `GEMINI.fallbackModels`. For debugging, `window.__lastGeminiRaw` holds the last raw reply and
+  the model that produced it, and `window.__aloft.askAssistant("…")` returns the plan.
+  Anything in a browser bundle is visible to whoever loads the page, so this is for local use.
 
 ## Glove test bench
 
