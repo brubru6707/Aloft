@@ -2,25 +2,12 @@ import * as THREE from 'three';
 
 export const BUILD_AREA = { center: new THREE.Vector3(0, 0, -28), radius: 12 };
 
-/** A deterministic PRNG so the city looks the same on every reload. */
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export interface World {
   scene: THREE.Scene;
   ground: THREE.Mesh;
   buildings: THREE.Mesh[];
   buildArea: THREE.Object3D;
 }
-
-/** Buildings shorter than this are not placed; keeps the ground level open. */
-const MIN_BUILDING_HEIGHT = 10;
 
 export function createWorld(): World {
   const scene = new THREE.Scene();
@@ -64,46 +51,8 @@ export function createWorld(): World {
   axisLine(new THREE.Vector3(-300, 0, 0), new THREE.Vector3(300, 0, 0), 0xff3352);
   axisLine(new THREE.Vector3(0, 0, -300), new THREE.Vector3(0, 0, 300), 0x2890ff);
 
-  // City: blocks of buildings separated by roads, leaving the build plaza empty.
+  // Open world: just the ground grid and the build plaza. Everything you see gets built by hand.
   const buildings: THREE.Mesh[] = [];
-  const rand = mulberry32(1337);
-  const blockSize = 16, road = 6, half = 4; // 9x9 blocks
-  // Blender default-material greys, one warm and one cool for a little variety.
-  const palette = [0x7f7f7f, 0x8c8c8c, 0x6e6e6e, 0x9a9a9a, 0x857f78, 0x767c85];
-  const roadMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.95 });
-  const pitch = blockSize + road;
-  for (let bx = -half; bx <= half; bx++) {
-    for (let bz = -half; bz <= half; bz++) {
-      const cx = bx * pitch, cz = bz * pitch;
-      if (new THREE.Vector2(cx, cz).distanceTo(new THREE.Vector2(BUILD_AREA.center.x, BUILD_AREA.center.z)) < BUILD_AREA.radius + blockSize * 0.75) continue;
-      if (bx === 0 && bz === 0) continue; // start plaza
-      const n = 1 + Math.floor(rand() * 3);
-      for (let i = 0; i < n; i++) {
-        const w = 3 + rand() * 6, d = 3 + rand() * 6;
-        const h = 3 + Math.pow(rand(), 1.8) * 34;
-        const ox = (rand() - 0.5) * (blockSize - w), oz = (rand() - 0.5) * (blockSize - d);
-        if (h < MIN_BUILDING_HEIGHT) continue; // no stubby little boxes cluttering the streets
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(w, h, d),
-          new THREE.MeshStandardMaterial({ color: palette[Math.floor(rand() * palette.length)], roughness: 0.7, metalness: 0.05 }),
-        );
-        mesh.position.set(cx + ox, h / 2, cz + oz);
-        mesh.castShadow = mesh.receiveShadow = true;
-        mesh.name = 'building';
-        mesh.userData.selectable = true;
-        scene.add(mesh);
-        buildings.push(mesh);
-      }
-    }
-  }
-  // Roads
-  for (let i = -half; i <= half + 1; i++) {
-    const p = i * pitch - pitch / 2;
-    const rx = new THREE.Mesh(new THREE.PlaneGeometry(road, (2 * half + 2) * pitch), roadMat);
-    rx.rotation.x = -Math.PI / 2; rx.position.set(p, 0.02, 0); rx.receiveShadow = true; scene.add(rx);
-    const rz = new THREE.Mesh(new THREE.PlaneGeometry((2 * half + 2) * pitch, road), roadMat);
-    rz.rotation.x = -Math.PI / 2; rz.position.set(0, 0.02, p); rz.receiveShadow = true; scene.add(rz);
-  }
 
   // Build area: a glowing ring on the ground.
   const buildArea = new THREE.Group();
