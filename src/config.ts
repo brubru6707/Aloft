@@ -154,8 +154,9 @@ export const ORBIT = {
 export const GRAB = { moveUnitsPerDeg: 0.08, rotateRadPerSecAtFull: 1.6 };
 export const SCALE = { ratePerSec: 1.2, min: 0.1, max: 30 };
 export const BUILD = {
-  distance: 6,            // float distance when the cursor is not pointing at nearby ground
-  maxDropDistance: 60,    // new objects fall onto the first surface this far below the cursor point
+  maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
+  distance: 6,            // fallback float distance (cm) when the crosshair points at nothing
+  maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
   primitives: ['cube', 'sphere', 'cylinder'] as const,
   // Piece size. In BUILD, B3 cycles small -> medium -> large (elsewhere B3 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,

@@ -13,17 +13,39 @@ function halfHeight(mesh: THREE.Mesh): number {
 
 const down = new THREE.Vector3(0, -1, 0);
 const dropRay = new THREE.Raycaster();
+const aimRay = new THREE.Raycaster();
+const normal = new THREE.Vector3();
 
 /**
- * Where a new object goes: BUILD.distance in front of the cursor, then dropped straight
- * down onto the first thing below it (ground, a building, or another built object) so
- * pieces land on surfaces and stack.
+ * Where a new object goes: exactly where the crosshair points. The cursor ray is cast at
+ * the ground and every existing piece; the new piece is centred on the hit point pushed
+ * out along the hit face by its half size, so aiming at the top of a block stacks on it
+ * and aiming at a side puts the piece against that side (then settled onto whatever is
+ * below). If the crosshair points at nothing, fall back to BUILD.distance ahead, dropped
+ * onto the first surface below.
  */
 function placementPoint(s: GloveSession, ctx: AppContext, out: THREE.Vector3, hh: number): THREE.Vector3 {
+  const targets = [ctx.world.ground, ...ctx.objects.selectables.filter((m) => m !== s.ghost)];
+  aimRay.set(s.ray.origin, s.ray.direction);
+  aimRay.far = BUILD.maxAimDistance;
+  const aim = aimRay.intersectObjects(targets, false);
+  if (aim.length && aim[0].face) {
+    const hit = aim[0];
+    normal.copy(hit.face!.normal).transformDirection(hit.object.matrixWorld);
+    out.copy(hit.point).addScaledVector(normal, hh);
+    if (Math.abs(normal.y) < 0.5) {
+      // Side face: slide down onto the surface below so the piece rests rather than floats.
+      dropRay.set(out, down);
+      dropRay.far = BUILD.maxDropDistance;
+      const below = dropRay.intersectObjects(targets, false);
+      if (below.length) out.y = below[0].point.y + hh;
+    }
+    if (out.y < hh) out.y = hh;
+    return out;
+  }
   out.copy(s.ray.origin).addScaledVector(s.ray.direction, BUILD.distance);
   dropRay.set(out, down);
   dropRay.far = BUILD.maxDropDistance;
-  const targets = [ctx.world.ground, ...ctx.objects.selectables.filter((m) => m !== s.ghost)];
   const hits = dropRay.intersectObjects(targets, false);
   if (hits.length) out.y = hits[0].point.y + hh;
   else if (out.y < hh) out.y = hh;
