@@ -115,6 +115,8 @@ export class BleSource implements GloveSource {
     const connected = await dev.connect(Platform.OS === 'android' ? { requestMTU: BLE.requestMtu } : undefined);
     await connected.discoverAllServicesAndCharacteristics();
     if (this.closed) { connected.cancelConnection().catch(() => {}); return; }
+    // The advertisement often carries no name on iOS; the connected device usually does.
+    this.name = connected.name ?? connected.localName ?? this.name;
     this.device = connected;
     this.discSub = connected.onDisconnected(this.onDisconnected);
     this.buffer = '';
