@@ -52,7 +52,7 @@ bright and thick and the end being moved toward grows. The collapsible bottom sh
 has connection status, Connect / Simulator / Recenter / ✕, live ROLL / PITCH / YAW,
 B0–B3 lamps, mode chips (tap to jump to any mode, including the previous one), in FLY the
 ROTATE / X / Y / Z chips and the signed move-amount bar, in BUILD the SHAPE
-(cube / sphere / cylinder) and SIZE (S / M / L) chips with a "<edge> cm @ x, y, z cm"
+(cube / sphere / cylinder / nano / led / button) and SIZE (S / M / L) chips with a "<edge> cm @ x, y, z cm"
 readout for the ghost, Rotate: rate / absolute, ⚡ Sens (sensitivity 1× → 0.8× → 0.6× → 0.4× → 0.2× → 0×),
 Undo and Export STL (binary STL via the share sheet, scaled from cm to mm for slicers).
 
@@ -77,8 +77,8 @@ The sheet's ROLL / PITCH / YAW show the smoothed tilt the modes read, not the po
 | Mode | Controls |
 | --- | --- |
 | FLY | tap **B1** (pinky) alternates `ROTATE → MOVE: X → ROTATE → MOVE: Y → ROTATE → MOVE: Z → …`. MOVE: X ← roll (right = +X), Y ← pitch (up = +Y), Z ← pitch (tilt forward = forward); deadzone 2°, full speed at 25°, 20 cm/s × sensitivity. ROTATE turns with **roll** (roll right = turn right) and looks up/down with **pitch**, in `rate` or `absolute` style. Yaw is not used for control |
-| BUILD | hand aims the camera; press **B1** places the ghost exactly where the crosshair points: on top of the floor or piece you aim at (stacking), or stuck to the side you aim at, at that height; never below the floor; if nothing is hit, 6 cm ahead dropped onto the surface below. **B3** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips |
-| ERASE | hand aims; tap **B1** deletes the object under the crosshair |
+| BUILD | hand aims the camera; press **B1** places the ghost exactly where the crosshair points: on top of the floor or piece you aim at (stacking), or stuck to the side you aim at, at that height; never below the floor; if nothing is hit, 6 cm ahead dropped onto the surface below. **B3** or the SIZE chips cycle small / medium / large (2 cm medium cube, Ø 2 cm sphere, Ø 2 cm × 2 cm cylinder; ×0.5 / ×2); the shape comes from the SHAPE chips; nano / led / button are real-size Arduino kit parts (Arduino Nano, 5 mm LED, 12 mm push button) |
+| ERASE | hand aims a red see-through eraser (shape from the SHAPE chips, size from **B2** or the SIZE chips: 2 / 5 / 12 cm); every piece it touches turns red and **B1** erases them all as one undo step |
 
 ## Simulator (no glove)
 

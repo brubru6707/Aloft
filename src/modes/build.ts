@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { BUILD, MODE_BUTTONS, SENSITIVITY, type PrimitiveName, type SizeName } from '../config';
+import { BUILD, ERASE, MODE_BUTTONS, SENSITIVITY, UNITS, type PrimitiveName, type SizeName } from '../config';
 import { speak } from '../ui/speak';
 import type { AppContext, GloveSession, Mode } from './types';
 
 const point = new THREE.Vector3();
 
-function halfHeight(mesh: THREE.Mesh): number {
+export function halfHeight(mesh: THREE.Mesh): number {
   mesh.geometry.computeBoundingBox();
   const bb = mesh.geometry.boundingBox!;
   return ((bb.max.y - bb.min.y) / 2) * mesh.scale.y;
@@ -45,12 +45,18 @@ function placementPoint(s: GloveSession, ctx: AppContext, out: THREE.Vector3, hh
   return out;
 }
 
-function rebuildGhost(s: GloveSession, ctx: AppContext): void {
+/**
+ * The see-through preview at the crosshair: the piece to place (BUILD) or the eraser (ERASE,
+ * red). Rebuilt when the shape or size changes; keeps being an eraser if it was one.
+ */
+export function rebuildGhost(s: GloveSession, ctx: AppContext, eraser: boolean = !!s.ghost?.userData.eraser): void {
   if (s.ghost) { s.ghost.parent?.remove(s.ghost); s.ghost = null; }
-  const ghost = ctx.objects.createPrimitive(s.primitive, s.color);
-  ghost.scale.setScalar(BUILD.sizeScale[s.size]);
+  const ghost = ctx.objects.createPrimitive(s.primitive, eraser ? ERASE.color : s.color);
+  ghost.scale.setScalar((eraser ? ERASE.sizeScale : BUILD.sizeScale)[s.size]);
   const m = ghost.material as THREE.MeshStandardMaterial;
-  m.transparent = true; m.opacity = 0.35; m.depthWrite = false;
+  m.transparent = true; m.opacity = eraser ? ERASE.opacity : 0.35; m.depthWrite = false;
+  if (eraser) { m.vertexColors = false; m.color.set(ERASE.color); m.emissive.set('#5a0010'); }
+  ghost.userData.eraser = eraser;
   ghost.castShadow = ghost.receiveShadow = false;
   ghost.userData.built = false;
   ghost.name = 'ghost';
@@ -70,10 +76,29 @@ export function setSize(s: GloveSession, ctx: AppContext, size: SizeName): void 
   if (s.ghost) rebuildGhost(s, ctx);
 }
 
+/** B2 in BUILD and ERASE: small -> medium -> large. */
+export function cycleSize(s: GloveSession, ctx: AppContext): void {
+  const i = BUILD.sizes.indexOf(s.size);
+  const next = BUILD.sizes[(i + 1) % BUILD.sizes.length];
+  setSize(s, ctx, next);
+  ctx.toast(`${s.ghost?.userData.eraser ? 'Eraser size' : 'Size'}: ${next}`);
+  speak(next);
+}
+
+/** "4.3×1.1×1.8 cm @ x, y, z cm" for the ghost (piece or eraser), for the HUD. */
+export function ghostInfo(s: GloveSession): string {
+  if (!s.ghost) return '';
+  const v = new THREE.Box3().setFromObject(s.ghost).getSize(new THREE.Vector3());
+  const f = (n: number) => (n >= 10 ? n.toFixed(0) : n.toFixed(1).replace(/\.0$/, ''));
+  const q = s.ghost.position;
+  const dims = Math.abs(v.x - v.y) < 0.05 && Math.abs(v.y - v.z) < 0.05 ? f(v.x) : `${f(v.x)}×${f(v.y)}×${f(v.z)}`;
+  return `${s.ghost.userData.eraser ? 'eraser ' : ''}${dims} ${UNITS.name} @ ${q.x.toFixed(0)}, ${q.y.toFixed(0)}, ${(-q.z).toFixed(0)} ${UNITS.name}`;
+}
+
 /** BUILD: ghost preview where the crosshair points; B1 places, B3 cycles the size, shape from the chips. */
 export const buildMode: Mode = {
   name: 'BUILD',
-  enter(s, ctx) { rebuildGhost(s, ctx); },
+  enter(s, ctx) { rebuildGhost(s, ctx, false); },
   exit(s) {
     if (s.ghost) { s.ghost.parent?.remove(s.ghost); s.ghost = null; }
   },
@@ -84,15 +109,7 @@ export const buildMode: Mode = {
   },
   // Act on the press edge so it works no matter how long the button is held.
   onPress(s, ctx, button) {
-    if (button === SENSITIVITY.button) {
-      // In BUILD, the sensitivity button (B3) is the size button: small -> medium -> large.
-      const i = BUILD.sizes.indexOf(s.size);
-      const next = BUILD.sizes[(i + 1) % BUILD.sizes.length];
-      setSize(s, ctx, next);
-      ctx.toast(`Size: ${next}`);
-      speak(next);
-      return;
-    }
+    if (button === SENSITIVITY.button) return cycleSize(s, ctx);   // in BUILD, B2 is the size button
     if (button !== MODE_BUTTONS.primary) return;
     const mesh = ctx.objects.createPrimitive(s.primitive, s.color);
     mesh.scale.setScalar(BUILD.sizeScale[s.size]);

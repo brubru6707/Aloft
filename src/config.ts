@@ -62,7 +62,7 @@ export const MODE_COLORS: Record<ModeName, string> = {
 export const MODE_HINTS: Record<ModeName, string> = {
   FLY:   'B1: MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity · B3 (pinky) reset',
   BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
-  ERASE: 'Turn hand to aim · tap B1 to delete the object under the cursor',
+  ERASE: 'Turn hand to aim the eraser · B1 erases everything it touches · B2 cycles eraser size · shape in the panel',
 };
 
 /** World units: 1 three.js unit = 1 cm. The floor grid, readouts and STL export use this. */
@@ -135,7 +135,7 @@ export const GEMINI = {
         items: {
           type: 'OBJECT',
           properties: {
-            shape: { type: 'STRING', enum: ['cube', 'sphere', 'cylinder'] },
+            shape: { type: 'STRING', enum: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] },
             size: { type: 'ARRAY', items: { type: 'NUMBER' } },
             pos: { type: 'ARRAY', items: { type: 'NUMBER' } },
             rot: { type: 'ARRAY', items: { type: 'NUMBER' } },
@@ -159,7 +159,12 @@ export const GEMINI = {
     'change, refine, better, actual, proper, look like, etc. Even when the scene is empty, build the thing from scratch at the plaza',
     'centre (x=0, z=-28). pieces is the COMPLETE new layout that replaces every current piece (at most 40). message is one short spoken',
     'sentence saying what you built, never an explanation.',
-    'Piece format: {"shape":"cube|sphere|cylinder","size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
+    'Piece format: {"shape":"cube|sphere|cylinder|nano|led|button","size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
+    'nano, led and button are ready-made Arduino kit parts at real size: nano = an Arduino Nano board, size [4.4,1.4,1.8] (pins point',
+    'down); led = a 5 mm LED with legs, size [0.6,3.7,0.6], color is the LED colour; button = a 12 mm push button with a round cap,',
+    'size [1.35,1.3,1.2], color is the cap colour. Keep their proportions (multiply all three sizes by one factor to resize). When asked to',
+    'turn a piece into one of these, keep its x and z, replace its shape, and set y to half its height so it rests on the floor (or on the piece below).',
+    'Use one piece per part, never rebuild them from cubes.',
     'Units are centimetres. Y is up and the floor is y=0, so a piece\'s centre y must be at least h/2 (a tilted cylinder of length h',
     'rotated by a degrees about Z has centre y ≥ h/2·cos(a)). rot is degrees about x, y, z. A cube is a box w×h×d. A sphere uses w as',
     'its diameter. A cylinder stands along Y: size=[diameter,length,diameter]; rotate it about Z (or X) to make limbs. Limbs must',
@@ -256,11 +261,17 @@ export const FLY = {
  * Modes (besides FLY's ROTATE state) where the hand also turns the camera.
  */
 export const ROTATE_IN_MODES: ModeName[] = ['BUILD', 'ERASE'];
+/** ERASE: a see-through eraser (shape from the SHAPE chips) deletes every piece it touches. */
+export const ERASE = {
+  sizeScale: { small: 1, medium: 2.5, large: 6 } as Record<'small' | 'medium' | 'large', number>,   // cube eraser = 2 / 5 / 12 cm
+  color: '#ff3352',
+  opacity: 0.3,
+};
 export const BUILD = {
   maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
   distance: 6,            // fallback float distance (cm) when the crosshair points at nothing
   maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
-  primitives: ['cube', 'sphere', 'cylinder'] as const,
+  primitives: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] as const,   // nano / led / button: Arduino kit parts (src/scene/parts.ts)
   // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,
   sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,

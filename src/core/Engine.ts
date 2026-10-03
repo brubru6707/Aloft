@@ -8,7 +8,7 @@ import { GloveInput } from '../input/GloveInput';
 import { TouchSimSource } from '../input/TouchSimSource';
 import type { SourceKind, SourceStatus } from '../input/types';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from '../modes';
-import { setPrimitive, setSize } from '../modes/build';
+import { ghostInfo as ghostInfoOf, setPrimitive, setSize } from '../modes/build';
 import { applyRotate, flyAxis, flyDeflection, flyLabel, resetRotateAnchor, setFlyAxis } from '../modes/fly';
 import { CameraRig } from '../scene/cameraRig';
 import { ObjectRegistry } from '../scene/objects';
@@ -96,7 +96,7 @@ export class Engine {
       if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setMode(s.modeIndex - 1);
       if (is(GLOBAL_ACTIONS.reset, button, 'press')) return this.resetView();
       if (is(GLOBAL_ACTIONS.undo, button, 'press')) return this.doUndo();
-      if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] !== 'BUILD') return this.cycleSensitivity();   // BUILD uses B2 for size
+      if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] === 'FLY') return this.cycleSensitivity();   // BUILD and ERASE use B2 for size
       MODES[s.modeIndex].onPress?.(s, this.ctx, button);
     });
     this.glove.on('tap', ({ button }) => {
@@ -173,7 +173,7 @@ export class Engine {
     const s = this.session;
     const n = MODES.length;
     const next = ((index % n) + n) % n;
-    if (next === s.modeIndex && (s.ghost !== null) === (MODES[next].name === 'BUILD')) return;
+    if (next === s.modeIndex && (s.ghost !== null) === (MODES[next].name === 'BUILD' || MODES[next].name === 'ERASE')) return;
     MODES[s.modeIndex].exit?.(s, this.ctx);
     s.scratch = {};
     s.modeIndex = next;
@@ -370,11 +370,7 @@ export class Engine {
       ? `${g.sourceKind === 'sim' ? 'simulator' : g.statusDetail || 'connected'}${stale ? ' · no data' : ''}`
       : g.statusDetail || g.status;
     let ghostInfo = '';
-    if (mode === 'BUILD' && s.ghost) {
-      const q = s.ghost.position;
-      const edge = (2 * BUILD.sizeScale[s.size]).toFixed(0);
-      ghostInfo = `${edge} ${UNITS.name} @ ${q.x.toFixed(0)}, ${q.y.toFixed(0)}, ${(-q.z).toFixed(0)} ${UNITS.name}`;
-    }
+    if ((mode === 'BUILD' || mode === 'ERASE') && s.ghost) ghostInfo = ghostInfoOf(s);
     return {
       mode,
       modeColor: MODE_COLORS[mode],

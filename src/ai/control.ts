@@ -21,6 +21,9 @@ function shapeOf(t: string): string | null {
   if (has(t, /\b(cube|cubes|box|square|block|brick)s?\b/)) return 'cube';
   if (has(t, /\b(sphere|spheres|ball|orb|round)\b/)) return 'sphere';
   if (has(t, /\b(cylinder|cylinders|sylinder|cilinder|cyllinder|tube|pipe|rod|can|column)\b/)) return 'cylinder';
+  if (has(t, /\b(arduino|nano|nanos|micro ?controller|microcontroller|board)\b/)) return 'nano';
+  if (has(t, /\b(led|leds|l e d|light emitting diode|diode|light bulb|bulb)\b/)) return 'led';
+  if (has(t, /\b(push ?button|buttons?|tactile|tact switch|push switch)\b/)) return 'button';
   return null;
 }
 function sizeOf(t: string): string | null {
@@ -60,7 +63,7 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
   const v = String(valueRaw ?? '').toLowerCase().trim();
   switch (setting) {
     case 'mode': { const m = modeOf(v); return m ? { setting, value: m } : { error: `unknown mode "${v}" (FLY, BUILD or ERASE)` }; }
-    case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere or cylinder)` }; }
+    case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere, cylinder, nano (Arduino Nano), led or button)` }; }
     case 'size': { const s = sizeOf(v); return s ? { setting, value: s } : { error: `unknown size "${v}" (small, medium or large)` }; }
     case 'sensitivity': { const s = sensOf(v); return s ? { setting, value: s } : { error: `unknown sensitivity "${v}" (0, 0.2, 0.4, 0.6, 0.8, 1, up or down)` }; }
     case 'fly_state': { const s = flyStateOf(v); return s ? { setting, value: s } : { error: `unknown FLY state "${v}" (rotate, X, Y or Z)` }; }

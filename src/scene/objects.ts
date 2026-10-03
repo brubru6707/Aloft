@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import { BUILD, type PrimitiveName } from '../config';
+import { isPart, partGeometry, partSize } from './parts';
+
+/** Size (w, h, d in cm) of a shape at scale 1: 2 cm for cube/sphere/cylinder, real size for kit parts. */
+export function unitSize(kind: PrimitiveName): [number, number, number] {
+  return isPart(kind) ? partSize(kind) : [2, 2, 2];
+}
 
 /**
  * Registry of things the user can select, build, erase and export.
@@ -11,6 +17,7 @@ export class ObjectRegistry {
   private hoverSaved = new Map<THREE.Mesh, number>();
   private selected: THREE.Mesh | null = null;
   private hovered: THREE.Mesh | null = null;
+  private marked = new Set<THREE.Mesh>();
 
   constructor(private scene: THREE.Scene) {
     this.builtGroup.name = 'built';
@@ -24,6 +31,15 @@ export class ObjectRegistry {
   get hover(): THREE.Mesh | null { return this.hovered; }
 
   createPrimitive(kind: PrimitiveName, color: string): THREE.Mesh {
+    if (isPart(kind)) {
+      // Kit parts carry their own colours per vertex; `color` paints only the accent (LED dome, button cap).
+      const mesh = new THREE.Mesh(partGeometry(kind, color), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.2 }));
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.name = kind;
+      mesh.userData.built = true;
+      mesh.userData.color = color;
+      return mesh;
+    }
     let geo: THREE.BufferGeometry;
     switch (kind) {
       // Medium size = 2 cm across (1 unit = 1 cm); small/large scale by BUILD.sizeScale.
@@ -48,6 +64,7 @@ export class ObjectRegistry {
     const parent = mesh.parent ?? this.scene;
     if (this.selected === mesh) this.select(null);
     if (this.hovered === mesh) this.setHover(null);
+    if (this.marked.delete(mesh)) this.applyEmissive(mesh, 0x000000);
     parent.remove(mesh);
     this.selectable.delete(mesh);
     return { parent };
@@ -64,8 +81,17 @@ export class ObjectRegistry {
     if (mesh) this.applyEmissive(mesh, 0x5a4a10);
   }
 
+  /** Pieces the ERASE eraser currently touches: tinted red until unmarked. */
+  setMarked(meshes: THREE.Mesh[]): void {
+    const next = new Set(meshes);
+    for (const m of this.marked) if (!next.has(m)) this.applyEmissive(m, this.selected === m ? 0x5a4a10 : this.hovered === m ? 0x333333 : 0x000000);
+    for (const m of next) if (!this.marked.has(m)) this.applyEmissive(m, 0x7a1020);
+    this.marked = next;
+  }
+
   setHover(mesh: THREE.Mesh | null): void {
     if (this.hovered === mesh) return;
+    if (this.marked.size) { this.hovered = mesh; return; }   // erasing: the red marks win over the hover tint
     if (this.hovered && this.hovered !== this.selected) this.applyEmissive(this.hovered, 0x000000);
     this.hovered = mesh;
     if (mesh && mesh !== this.selected) this.applyEmissive(mesh, 0x333333);

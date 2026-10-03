@@ -81,20 +81,20 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                     <SignedBar value={hud.deflection} />
                   </View>
                 ) : null}
-                {hud.mode === 'BUILD' ? (
+                {hud.mode === 'BUILD' || hud.mode === 'ERASE' ? (
                   <>
                     <View style={s.row}>
                       <Text style={s.rowLabel}>SHAPE</Text>
-                      {BUILD.primitives.map((p) => <Chip key={p} flex label={p} on={hud.primitive === p} onColor={MODE_COLORS.BUILD} onPress={() => engine.setPrimitive(p)} />)}
+                      {BUILD.primitives.map((p) => <Chip key={p} flex label={p} on={hud.primitive === p} onColor={MODE_COLORS[hud.mode]} onPress={() => engine.setPrimitive(p)} />)}
                     </View>
                     <View style={s.row}>
                       <Text style={s.rowLabel}>SIZE</Text>
-                      {BUILD.sizes.map((z) => <Chip key={z} label={z[0].toUpperCase()} on={hud.size === z} onColor={MODE_COLORS.BUILD} onPress={() => engine.setSize(z)} />)}
+                      {BUILD.sizes.map((z) => <Chip key={z} label={z[0].toUpperCase()} on={hud.size === z} onColor={MODE_COLORS[hud.mode]} onPress={() => engine.setSize(z)} />)}
                       <Text style={s.pos} numberOfLines={1}>{hud.ghostInfo}</Text>
                     </View>
                   </>
                 ) : null}
-                {hud.mode !== 'FLY' && hud.mode !== 'BUILD' ? <Text style={s.note}>{hud.mode}: tilt the glove · B1 acts on the piece under the crosshair</Text> : null}
+                {hud.mode === 'ERASE' ? <Text style={s.note}>ERASE: aim the red eraser · B1 erases everything it touches · B2 eraser size</Text> : null}
                 <View style={s.row}>
                   <Btn small style={s.grow} label={hud.rotateStyle === 'absolute' ? '⟳ Rotate: absolute' : '⟳ Rotate: rate'} active={hud.rotateStyle === 'absolute'} onPress={() => engine.toggleRotateStyle()} />
                   <Btn small style={s.grow} label={`⚡ Sens ${hud.sensitivity}×`} active={hud.sensitivity !== 1} onPress={() => engine.cycleSensitivity()} />
