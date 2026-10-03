@@ -22,7 +22,8 @@ export const scaleMode: Mode = {
       delete s.scratch.scale;
     }
   },
-  onTap(s, ctx, button) {
+  // Act on the press edge so it works no matter how long the button is held.
+  onPress(s, ctx, button) {
     if (button === MODE_BUTTONS.primary && s.hit) {
       ctx.objects.select(s.hit);
       ctx.toast(`Selected ${s.hit.name}`);

@@ -4,7 +4,8 @@ import type { Mode } from './types';
 export const eraseMode: Mode = {
   name: 'ERASE',
   update() { /* hover highlight is handled by the app */ },
-  onTap(s, ctx, button) {
+  // Act on the press edge so it works no matter how long the button is held.
+  onPress(s, ctx, button) {
     if (button !== MODE_BUTTONS.primary || !s.hit) return;
     const mesh = s.hit;
     const { parent } = ctx.objects.remove(mesh);

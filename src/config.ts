@@ -51,7 +51,7 @@ export const MAX_GLOVES = 2;
 
 /** Input processing. */
 export const INPUT = {
-  tapMaxMs: 250,          // press shorter than this = tap, longer = hold
+  tapMaxMs: 500,          // press shorter than this = tap, longer = hold (B0 prev-mode, GRAB move)
   smoothing: 0.35,        // exponential filter alpha (0..1, higher = less smoothing)
   deadzoneDeg: 4,         // orientation below this magnitude is treated as zero
   maxTiltDeg: 60,         // clamp for roll/pitch after recentering

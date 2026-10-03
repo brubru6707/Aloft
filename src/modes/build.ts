@@ -52,7 +52,8 @@ export const buildMode: Mode = {
     s.ghost.visible = s.glove.connected;
     placementPoint(s, ctx, s.ghost.position, halfHeight(s.ghost));
   },
-  onTap(s, ctx, button) {
+  // Act on the press edge so it works no matter how long the button is held.
+  onPress(s, ctx, button) {
     if (button === MODE_BUTTONS.secondary) {
       s.primitive = ctx.objects.nextPrimitive(s.primitive);
       rebuildGhost(s, ctx);
