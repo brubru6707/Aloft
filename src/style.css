@@ -104,10 +104,11 @@ button:disabled { opacity: .45; cursor: default; }
 .glove .dot { width: 10px; height: 10px; border-radius: 2px; background: var(--glove); }
 .glove .status { font-size: 12px; color: var(--muted); }
 .glove .status.on { color: var(--accent-hover); }
-.glove .rpy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 8px 0; font-variant-numeric: tabular-nums; }
-.glove .rpy div { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 5px 8px; }
-.glove .rpy span { display: block; font-size: 10px; color: var(--muted); letter-spacing: .08em; }
-.glove .rpy b { font-size: 16px; font-weight: 500; }
+.glove .rpy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+/* Label and value on one line: ROLL +12° */
+.glove .rpy div { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px 7px; }
+.glove .rpy span { font-size: 9px; color: var(--muted); letter-spacing: .06em; }
+.glove .rpy b { font-size: 13px; font-weight: 500; }
 .glove .buttons { display: flex; gap: 3px; }
 .glove .buttons i {
   flex: 1; min-width: 0; padding: 3px 0; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2);
@@ -228,8 +229,10 @@ button:disabled { opacity: .45; cursor: default; }
 }
 
 /* Device library: right edge, under the axis gizmo and above the dock, only in BUILD / ERASE. */
+/* Left edge, under the mode text and above the glove panel: never over the centre of the view. */
 #library {
-  position: absolute; right: 10px; top: calc(var(--bar-h) + 152px); bottom: 72px; width: 176px;
+  position: absolute; left: 14px; top: calc(var(--bar-h) + 64px); width: 176px;
+  max-height: max(150px, calc(100vh - var(--bar-h) - 64px - 380px));
   display: flex; flex-direction: column; padding: 0; overflow: hidden; pointer-events: auto; z-index: 4;
 }
 #library[hidden] { display: none; }
@@ -270,3 +273,7 @@ button:disabled { opacity: .45; cursor: default; }
 #hud.split .mode-label .tag { font-size: 10px; }
 #hud.split .mode-hint { font-size: 10px; }
 #hud.split .axis-label { font-size: 16px; }
+/* Split view: the glove panels are placed one per half (hud.ts), a bit smaller so the centre stays clear. */
+#hud.split #gloves { inset: 0; max-height: none; display: block; pointer-events: none; }
+#hud.split #gloves .glove { transform: scale(.82); transform-origin: bottom left; pointer-events: auto; }
+#hud.split #library { top: calc(var(--bar-h) + 52px); max-height: max(130px, calc(100vh - var(--bar-h) - 52px - 330px)); }

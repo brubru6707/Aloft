@@ -50,7 +50,7 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
   return (
     <View style={[s.wrap, landscape ? s.wrapLandscape : s.wrapPortrait, { paddingBottom: Math.max(0, bottomInset - BOTTOM_ROW) + 2 }]} pointerEvents="box-none">
       {tab ? (
-        <View style={s.panel}>
+        <View style={[s.panel, landscape && s.panelLandscape]}>
           <ScrollView style={{ maxHeight: landscape ? 150 : 170 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
             {tab === 'glove' ? (
               <>
@@ -161,6 +161,8 @@ const s = StyleSheet.create({
   wrapPortrait: {},
   wrapLandscape: {},
   panel: { width: 290, maxWidth: '92%', backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
+  // Landscape: the open panel sits on the right (devices are on the left) so the centre stays clear.
+  panelLandscape: { alignSelf: 'flex-end', marginRight: 12 },
   body: { padding: 8, gap: 6 },
   pin: { flex: 1, minWidth: 0, paddingVertical: 3, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: 'rgba(30,30,30,0.6)', alignItems: 'center' },
   pinDown: { backgroundColor: T.select, borderColor: T.selectBorder },

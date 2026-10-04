@@ -37,12 +37,12 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
-      {/* Device list: right edge under the gizmo, above the bottom row; capped in portrait so an open bottom panel stays clear. */}
+      {/* Device list: left edge under the mode label, above the bottom row; never over the centre. */}
       <DeviceList
         hud={hud}
-        top={insets.top + TOP_BAR + 6 + UI.gizmoSize + 8}
-        right={6 + insets.right}
-        maxHeight={landscape ? height - (insets.top + TOP_BAR + 6 + UI.gizmoSize + 8) - tabBarHeight - 8 : height * 0.4}
+        top={insets.top + TOP_BAR + 6 + (landscape ? 34 : 52)}
+        left={6 + insets.left}
+        maxHeight={landscape ? height - (insets.top + TOP_BAR + 6 + 34) - tabBarHeight - 48 : height * 0.4}
       />
       <Toast text={hud.toast} top={insets.top + TOP_BAR + 58} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />

@@ -298,6 +298,11 @@ export class Hud {
         Object.assign(p.modeLabel.style, v
           ? { position: 'absolute', left: `${v.x + 14}px`, top: `${v.y === 0 ? 0 : v.y - 44}px`, maxWidth: `${v.w - 140}px` }
           : { position: '', left: '', top: '', maxWidth: '' });
+        // Each glove's settings panel sits in the bottom-left of its own half (Glove 1 left / top,
+        // Glove 2 right / bottom), clear of that half's crosshair.
+        Object.assign(p.root.style, v
+          ? { position: 'absolute', left: `${v.x + 12}px`, bottom: `${height - (v.y + v.h) + 12}px` }
+          : { position: '', left: '', bottom: '' });
       });
     }
     sessions.forEach((s, i) => {

@@ -5,15 +5,15 @@ import { engine, shapeLabel, type HudState } from '../core/Engine';
 import { T } from './theme';
 
 /**
- * Device list: a slim, scrollable column of kit parts on the right edge, only in BUILD / ERASE.
+ * Device list: a slim, scrollable column of kit parts on the left edge, only in BUILD / ERASE.
  * Names only (no thumbnails on the phone). Tap = build with it (the ERASE eraser takes the same shape).
  * Tap the header to fold it; "X2D, show me the devices" unfolds it.
  */
-export function DeviceList({ hud, top, right, maxHeight }: { hud: HudState; top: number; right: number; maxHeight: number }) {
+export function DeviceList({ hud, top, left, maxHeight }: { hud: HudState; top: number; left: number; maxHeight: number }) {
   if (hud.mode !== 'BUILD' && hud.mode !== 'ERASE') return null;
   const on = MODE_COLORS[hud.mode];
   return (
-    <View style={[s.wrap, { top, right, maxHeight }]}>
+    <View style={[s.wrap, { top, left, maxHeight }]}>
       <Pressable onPress={() => engine.showDevices(!hud.devicesOpen)} style={s.head} hitSlop={4}>
         <Text style={s.headText}>DEVICES</Text>
         <Text style={s.fold}>{hud.devicesOpen ? '▾' : '▸'}</Text>

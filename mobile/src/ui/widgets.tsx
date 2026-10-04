@@ -44,7 +44,7 @@ export function Chip({ label, on, onColor, onPress, style, flex }: {
 /** Labelled value box (ROLL / PITCH / YAW). */
 export function Readout({ label, value, big, children }: { label: string; value: string; big?: boolean; children?: React.ReactNode }) {
   return (
-    <View style={s.readout}>
+    <View style={[s.readout, !big && !children && s.readoutInline]}>
       <Text style={s.readoutLabel}>{label}</Text>
       <Text style={[s.readoutValue, big && { fontSize: 24 }]}>{value}</Text>
       {children}
@@ -108,6 +108,8 @@ const s = StyleSheet.create({
   readout: { flex: 1, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line, borderRadius: T.radius, paddingVertical: 5, paddingHorizontal: 8 },
   readoutLabel: { color: T.muted, fontSize: 9, letterSpacing: 1 },
   readoutValue: { color: T.text, fontWeight: '500', fontSize: 14, fontVariant: ['tabular-nums'] },
+  // Plain readouts (Glove tab): label and value on one line, half the height.
+  readoutInline: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: 3, paddingHorizontal: 6 },
   bar: { position: 'relative', flex: 1, minWidth: 40, borderRadius: 2, backgroundColor: T.panel2, borderWidth: 1, borderColor: T.line, overflow: 'hidden' },
   barMid: { position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: T.lineSoft },
   barFill: { position: 'absolute', top: 0, bottom: 0 },
