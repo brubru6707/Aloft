@@ -1,4 +1,4 @@
-import { BUTTON_MAP } from '../config';
+import { decodeMask } from './buttonMap';
 import type { GloveSource, RawSample, SourceStatus } from './types';
 
 /** Minimal Web Serial typings (Chrome). */
@@ -104,7 +104,7 @@ export class SerialSource implements GloveSource {
     if (![roll, pitch, yaw, mask].every(Number.isFinite)) return;
     this.sampleCb?.({
       roll, pitch, yaw,
-      buttons: BUTTON_MAP.map((bit) => !!(mask & (1 << bit))) as [boolean, boolean, boolean, boolean],   // finger order
+      buttons: decodeMask(mask),   // firmware bits -> jobs (mix and match in the glove panel)
       timestamp: performance.now(),
     });
   }

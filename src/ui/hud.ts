@@ -1,6 +1,7 @@
 import { BUILD, FLY, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { ghostInfo } from '../modes/build';
+import { cycleRole, getRoles, GLOVE_PINS, OFF, pinDown, resetRoles, ROLES, roleShort } from '../input/buttonMap';
 import type { VoiceState } from './voice';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -153,7 +154,7 @@ export class Hud {
           <div><span>PITCH</span><b>+0°</b></div>
           <div><span>YAW</span><b>+0°</b></div>
         </div>
-        <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
+        <div class="buttons" title="Glove pins: click to change what a pin does (Shift-click goes back). Lights up while pressed.">${GLOVE_PINS.map((pin, i) => `<i data-pin="${i}"><b>${pin}</b><span></span></i>`).join('')}<i class="reset-roles" title="Back to the default jobs">↺</i></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
         <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
@@ -190,7 +191,7 @@ export class Hud {
         root: panel,
         status: panel.querySelector('.status')!,
         rpy: [...panel.querySelectorAll<HTMLElement>('.rpy b')],
-        buttons: [...panel.querySelectorAll<HTMLElement>('.buttons i')],
+        buttons: [...panel.querySelectorAll<HTMLElement>('.buttons i[data-pin]')],
         connect: panel.querySelector('.connect')!,
         sim: panel.querySelector('.sim')!,
         recenter: panel.querySelector('.recenter')!,
@@ -212,6 +213,8 @@ export class Hud {
       p.shapeChips.forEach((chip) => (chip.onclick = () => actions.setPrimitive(g.gloveId, chip.dataset.shape as PrimitiveName)));
       p.sizeChips.forEach((chip) => { chip.title = chip.dataset.size!; chip.onclick = () => actions.setSize(g.gloveId, chip.dataset.size as SizeName); });
       p.modeChips.forEach((chip, idx) => (chip.onclick = () => actions.setMode(g.gloveId, idx)));
+      p.buttons.forEach((el, i) => (el.onclick = (e) => { cycleRole(i, e.shiftKey ? -1 : 1); this.toast(`GPIO ${GLOVE_PINS[i]} → ${roleShort(getRoles()[i])}`); }));
+      panel.querySelector<HTMLElement>('.buttons .reset-roles')!.onclick = () => { resetRoles(); this.toast('Glove buttons back to default'); };
       p.flyChips.forEach((chip) => (chip.onclick = () => actions.setFlyAxis(g.gloveId, (chip.dataset.axis || null) as FlyAxis | null)));
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
@@ -262,7 +265,17 @@ export class Hud {
       p.rpy[0].textContent = fmt(g.tilt.roll);
       p.rpy[1].textContent = fmt(g.tilt.pitch);
       p.rpy[2].textContent = fmt(g.tilt.yaw);
-      st.buttons.forEach((b, k) => p.buttons[k].classList.toggle('down', b));
+      // Glove pins: label = current job; lit while pressed (real glove: the pin itself; simulator: its job).
+      const roles = getRoles();
+      p.buttons.forEach((el, i) => {
+        const r = roles[i];
+        const down = g.sourceKind === 'sim' ? r !== OFF && !!st.buttons[r] : pinDown(i);
+        el.classList.toggle('down', down);
+        el.classList.toggle('off', r === OFF);
+        const span = el.querySelector('span')!;
+        const txt = roleShort(r);
+        if (span.textContent !== txt) { span.textContent = txt; el.title = `GPIO ${GLOVE_PINS[i]}: ${r === OFF ? 'off' : ROLES[r].label}. Click to change.`; }
+      });
 
       const stale = g.connected && g.sourceKind === 'ble' && performance.now() - g.lastSampleAt > 1500;
       const label = g.status === 'connected'

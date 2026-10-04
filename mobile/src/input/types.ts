@@ -3,7 +3,7 @@ export interface RawSample {
   roll: number;   // degrees
   pitch: number;  // degrees
   yaw: number;    // degrees
-  buttons: [boolean, boolean, boolean, boolean];
+  buttons: boolean[];   // logical buttons (see input/buttonMap.ts)
   timestamp: number; // performance.now()
 }
 
@@ -13,7 +13,7 @@ export interface GloveSample {
   roll: number;
   pitch: number;
   yaw: number;
-  buttons: [boolean, boolean, boolean, boolean];
+  buttons: boolean[];   // logical buttons (see input/buttonMap.ts)
 }
 
 export type SourceKind = 'ble' | 'sim';

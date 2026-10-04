@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { engine } from '../core/Engine';
 import { T } from './theme';
 
-const ROLE = ['mode', 'action', 'sens', 'reset'];   // what each glove button does (B3 = pinky, GPIO 27)
+const ROLE = ['mode', 'action', 'sens', 'reset'];   // the first four jobs (see input/buttonMap.ts)
 
 /**
  * B0–B3 on the right edge. Each lights while that glove button is held. With the touch

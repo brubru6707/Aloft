@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { engine, type HudState } from '../core/Engine';
 import { BUILD, MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
+import { cycleRole, GLOVE_PINS, OFF, resetRoles, roleShort } from '../input/buttonMap';
 import { Btn, Chip, Readout, SignedBar, fmtDeg } from './widgets';
 import { FONT, T } from './theme';
 
@@ -56,13 +57,22 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                 <View style={s.row}>
                   <View style={[s.dot, { backgroundColor: statusOn ? T.accentHover : T.muted }]} />
                   <Text style={[s.status, statusOn && { color: T.accentHover }, hud.status === 'error' && { color: T.bad }]} numberOfLines={1}>{hud.statusLabel}</Text>
-                  <Text style={s.note}>B3 (pinky) = reset</Text>
+                  <Text style={s.note}>tap a pin to change its job</Text>
                 </View>
                 <View style={s.row}>
                   <Btn small style={s.grow} label={hud.status === 'connecting' && hud.sourceKind === 'ble' ? 'Connecting…' : 'Connect'} active={hud.sourceKind === 'ble' && hud.connected} onPress={() => engine.connectBle()} />
                   <Btn small style={s.grow} label="Simulator" active={hud.sourceKind === 'sim'} onPress={() => engine.toggleSimulator()} />
                   <Btn small style={s.grow} label="Recenter" onPress={() => engine.recenter()} />
                   {hud.sourceKind ? <Btn small label="✕" onPress={() => engine.disconnect()} /> : null}
+                </View>
+                <View style={s.row}>
+                  {GLOVE_PINS.map((pin, i) => (
+                    <Pressable key={pin} onPress={() => cycleRole(i)} onLongPress={() => cycleRole(i, -1)} style={[s.pin, hud.roles[i] === OFF && s.pinOff, hud.pins[i] && s.pinDown]}>
+                      <Text style={[s.pinNum, hud.pins[i] && { color: '#fff' }]}>{pin}</Text>
+                      <Text style={[s.pinRole, hud.pins[i] && { color: '#fff' }]} numberOfLines={1}>{roleShort(hud.roles[i])}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable onPress={() => resetRoles()} style={[s.pin, s.pinReset]}><Text style={s.pinNum}>↺</Text></Pressable>
                 </View>
                 <View style={s.row}>
                   <Readout label="ROLL" value={fmtDeg(hud.roll)} />
@@ -147,6 +157,12 @@ const s = StyleSheet.create({
   wrapLandscape: {},
   panel: { width: 290, maxWidth: '92%', backgroundColor: 'rgba(40,40,40,0.82)', borderWidth: 1, borderColor: T.line, borderRadius: T.radius },
   body: { padding: 8, gap: 6 },
+  pin: { flex: 1, minWidth: 0, paddingVertical: 3, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: 'rgba(30,30,30,0.6)', alignItems: 'center' },
+  pinDown: { backgroundColor: T.select, borderColor: T.selectBorder },
+  pinOff: { opacity: 0.45 },
+  pinReset: { flex: 0, width: 24, justifyContent: 'center' },
+  pinNum: { color: T.text, fontWeight: '700', fontSize: 12 },
+  pinRole: { color: T.muted, fontSize: 8, letterSpacing: 0.3 },
   dock: { width: DOCK_W, backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)', borderRadius: T.radius, padding: 4, gap: 4 },
   top: { position: 'absolute', left: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },

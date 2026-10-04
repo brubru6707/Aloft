@@ -9,6 +9,7 @@ import { TouchSimSource } from '../input/TouchSimSource';
 import type { SourceKind, SourceStatus } from '../input/types';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from '../modes';
 import { ghostInfo as ghostInfoOf, setPrimitive, setSize } from '../modes/build';
+import { getRoles, GLOVE_PINS, OFF, onRolesChange, pinDown } from '../input/buttonMap';
 import { applyRotate, flyAxis, flyDeflection, flyLabel, resetRotateAnchor, setFlyAxis } from '../modes/fly';
 import { CameraRig } from '../scene/cameraRig';
 import { ObjectRegistry } from '../scene/objects';
@@ -28,7 +29,9 @@ export interface HudState {
   flyAxis: FlyAxis | null;
   deflection: number;      // -1..1 along the active MOVE axis
   roll: number; pitch: number; yaw: number;   // smoothed, recentred tilt (what FLY reads), degrees
-  buttons: [boolean, boolean, boolean, boolean];
+  buttons: boolean[];      // logical jobs (MODE, ACTION, SENS, RESET, UNDO, PREV)
+  pins: boolean[];         // physical glove pins (GLOVE_PINS order) held right now
+  roles: number[];         // job per pin (OFF = -1)
   status: SourceStatus;
   statusLabel: string;
   connected: boolean;
@@ -74,6 +77,7 @@ export class Engine {
   get sim(): TouchSimSource | null { return this.glove.source instanceof TouchSimSource ? this.glove.source : null; }
 
   constructor() {
+    onRolesChange(() => this.notify());
     this.raycaster.far = 400;
     this.session = {
       glove: this.glove,
@@ -379,7 +383,9 @@ export class Engine {
       flyAxis: mode === 'FLY' ? flyAxis(s) : null,
       deflection: mode === 'FLY' ? flyDeflection(s) : 0,
       roll: g.tilt.roll, pitch: g.tilt.pitch, yaw: g.tilt.yaw,
-      buttons: [...g.state.buttons] as HudState['buttons'],
+      buttons: [...g.state.buttons],
+      pins: GLOVE_PINS.map((_p, i) => (g.sourceKind === 'sim' ? getRoles()[i] !== OFF && !!g.state.buttons[getRoles()[i]] : pinDown(i))),
+      roles: [...getRoles()],
       status: g.status,
       statusLabel,
       connected: g.connected,

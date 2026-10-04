@@ -1,4 +1,5 @@
 import { INPUT } from '../config';
+import { clearMask, NUM_LOGICAL } from './buttonMap';
 import { AngleFilter, clamp, deadzone, wrapDeg } from './filter';
 import { Emitter, type GloveEvents, type GloveSample, type GloveSource, type RawSample, type SourceKind, type SourceStatus } from './types';
 
@@ -16,9 +17,9 @@ export class GloveInput extends Emitter<GloveEvents> {
   private rawLatest = { roll: 0, pitch: 0, yaw: 0 };
   private offset = { roll: 0, pitch: 0, yaw: 0 };
   private filters = [new AngleFilter(INPUT.smoothing), new AngleFilter(INPUT.smoothing), new AngleFilter(INPUT.smoothing)];
-  private pressedAt: (number | null)[] = [null, null, null, null];
-  private holdFired = [false, false, false, false];
-  private rawDown = [false, false, false, false];
+  private pressedAt: (number | null)[] = new Array(NUM_LOGICAL).fill(null);
+  private holdFired: boolean[] = new Array(NUM_LOGICAL).fill(false);
+  private rawDown: boolean[] = new Array(NUM_LOGICAL).fill(false);
   private checkTimer: ReturnType<typeof setInterval> | null = null;
   /** Auto-recenter schedule after a connect: on the first sample, then again once settled. */
   private recenterOnSample = false;
@@ -31,7 +32,7 @@ export class GloveInput extends Emitter<GloveEvents> {
 
   constructor(readonly gloveId: number) {
     super();
-    this.state = { gloveId, roll: 0, pitch: 0, yaw: 0, buttons: [false, false, false, false] };
+    this.state = { gloveId, roll: 0, pitch: 0, yaw: 0, buttons: new Array<boolean>(NUM_LOGICAL).fill(false) };
   }
 
   get connected(): boolean { return this.status === 'connected'; }
@@ -84,11 +85,12 @@ export class GloveInput extends Emitter<GloveEvents> {
   }
 
   private resetButtons(): void {
-    for (let b = 0; b < 4; b++) {
+    for (let b = 0; b < NUM_LOGICAL; b++) {
       if (this.rawDown[b]) this.release(b, performance.now());
     }
-    this.rawDown = [false, false, false, false];
-    this.state.buttons = [false, false, false, false];
+    this.rawDown = new Array(NUM_LOGICAL).fill(false);
+    this.state.buttons = new Array<boolean>(NUM_LOGICAL).fill(false);
+    clearMask();
   }
 
   private ingest(s: RawSample): void {
@@ -115,13 +117,13 @@ export class GloveInput extends Emitter<GloveEvents> {
     this.state.pitch = deadzone(clamp(this.smoothed.pitch, -max, max), INPUT.deadzoneDeg, max);
     this.state.yaw = this.smoothed.yaw;
 
-    for (let b = 0; b < 4; b++) {
-      const down = s.buttons[b];
+    for (let b = 0; b < NUM_LOGICAL; b++) {
+      const down = !!s.buttons[b];
       if (down && !this.rawDown[b]) this.press(b, s.timestamp);
       else if (!down && this.rawDown[b]) this.release(b, s.timestamp);
     }
     this.checkHolds(s.timestamp);
-    this.emit('sample', { ...this.state, buttons: [...this.state.buttons] as GloveSample['buttons'] });
+    this.emit('sample', { ...this.state, buttons: [...this.state.buttons]  });
   }
 
   private press(b: number, t: number): void {
@@ -145,7 +147,7 @@ export class GloveInput extends Emitter<GloveEvents> {
   }
 
   private checkHolds(now: number): void {
-    for (let b = 0; b < 4; b++) {
+    for (let b = 0; b < NUM_LOGICAL; b++) {
       const start = this.pressedAt[b];
       if (start !== null && !this.holdFired[b] && now - start >= INPUT.tapMaxMs) {
         this.holdFired[b] = true;

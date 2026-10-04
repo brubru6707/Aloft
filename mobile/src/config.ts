@@ -11,25 +11,18 @@ export interface ButtonAction {
   gesture: Gesture;
 }
 
-/**
- * Glove buttons in finger order. The firmware reports bit n = button n by pin (GPIO 13, 25, 27, 26),
- * but on this glove the pinky is GPIO 27 (bit 2) and the ring finger GPIO 26 (bit 3). BUTTON_MAP[i]
- * is the firmware bit read as app button Bi, so B0..B3 go index → middle → ring → pinky. The BLE
- * protocol itself is unchanged.
- */
-export const BUTTON_MAP = [0, 1, 3, 2];
+/** Glove buttons: which pin does which job is set live in the glove panel (src/input/buttonMap.ts). */
 
 /** Global actions that work in every mode. */
 export const GLOBAL_ACTIONS = {
   // B0 advances the mode the instant it is pressed. Measured presses on this glove last ~1 s,
   // so a tap/hold split on the same button made every long press go backwards instead.
   modeNext: { button: 0, gesture: 'press' } as ButtonAction,
-  // Previous mode is not on the glove any more: tap a mode chip in the bottom sheet.
-  modePrev: null as ButtonAction | null,
+  // Logical buttons 4 and 5 only exist when a glove pin is assigned UNDO or PREV.
+  modePrev: { button: 5, gesture: 'press' } as ButtonAction | null,
   // B3 = the pinky (GPIO 27): back to the start view and zero roll/pitch/yaw.
   reset:    { button: 3, gesture: 'press' } as ButtonAction,
-  // Undo is on screen (Tools → Undo) and by voice ("undo that"); no glove button.
-  undo:     null as ButtonAction | null,
+  undo:     { button: 4, gesture: 'press' } as ButtonAction | null,
 };
 
 /** Per-mode button roles. "primary" is the main action button. */
@@ -73,7 +66,6 @@ export const GLOVE_COLOR = '#e87d0d'; // Blender orange
 export const GLOVE_DEFAULT_MODE: ModeName = 'FLY';
 
 /** Button wiring on the glove, for the Test screen labels. */
-export const BUTTON_GPIO = [13, 25, 26, 27];   // pin behind each app button after BUTTON_MAP (B3 = pinky)
 
 /** Input processing. */
 export const INPUT = {

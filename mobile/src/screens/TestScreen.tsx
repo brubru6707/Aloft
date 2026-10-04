@@ -4,7 +4,8 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { engine } from '../core/Engine';
 import { useHud } from '../core/useHud';
-import { BUTTON_GPIO, TEST, UI } from '../config';
+import { TEST, UI } from '../config';
+import { ROLES } from '../input/buttonMap';
 import type { RawSample } from '../input/types';
 import { shareText } from '../export';
 import { buildReport, type Ev, type Marker, type Rec } from '../report';
@@ -132,7 +133,7 @@ export function TestScreen({ tabBarHeight }: { tabBarHeight: number }) {
         </View>
         <H2 style={{ marginTop: 14 }}>Buttons</H2>
         <View style={s.row}>
-          {[0, 1, 2, 3].map((b) => <ButtonLamp key={b} label={`B${b}`} sub={`GPIO ${BUTTON_GPIO[b]}`} down={!!r?.buttons[b]} onColor={T.ok} textOn={T.darkText} />)}
+          {ROLES.map((role, b) => <ButtonLamp key={b} label={role.short} sub={`job ${b}`} down={!!r?.buttons[b]} onColor={T.ok} textOn={T.darkText} />)}
         </View>
       </Panel>
 

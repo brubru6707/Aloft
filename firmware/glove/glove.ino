@@ -1,13 +1,14 @@
 /*
- * Aloft glove firmware — ESP32 + MPU-6050 (GY-521) + 4 buttons, BLE Nordic UART.
+ * Aloft glove firmware — ESP32 + MPU-6050 (GY-521) + up to 6 buttons, BLE Nordic UART.
  *
  * Streams one ASCII line at 50 Hz over the NUS TX (notify) characteristic:
  *     roll,pitch,yaw,buttonsBitmask\n
- * e.g. "12.3,-4.8,91.0,5\n"   (degrees; bitmask bit n = button n pressed)
+ * e.g. "12.3,-4.8,91.0,5\n"   (degrees; bitmask bit n = BUTTON_PINS[n] pressed)
  *
  * Wiring
  *   GY-521  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22 (default ESP32 I2C pins)
- *   Buttons: GPIO 13 (B0 = mode), 25 (B1 = pinky / FLY axis-cycle), 27 (B2), 26 (B3) each to GND.
+ *   Buttons: GPIO 13, 14, 27, 26, 25, 32 (bits 0-5), each to GND. What each one does is chosen
+ *   in the app (glove panel), so any button can be any job.
  *   INPUT_PULLUP, pressed = LOW.
  *   (Unwired buttons simply read "not pressed" thanks to the pull-ups. GPIO 12 is a boot strapping pin, so it is not used.)
  *
@@ -35,7 +36,8 @@ static const char*   DEVICE_NAME   = "Aloft-Glove";
 static const uint8_t MPU_ADDR      = 0x68;   // AD0 low. Use 0x69 if AD0 is tied high.
 static const int     PIN_SDA       = 21;
 static const int     PIN_SCL       = 22;
-static const int     BUTTON_PINS[4] = {13, 25, 27, 26};   // B0 mode, B1 pinky (axis cycle), B2, B3. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
+static const int     NUM_BUTTONS   = 6;
+static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
 static const float   SIGN_ROLL     = -1.0f;  // sensor mounted mirrored: flip so rolling right reads positive
@@ -77,9 +79,9 @@ float roll = 0, pitch = 0, yaw = 0;
 float gyroBiasX = 0, gyroBiasY = 0, gyroBiasZ = 0;
 uint32_t lastMicros = 0;
 
-bool     btnState[4]    = {false, false, false, false};
-bool     btnRaw[4]      = {false, false, false, false};
-uint32_t btnChangedAt[4] = {0, 0, 0, 0};
+bool     btnState[NUM_BUTTONS]    = {};
+bool     btnRaw[NUM_BUTTONS]      = {};
+uint32_t btnChangedAt[NUM_BUTTONS] = {};
 
 #if BUTTON_DEBUG
 #include "soc/gpio_struct.h"
@@ -90,7 +92,7 @@ static const uint16_t RAW_RING = 1024;
 static DRAM_ATTR volatile RawEdge rawRing[RAW_RING];
 static volatile uint16_t rawHead = 0, rawTail = 0;
 static volatile uint32_t rawDropped = 0;
-static DRAM_ATTR int dbgPins[4] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3]};
+static DRAM_ATTR int dbgPins[NUM_BUTTONS] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3], BUTTON_PINS[4], BUTTON_PINS[5]};
 static uint32_t dbgI2cFail = 0, dbgNotifyFail = 0, dbgLoops = 0, dbgLoopSumUs = 0, dbgLoopMaxUs = 0, dbgLastStats = 0;
 
 void IRAM_ATTR onButtonEdge(void* arg) {
@@ -291,7 +293,7 @@ uint8_t btnLatch = 0;
 
 void pollButtons() {
   const uint32_t now = millis();
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < NUM_BUTTONS; i++) {
     const bool raw = digitalRead(BUTTON_PINS[i]) == LOW;   // pressed = LOW (pull-up)
     if (raw != btnRaw[i]) { btnRaw[i] = raw; btnChangedAt[i] = now; }
     if (now - btnChangedAt[i] >= DEBOUNCE_MS && btnState[i] != btnRaw[i]) {
@@ -307,7 +309,7 @@ void pollButtons() {
 uint8_t readButtons() {
   uint8_t mask = btnLatch;          // presses seen since the last frame, even if already released
   btnLatch = 0;
-  for (int i = 0; i < 4; i++) if (btnState[i]) mask |= (1 << i);
+  for (int i = 0; i < NUM_BUTTONS; i++) if (btnState[i]) mask |= (1 << i);
   return mask;
 }
 
@@ -317,9 +319,9 @@ void setup() {
   Serial.setTxBufferSize(8192);   // bursts of edge lines must not block loop()
 #endif
   Serial.begin(115200);
-  for (int i = 0; i < 4; i++) pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+  for (int i = 0; i < NUM_BUTTONS; i++) pinMode(BUTTON_PINS[i], INPUT_PULLUP);
 #if BUTTON_DEBUG
-  for (int i = 0; i < 4; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
+  for (int i = 0; i < NUM_BUTTONS; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
   Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");
 #endif
 

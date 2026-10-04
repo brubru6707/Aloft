@@ -5,6 +5,7 @@
  */
 import { FLY, INPUT } from '../config';
 import { BleSource } from '../input/BleSource';
+import { GLOVE_PINS, pinDown } from '../input/buttonMap';
 import { GloveInput } from '../input/GloveInput';
 import { SerialSource } from '../input/SerialSource';
 import type { GloveSource, RawSample, SourceStatus } from '../input/types';
@@ -15,7 +16,6 @@ interface Ev { t: number; text: string }
 
 const PRESETS = ['still', 'turn left', 'turn right', 'roll left', 'roll right', 'pitch up', 'pitch down',
   'press B0', 'hold B0', 'press B1', 'hold B1', 'press B2', 'press B3'];
-const BUTTON_GPIO = [13, 25, 26, 27];   // after BUTTON_MAP: B3 = pinky (GPIO 27)
 
 const glove = new GloveInput(0);
 let source: GloveSource | null = null;
@@ -53,7 +53,7 @@ app.innerHTML = `
       ${['ROLL', 'PITCH', 'YAW'].map((n) => `<div class="readout"><span>${n} tilt / state</span><b id="app-${n.toLowerCase()}">—</b></div>`).join('')}
     </div>
     <h2 style="margin-top:14px">Buttons</h2>
-    <div class="buttons">${[0, 1, 2, 3].map((b) => `<i id="b${b}">B${b}<small>GPIO ${BUTTON_GPIO[b]}</small></i>`).join('')}</div>
+    <div class="buttons">${GLOVE_PINS.map((pin, i) => `<i id="b${i}">GPIO ${pin}<small>bit ${i}</small></i>`).join('')}</div>
   </section>
 
   <section class="panel">
@@ -124,7 +124,7 @@ function onRaw(s: RawSample): void {
   rateWindow.push(s.timestamp);
   rateWindow = rateWindow.filter((t) => s.timestamp - t < 1000);
   if (recording) {
-    const mask = s.buttons.reduce((m, b, i) => m | (b ? 1 << i : 0), 0);
+    const mask = GLOVE_PINS.reduce((m, _pin, i) => m | (pinDown(i) ? 1 << i : 0), 0);   // physical pins, before job mapping
     recs.push({ t: s.timestamp, roll: s.roll, pitch: s.pitch, yaw: s.yaw, mask });
   }
 }
@@ -194,7 +194,7 @@ function refresh(): void {
       bar.style.width = `${Math.abs(v) * 50}%`;
       $(`app-${k}`).textContent = `${fmt(glove.tilt[k])}° / ${fmt(glove.state[k])}°`;
     }
-    raw.buttons.forEach((b, i) => $(`b${i}`).classList.toggle('down', b));
+    GLOVE_PINS.forEach((_pin, i) => $(`b${i}`).classList.toggle('down', pinDown(i)));
     const age = now() - raw.timestamp;
     $('rate').textContent = `${rateWindow.length} Hz · ${rawCount} samples${age > 1500 ? ' · NO DATA for ' + (age / 1000).toFixed(0) + 's' : ''}`;
     $('rate').className = 'status' + (age > 1500 ? ' bad' : '');
@@ -254,8 +254,8 @@ function buildReport(): string {
   }
   L.push('');
   // Buttons from the raw mask.
-  L.push('BUTTONS (from raw bitmask)');
-  for (let b = 0; b < 4; b++) {
+  L.push('BUTTONS (physical pins, from the raw bitmask)');
+  for (let b = 0; b < GLOVE_PINS.length; b++) {
     const presses: number[] = []; let downAt: number | null = null;
     for (const r of recs) {
       const down = !!(r.mask & (1 << b));
@@ -263,7 +263,7 @@ function buildReport(): string {
       if (!down && downAt !== null) { presses.push(r.t - downAt); downAt = null; }
     }
     if (downAt !== null) presses.push(now() - downAt);
-    L.push(`  B${b} (GPIO ${BUTTON_GPIO[b]}): ${presses.length} press${presses.length === 1 ? '' : 'es'}${presses.length ? '  durations ms: ' + presses.map((p) => p.toFixed(0)).join(', ') : ''}`);
+    L.push(`  GPIO ${GLOVE_PINS[b]} (bit ${b}): ${presses.length} press${presses.length === 1 ? '' : 'es'}${presses.length ? '  durations ms: ' + presses.map((p) => p.toFixed(0)).join(', ') : ''}`);
   }
   L.push('');
   L.push('EVENTS (app classification)');

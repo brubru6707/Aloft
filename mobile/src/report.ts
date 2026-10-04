@@ -1,4 +1,5 @@
-import { BUTTON_GPIO, FLY, INPUT, TEST } from './config';
+import { FLY, INPUT, TEST } from './config';
+import { ROLES } from './input/buttonMap';
 
 /** One raw sample as recorded by the Test screen. */
 export interface Rec { t: number; roll: number; pitch: number; yaw: number; mask: number }
@@ -72,7 +73,7 @@ export function buildReport(r: Recording): string {
   L.push('');
   // Buttons from the raw mask.
   L.push('BUTTONS (from raw bitmask)');
-  for (let b = 0; b < 4; b++) {
+  for (let b = 0; b < ROLES.length; b++) {
     const presses: number[] = []; let downAt: number | null = null;
     for (const x of recs) {
       const down = !!(x.mask & (1 << b));
@@ -80,7 +81,7 @@ export function buildReport(r: Recording): string {
       if (!down && downAt !== null) { presses.push(x.t - downAt); downAt = null; }
     }
     if (downAt !== null) presses.push(now - downAt);
-    L.push(`  B${b} (GPIO ${BUTTON_GPIO[b]}): ${presses.length} press${presses.length === 1 ? '' : 'es'}${presses.length ? '  durations ms: ' + presses.map((p) => p.toFixed(0)).join(', ') : ''}`);
+    L.push(`  ${ROLES[b]?.short ?? 'B' + b} (job ${b}): ${presses.length} press${presses.length === 1 ? '' : 'es'}${presses.length ? '  durations ms: ' + presses.map((p) => p.toFixed(0)).join(', ') : ''}`);
   }
   L.push('');
   L.push('EVENTS (app classification)');

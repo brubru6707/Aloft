@@ -7,7 +7,7 @@ import type { GloveSource, RawSample, SourceStatus } from './types';
  *  - Arrow keys: ←/→ roll, ↑/↓ pitch (spring back to level on release)
  *  - Q / E: yaw left / right (does not spring back)
  *  - Mouse drag on the canvas: roll (x) / pitch (y)
- *  - Keys 1-4: buttons 0-3 (hold = held)
+ *  - Keys 1-6: jobs MODE, ACTION, SENS, RESET, UNDO, PREV (hold = held)
  */
 export class SimulatorSource implements GloveSource {
   readonly kind = 'sim' as const;
@@ -16,7 +16,7 @@ export class SimulatorSource implements GloveSource {
   private roll = 0;
   private pitch = 0;
   private yaw = 0;
-  private buttons: [boolean, boolean, boolean, boolean] = [false, false, false, false];
+  private buttons: boolean[] = [false, false, false, false, false, false];
   private keys = new Set<string>();
   private dragging = false;
   private dragStart = { x: 0, y: 0, roll: 0, pitch: 0 };
@@ -52,12 +52,12 @@ export class SimulatorSource implements GloveSource {
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
     this.keys.clear();
-    this.buttons = [false, false, false, false];
+    this.buttons = [false, false, false, false, false, false];
     this.statusCb?.('disconnected');
   }
 
   private buttonIndex(key: string): number {
-    const i = ['1', '2', '3', '4'].indexOf(key);
+    const i = ['1', '2', '3', '4', '5', '6'].indexOf(key);
     return i;
   }
 
@@ -87,7 +87,7 @@ export class SimulatorSource implements GloveSource {
 
   private onBlur = () => {
     this.keys.clear();
-    this.buttons = [false, false, false, false];
+    this.buttons = [false, false, false, false, false, false];
     this.dragging = false;
   };
 
@@ -136,7 +136,7 @@ export class SimulatorSource implements GloveSource {
   private emitNow(now = performance.now()): void {
     this.sampleCb?.({
       roll: this.roll, pitch: this.pitch, yaw: this.yaw,
-      buttons: [...this.buttons] as [boolean, boolean, boolean, boolean],
+      buttons: [...this.buttons],
       timestamp: now,
     });
   }

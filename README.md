@@ -26,7 +26,7 @@ No glove? Click **Simulator** on a glove panel and drive it from the keyboard:
 | `↑` `↓` | pitch (springs back) |
 | `Q` `E` | yaw |
 | mouse drag on the scene | roll / pitch |
-| `1` `2` `3` `4` | buttons B0–B3 (hold the key to hold the button) |
+| `1` … `6` | button jobs MODE, ACTION, SENS, RESET, UNDO, PREV (hold the key to hold the button) |
 | `Tab` / `Shift+Tab`, `R`, `Cmd+Z` | next/prev mode, recenter, undo (desktop shortcuts) |
 
 ## Modes
