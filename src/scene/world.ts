@@ -66,7 +66,7 @@ export function createWorld(): World {
     const lz = label(`${-v} ${UNITS.name}`, '#6fb4ff'); lz.position.set(1.4, 0.4, v); scene.add(lz);   // -Z is "forward", shown positive
   }
   const origin = label('0', '#e6e6e6'); origin.position.set(1.4, 0.4, 1.4); scene.add(origin);
-  // Blender-style axis lines through the origin: X red, Z blue (Y is up here).
+  // Blender-style axis lines through the origin: X red, Y (up) green, Z blue.
   const axisLine = (a: THREE.Vector3, b: THREE.Vector3, color: number) => {
     const g = new THREE.BufferGeometry().setFromPoints([a, b]);
     const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
@@ -74,6 +74,9 @@ export function createWorld(): World {
   };
   axisLine(new THREE.Vector3(-300, 0, 0), new THREE.Vector3(300, 0, 0), 0xff3352);
   axisLine(new THREE.Vector3(0, 0, -300), new THREE.Vector3(0, 0, 300), 0x2890ff);
+  // Y (up) in Blender green, rising from the origin like the other two.
+  { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 300, 0)]);
+    scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x8bdc00, transparent: true, opacity: 0.85 }))); }
 
   // Open world: just the ground grid and the build plaza. Everything you see gets built by hand.
   const buildings: THREE.Mesh[] = [];

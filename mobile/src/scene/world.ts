@@ -69,7 +69,7 @@ export function createWorld(): World {
     label(`${-v} ${UNITS.name}`, '#6fb4ff', 1.4, v);   // -Z is "forward", shown positive
   }
   label('0', '#e6e6e6', 1.4, 1.4);
-  // Blender-style axis lines through the origin: X red, Z blue (Y is up here).
+  // Blender-style axis lines through the origin: X red, Y (up) green, Z blue.
   const axisLine = (a: THREE.Vector3, b: THREE.Vector3, color: number) => {
     const g = new THREE.BufferGeometry().setFromPoints([a, b]);
     const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85 });
@@ -77,6 +77,9 @@ export function createWorld(): World {
   };
   axisLine(new THREE.Vector3(-ext / 2, 0, 0), new THREE.Vector3(ext / 2, 0, 0), 0xff3352);
   axisLine(new THREE.Vector3(0, 0, -ext / 2), new THREE.Vector3(0, 0, ext / 2), 0x2890ff);
+  // Y (up) in Blender green, rising from the origin like the other two.
+  { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, ext / 2, 0)]);
+    scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x8bdc00, transparent: true, opacity: 0.85 }))); }
 
   // Build area: a glowing ring on the ground.
   const buildArea = new THREE.Group();
