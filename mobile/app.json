@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Aloft",
+    "slug": "aloft-mobile",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#3d3d3d",
+    "ios": {
+      "bundleIdentifier": "com.brunorodriguez.aloft",
+      "appleTeamId": "7GXZ24P89H",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Aloft uses the microphone to hear the \"X2D\" wake word and to talk with the X2D voice assistant.",
+        "NSSpeechRecognitionUsageDescription": "Aloft listens for the \"X2D\" wake word to start the voice assistant."
+      }
+    },
+    "android": {
+      "package": "com.brunorodriguez.aloft",
+      "permissions": [
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#3d3d3d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": "Aloft connects to the Aloft-Glove over Bluetooth LE to read hand orientation and buttons."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#3d3d3d",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-speech-recognition",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "microphonePermission": "Aloft uses the microphone to talk with the X2D voice assistant.",
+          "cameraPermission": "Aloft does not use the camera."
+        }
+      ]
+    ]
+  }
+}
