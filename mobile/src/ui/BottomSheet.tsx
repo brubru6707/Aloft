@@ -17,14 +17,16 @@ const TABS: { id: Tab; label: string }[] = [{ id: 'glove', label: 'Glove' }, { i
 const VOICE_ICON = { off: '🎙', listening: '🎙', connecting: '…', talking: '🔴', unsupported: '🎙' } as const;
 
 /** Top bar: the mode chips and the X2D mic, right under the status bar (out of the way of the 3D view). */
-export function TopModes({ hud, top, right }: { hud: HudState; top: number; right: number }) {
+export function TopModes({ hud, top, extra }: { hud: HudState; top: number; right?: number; extra?: React.ReactNode }) {
   const voiceOn = hud.voiceState === 'talking' || hud.voiceState === 'connecting';
   return (
-    <View style={[s.top, { top, right }]} pointerEvents="box-none">
-      {MODE_ORDER.map((m, i) => <Chip key={m} flex label={m} on={hud.mode === m} onColor={MODE_COLORS[m]} onPress={() => engine.setMode(i)} style={s.modeChip} />)}
+    // Mode chips are as wide as their words; NAV / TEST (extra) follow the mic.
+    <View style={[s.top, { top }]} pointerEvents="box-none">
+      {MODE_ORDER.map((m, i) => <Chip key={m} label={m} on={hud.mode === m} onColor={MODE_COLORS[m]} onPress={() => engine.setMode(i)} style={s.modeChip} />)}
       <Pressable onPress={() => engine.toggleVoice()} disabled={hud.voiceState === 'unsupported'} style={({ pressed }) => [s.mic, voiceOn && s.micOn, pressed && { opacity: 0.7 }]}>
         <Text style={s.micText}>{VOICE_ICON[hud.voiceState]}</Text>
       </Pressable>
+      {extra}
     </View>
   );
 }
@@ -179,7 +181,7 @@ const s = StyleSheet.create({
   top: { position: 'absolute', left: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grow: { flex: 1 },
-  modeChip: { paddingVertical: 5 },
+  modeChip: { paddingVertical: 5, paddingHorizontal: 9 },
   mic: { width: 36, height: 26, borderRadius: T.radius, borderWidth: 1, borderColor: T.line, backgroundColor: T.btn, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
   micOn: { backgroundColor: T.select, borderColor: T.selectBorder },
   micText: { fontSize: 14 },

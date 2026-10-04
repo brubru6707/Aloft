@@ -23,7 +23,11 @@ import { UndoStack } from '../undo';
 export type VoiceState = 'off' | 'listening' | 'connecting' | 'talking' | 'unsupported';
 
 /** Plain-data view of the engine for the React overlays, refreshed at UI.hudRefreshHz. */
-export interface GloveBrief { connected: boolean; label: string; mode: ModeName; modeColor: string; hint: string; flyLabel: string; hover: boolean; color: string }
+export interface GloveBrief {
+  connected: boolean; label: string; mode: ModeName; modeColor: string; hint: string; flyLabel: string; hover: boolean; color: string;
+  sourceKind: SourceKind | null; status: SourceStatus;
+  version: GloveVersion; pinList: number[]; pins: boolean[]; roles: number[]; profile: string;
+}
 
 export interface HudState {
   mode: ModeName;
@@ -514,7 +518,14 @@ export class Engine {
       gloves: this.gloves.map((gg, i) => {
         const ss = this.sessions[i];
         const m = MODE_ORDER[ss.modeIndex];
+        const gv: GloveVersion = gg.version ?? (i === 0 ? 1 : 2);
         return {
+          sourceKind: gg.sourceKind, status: gg.status,
+          version: gv,
+          pinList: [...pinsOf(gv)],
+          pins: pinsOf(gv).map((pin) => { const r = roleOf(gv, pin); return gg.sourceKind === 'sim' ? r !== OFF && !!gg.state.buttons[r] : pinDown(gg.pinMask, gv, pin); }),
+          roles: pinsOf(gv).map((pin) => roleOf(gv, pin)),
+          profile: profileOf(gv),
           connected: gg.connected,
           label: gg.connected ? (gg.sourceKind === 'sim' ? 'simulator' : gg.statusDetail || 'connected') : gg.status === 'connecting' ? 'connecting…' : 'off',
           mode: m, modeColor: MODE_COLORS[m], hint: MODE_HINTS[m],

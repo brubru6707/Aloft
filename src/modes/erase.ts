@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BUILD, MODE_BUTTONS, SENSITIVITY } from '../config';
 import { cycleSize, rebuildGhost } from './build';
+import { cutFor, cutsOf, subtract, type Cut } from '../scene/carve';
 import type { AppContext, GloveSession, Mode } from './types';
 
 /**
@@ -55,10 +56,30 @@ export const eraseMode: Mode = {
     const hits = touched(ctx, s.ghost);
     if (!hits.length) { ctx.toast('Nothing to erase here'); return; }
     ctx.objects.setMarked([]);
-    const removed = hits.map((m) => ({ m, parent: ctx.objects.remove(m).parent }));
+    // Carve: cut the eraser's shape out of every piece it touches; a piece it covers completely is gone.
+    s.ghost.updateMatrixWorld(true);
+    const cutter = s.ghost.matrixWorld.clone();
+    const carved: { m: THREE.Mesh; oldGeo: THREE.BufferGeometry; oldCuts: Cut[] }[] = [];
+    const removed: { m: THREE.Mesh; parent: THREE.Object3D }[] = [];
+    for (const m of hits) {
+      const geo = subtract(m, s.ghost.geometry, cutter);
+      if (geo === undefined) continue;   // only its bounding box was touched
+      if (geo === null) { removed.push({ m, parent: ctx.objects.remove(m).parent }); continue; }
+      carved.push({ m, oldGeo: m.geometry, oldCuts: cutsOf(m) });
+      m.userData.cuts = [...cutsOf(m), cutFor(m, s.primitive, cutter)];
+      m.geometry = geo;
+    }
+    if (!carved.length && !removed.length) { ctx.toast('Nothing to erase here'); return; }
     s.hit = null;
-    const label = hits.length === 1 ? `erase ${hits[0].name}` : `erase ${hits.length} pieces`;
-    ctx.undo.push({ label, undo: () => removed.forEach(({ m, parent }) => ctx.objects.restore(m, parent)) });
-    ctx.toast(hits.length === 1 ? `Erased ${hits[0].name}` : `Erased ${hits.length} pieces`);
+    const parts = [carved.length ? `carved ${carved.length === 1 ? carved[0].m.name : `${carved.length} pieces`}` : '', removed.length ? `erased ${removed.length === 1 ? removed[0].m.name : `${removed.length} pieces`}` : ''].filter(Boolean);
+    ctx.undo.push({
+      label: parts.join(', '),
+      undo: () => {
+        carved.forEach(({ m, oldGeo, oldCuts }) => { m.geometry = oldGeo; m.userData.cuts = oldCuts; });
+        removed.forEach(({ m, parent }) => ctx.objects.restore(m, parent));
+      },
+    });
+    const msg = parts.join(', ');
+    ctx.toast(msg.charAt(0).toUpperCase() + msg.slice(1));
   },
 };

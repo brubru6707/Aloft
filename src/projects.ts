@@ -70,7 +70,7 @@ export function newId(): string {
 /** Snapshot of the current scene as project data. */
 export function captureScene(ctx: AppContext): { pieces: PieceSpec[]; camera: ProjectCamera } {
   const c = ctx.rig.camera.position;
-  return { pieces: describeBuilt(ctx), camera: { pos: [c.x, c.y, c.z], yaw: ctx.rig.yaw, pitch: ctx.rig.pitch } };
+  return { pieces: describeBuilt(ctx, true), camera: { pos: [c.x, c.y, c.z], yaw: ctx.rig.yaw, pitch: ctx.rig.pitch } };
 }
 
 /** Replace the scene with a project's pieces and camera. Clears undo history (a fresh start on this project). */

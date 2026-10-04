@@ -15,7 +15,7 @@ import { VoiceAssistant } from './src/ui/VoiceAssistant';
 import { FONT, T } from './src/ui/theme';
 
 type Tab = 'nav' | 'test';
-const BOTTOM_ROW = 40;   // NAV / TEST (left) and B0–B3 (right)
+const BOTTOM_ROW = 40;   // B0–B3 (right); NAV / TEST sit at the top next to the mic
 
 function Shell() {
   const [tab, setTab] = useState<Tab>('nav');
@@ -30,20 +30,26 @@ function Shell() {
 
   const bottomPad = Math.max(4, insets.bottom - 18);   // the row sits down in the home-indicator area
   const barHeight = BOTTOM_ROW + bottomPad;           // screens keep their content above this row
+  // NAV / TEST: at the top, right after the X2D mic (on the TEST screen, in the same spot).
+  const switcher = (
+    <View style={s.switcher}>
+      {(['nav', 'test'] as Tab[]).map((t) => (
+        <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabOn]} hitSlop={6}>
+          <Text style={[s.tabText, tab === t && { color: T.darkText }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
   return (
     <View style={s.root}>
-      {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} /> : <TestScreen tabBarHeight={barHeight} />}
-      <View style={[s.bottomRow, { paddingBottom: bottomPad, height: barHeight }]} pointerEvents="box-none">
-        <View style={s.switcher}>
-          {(['nav', 'test'] as Tab[]).map((t) => (
-            <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabOn]} hitSlop={6}>
-              <Text style={[s.tabText, tab === t && { color: T.darkText }]}>{t === 'nav' ? 'NAV' : 'TEST'}</Text>
-            </Pressable>
-          ))}
+      {tab === 'nav' ? <MainScreen tabBarHeight={barHeight} topExtra={switcher} bottomPad={bottomPad} /> : <TestScreen tabBarHeight={barHeight} />}
+      {tab === 'test' ? <View style={[s.testSwitch, { top: insets.top + 4 }]}>{switcher}</View> : null}
+      {/* B0–B3 bottom-right: light while held on the glove; pressable when the simulator is on. In split view each half shows its own glove's pins instead. */}
+      {!hud.split ? (
+        <View style={[s.bottomRow, { paddingBottom: bottomPad, height: barHeight }]} pointerEvents="box-none">
+          <SimButtons down={hud.buttons} pressable={hud.sourceKind === 'sim'} />
         </View>
-        {/* B0–B3: light while held on the glove; pressable when the simulator is on. */}
-        <SimButtons down={hud.buttons} pressable={hud.sourceKind === 'sim'} />
-      </View>
+      ) : null}
       <StatusBar style="light" />
     </View>
   );
@@ -68,8 +74,9 @@ export default function App() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   // Bottom row: NAV / TEST on the left, B0–B3 on the right.
-  bottomRow: { position: 'absolute', left: 26, right: 14, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  switcher: { flexDirection: 'row', gap: 4 },
+  bottomRow: { position: 'absolute', left: 26, right: 14, bottom: 0, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end' },
+  switcher: { flexDirection: 'row', gap: 4, marginLeft: 4 },
+  testSwitch: { position: 'absolute', left: 22 },
   tab: { width: 38, paddingVertical: 5, borderRadius: T.radius, alignItems: 'center', backgroundColor: 'rgba(40,40,40,0.6)', borderWidth: 1, borderColor: 'rgba(31,31,31,0.6)' },
   tabOn: { backgroundColor: T.accent, borderColor: T.accent },
   tabText: { color: T.muted, fontWeight: '700', fontSize: 9, letterSpacing: 0.8 },

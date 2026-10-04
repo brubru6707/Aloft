@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { BUILD, type PrimitiveName } from '../config';
 import { unitSize } from '../scene/objects';
+import { cutsOf, replayCuts, type Cut } from '../scene/carve';
 import type { AppContext } from '../modes/types';
 
 /** One piece as the AI sees it. Sizes/positions in cm, rotation in degrees, centre position. */
@@ -14,13 +15,14 @@ export interface PieceSpec {
   pos: [number, number, number];    // centre, cm, y up, floor at y = 0
   rot?: [number, number, number];   // degrees about x, y, z
   color?: string;                   // #rrggbb
+  cuts?: Cut[];                     // ERASE carvings (saved projects only, not sent to Gemini)
 }
 
 const SHAPES: readonly PrimitiveName[] = BUILD.primitives;
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
 /** Current built pieces as specs (dimensions = scale × the shape's size at scale 1). */
-export function describeBuilt(ctx: AppContext): PieceSpec[] {
+export function describeBuilt(ctx: AppContext, withCuts = false): PieceSpec[] {
   return ctx.objects.built.map((m) => {
     const shape = (SHAPES.includes(m.name as PrimitiveName) ? m.name : 'cube') as PrimitiveName;
     const u = unitSize(shape);
@@ -30,6 +32,7 @@ export function describeBuilt(ctx: AppContext): PieceSpec[] {
     pos: [r1(m.position.x), r1(m.position.y), r1(m.position.z)],
     rot: [r1(THREE.MathUtils.radToDeg(m.rotation.x)), r1(THREE.MathUtils.radToDeg(m.rotation.y)), r1(THREE.MathUtils.radToDeg(m.rotation.z))],
     color: typeof m.userData.color === 'string' ? m.userData.color : '#' + (m.material as THREE.MeshStandardMaterial).color.getHexString(),
+    ...(withCuts && cutsOf(m).length ? { cuts: cutsOf(m) } : {}),
     };
   });
 }
@@ -59,6 +62,7 @@ export function pieceFromSpec(spec: PieceSpec, ctx: AppContext, fallbackColor: s
   const r = spec.rot ?? [0, 0, 0];
   mesh.rotation.set(THREE.MathUtils.degToRad(r[0]), THREE.MathUtils.degToRad(r[1]), THREE.MathUtils.degToRad(r[2]));
   mesh.userData.halfHeight = u[1] / 2;   // unscaled half height
+  if (spec.cuts?.length) replayCuts(mesh, spec.cuts, (shape) => ctx.objects.createPrimitive(shape as PrimitiveName, '#ffffff').geometry);
   return mesh;
 }
 

@@ -10,12 +10,13 @@ import { Crosshair, ModeLabel, SplitOverlay, Toast } from '../ui/Hud';
 import { splitViews } from '../ui/splitViews';
 import { DeviceList } from '../ui/DeviceList';
 import { SceneView } from '../ui/SceneView';
+import { GloveCard, PinStrip } from '../ui/GloveCard';
 
 /** Height of the mode/mic bar under the status bar. */
 const TOP_BAR = 32;
 
 /** 3D view + overlays + bottom sheet. */
-export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
+export function MainScreen({ tabBarHeight, topExtra, bottomPad = 4 }: { tabBarHeight: number; topExtra?: React.ReactNode; bottomPad?: number }) {
   const hud = useHud();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -33,9 +34,27 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
   return (
     <View style={s.root}>
       <SceneView gizmoTop={insets.top + TOP_BAR + 6} />
-      <TopModes hud={hud} top={insets.top + 4} right={landscape ? 454 : 26} />
+      <TopModes hud={hud} top={insets.top + 4} extra={topExtra} />
       {hud.split ? (
-        <SplitOverlay hud={hud} views={splitViews(true, width, height)} labelTop={insets.top + TOP_BAR - 30} />
+        <>
+          <SplitOverlay hud={hud} views={splitViews(true, width, height)} labelTop={insets.top + TOP_BAR - 30} />
+          {/* Each half gets its own glove's settings, in that half's bottom-right corner (clear of its crosshair). */}
+          {splitViews(true, width, height).map((v, i) => {
+            const atBottom = v.y + v.h >= height - 1;
+            const cardW = landscape ? Math.min(190, v.w * 0.46) : Math.min(230, v.w * 0.62);
+            const base = height - (v.y + v.h) + (atBottom ? bottomPad : 6);   // the pin strip sits on the half's bottom edge
+            return (
+              <React.Fragment key={`glove${i}`}>
+                <View style={{ position: 'absolute', right: width - (v.x + v.w) + 10, bottom: base }} pointerEvents="box-none">
+                  <PinStrip hud={hud} i={i} />
+                </View>
+                <View style={{ position: 'absolute', left: v.x + v.w - cardW - 8, bottom: base + 42 }} pointerEvents="box-none">
+                  <GloveCard hud={hud} i={i} width={cardW} />
+                </View>
+              </React.Fragment>
+            );
+          })}
+        </>
       ) : (
         <>
           <View style={[s.overlay, { top: insets.top + TOP_BAR + 6, right: landscape ? 428 : 0 }]} pointerEvents="box-none">

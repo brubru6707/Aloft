@@ -28,7 +28,9 @@
     "react-native": "0.81.5",
     "react-native-ble-plx": "^3.5.1",
     "react-native-safe-area-context": "~5.6.0",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "three-bvh-csg": "0.0.17",
+    "three-mesh-bvh": "0.8.3"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
