@@ -11,6 +11,17 @@ import type { PieceSpec } from './scene';
 const apiKey = (): string | undefined => process.env.EXPO_PUBLIC_GEMINI_API_KEY || undefined;
 export const geminiAvailable = (): boolean => !!apiKey();
 
+/** A request that never answers would leave X2D silent: give up after GEMINI.requestTimeoutMs with a readable error. */
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), GEMINI.requestTimeoutMs);
+  try { return await fetch(url, { ...init, signal: ctrl.signal }); }
+  catch (err) {
+    if (ctrl.signal.aborted) throw new Error(`Gemini timed out after ${Math.round(GEMINI.requestTimeoutMs / 1000)} s`);
+    throw err;
+  } finally { clearTimeout(timer); }
+}
+
 export interface ScenePlan {
   action: 'answer' | 'rebuild';
   message: string;          // short spoken reply
@@ -118,7 +129,7 @@ async function callGemini(systemText: string, contents: Turn[], opts: CallOption
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     let r: Response | null = null;
     for (let attempt = 0; attempt <= GEMINI.retries; attempt++) {
-      r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
+      r = await fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
       if (r.status !== 503) break;   // only "overloaded" is worth one quick retry on the same model
       if (attempt < GEMINI.retries) await new Promise((done) => setTimeout(done, GEMINI.retryDelayMs));
     }

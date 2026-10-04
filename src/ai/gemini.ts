@@ -20,10 +20,17 @@ export const geminiAvailable = (): boolean => USE_PROXY || !!DEV_KEY;
 /** POST a generateContent body for one model, directly (dev) or through /api/gemini (deployed). */
 function postGemini(model: string, body: unknown): Promise<Response> {
   if (USE_PROXY) {
-    return fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, body }) });
+    return withTimeout(fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, body }), signal: AbortSignal.timeout(GEMINI.requestTimeoutMs) }));
   }
-  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': DEV_KEY! }, body: JSON.stringify(body),
+  return withTimeout(fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': DEV_KEY! }, body: JSON.stringify(body), signal: AbortSignal.timeout(GEMINI.requestTimeoutMs),
+  }));
+}
+/** A request that never answers would leave X2D silent: turn the abort into a readable error. */
+function withTimeout(p: Promise<Response>): Promise<Response> {
+  return p.catch((err: unknown) => {
+    if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) throw new Error(`Gemini timed out after ${Math.round(GEMINI.requestTimeoutMs / 1000)} s`);
+    throw err;
   });
 }
 

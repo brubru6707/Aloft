@@ -121,6 +121,7 @@ export const GEMINI = {
   maxOutputTokens: 200,
   retries: 1,              // extra attempt per model on 503 (overloaded), then the next model. A 429 moves on at once.
   retryDelayMs: 800,       // pause before that one 503 retry
+  requestTimeoutMs: 25000, // one Gemini request gives up after this (builds take ~3-5 s), so X2D never waits forever
   // Builds use low thinking: same layouts in ~3-5 s instead of long thinking that often ends in 503 (overloaded).
   // 'minimal' | 'low' | 'medium' | 'high', or null to let the model decide. Plain answers never set it.
   planThinkingLevel: 'low' as 'minimal' | 'low' | 'medium' | 'high' | null,

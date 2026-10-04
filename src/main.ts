@@ -365,8 +365,10 @@ function sceneSummary(): string {
  * answer; an instruction ("make it an actual stickman") rebuilds the pieces as one
  * undoable step and says what was done. Returns the plan so scripts can check it.
  */
+let lastAssistantError = '';   // why the last askAssistant returned null (read by build_scene for the agent)
 async function askAssistant(request: string, opts: { speakReply?: boolean; forceRebuild?: boolean } = {}): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
   const speakReply = opts.speakReply ?? true;   // false when the ElevenLabs agent is the one talking
+  lastAssistantError = '';
   if (!request.trim()) return null;
   // "show me the devices" opens the device library; no Gemini call.
   if (DEVICES_CLOSE.test(request)) return { action: 'answer', message: showDevices(false), pieces: 0 };
@@ -374,7 +376,7 @@ async function askAssistant(request: string, opts: { speakReply?: boolean; force
   // "switch to build", "use a cylinder", "center me" … are settings, not builds: no Gemini call.
   const cmd = parseControl(request);
   if (cmd) { const message = applyControl(cmd); return { action: 'answer', message, pieces: 0 }; }
-  if (!geminiAvailable()) { hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return null; }
+  if (!geminiAvailable()) { lastAssistantError = 'No Gemini key'; hud.toast('Gemini: add VITE_GEMINI_API_KEY to .env.local'); return null; }
   hud.toast(`X2D: thinking about “${request}”…`, 4000);
   try {
     const plan = await planScene(request, describeBuilt(ctx), sceneSummary(), opts.forceRebuild ?? isImperative(request));
@@ -389,10 +391,22 @@ async function askAssistant(request: string, opts: { speakReply?: boolean; force
     if (speakReply) speak(plan.message);
     return { action: 'answer', message: plan.message, pieces: 0 };
   } catch (err) {
-    hud.toast(`X2D: ${err instanceof Error ? err.message : String(err)}`, 5000);
+    lastAssistantError = err instanceof Error ? err.message : String(err);
+    hud.toast(`X2D: ${lastAssistantError}`, 5000);
     return null;
   }
 }
+
+/** What the agent should say when a build failed: the reason in plain words, and that settings still work. */
+function buildFailureReply(reason: string): string {
+  const still = 'Settings like shapes, modes, size and sensitivity still work. Tell the user in one short sentence.';
+  if (/quota|429/i.test(reason)) return `The scene builder (Gemini) is out of quota right now, so it can't build new scenes. ${still}`;
+  if (/no gemini key|not set on the server/i.test(reason)) return `The scene builder (Gemini) isn't set up here (no API key). ${still}`;
+  if (/timed out/i.test(reason)) return `The scene builder took too long and gave up. Apologise briefly and offer to try again.`;
+  return `The build failed${reason ? ` (${reason.slice(0, 120)})` : ''}. Apologise briefly and offer to try again.`;
+}
+/** A build in progress: a second build_scene while it runs is answered "still working" instead of racing it. */
+let buildingNow: string | null = null;
 
 /**
  * Client tools for the ElevenLabs agent: you talk to the agent, the agent calls build_scene,
@@ -403,10 +417,15 @@ voice.setClientTools({
   [VOICE.tools.build]: async (params) => {
     const request = String(params.request ?? params.description ?? '').trim();
     if (!request) return 'No request given. Ask the user what to build.';
+    // Settings and the device list are instant and always allowed; only a Gemini build waits for the one in progress.
+    const instant = !!parseControl(request) || DEVICES_OPEN.test(request) || DEVICES_CLOSE.test(request);
+    if (!instant && buildingNow) return `Still building "${buildingNow}". Tell the user it will be ready in a moment, then they can ask again.`;
     let result: Awaited<ReturnType<typeof askAssistant>> = null;
+    if (!instant) buildingNow = request;
     try { result = await askAssistant(request, { speakReply: false, forceRebuild: true }); }
-    catch (err) { console.warn('[x2d] build_scene failed:', err); return `Something went wrong building that (${err instanceof Error ? err.message : String(err)}). Apologise briefly and offer to try again.`; }
-    if (!result) return 'The build failed (Gemini did not return a usable layout). Apologise briefly and offer to try again.';
+    catch (err) { console.warn('[x2d] build_scene failed:', err); return buildFailureReply(err instanceof Error ? err.message : String(err)); }
+    finally { if (!instant) buildingNow = null; }
+    if (!result) return buildFailureReply(lastAssistantError);
     return result.action === 'rebuild'
       ? `Built it: ${result.message} (${result.pieces} pieces, now in the scene). Tell the user in one short sentence.`
       : result.message;
