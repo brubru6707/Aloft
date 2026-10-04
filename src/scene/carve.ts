@@ -35,6 +35,22 @@ function prepared(src: THREE.BufferGeometry, world: THREE.Matrix4, withColor: bo
   return g;
 }
 
+/** Does the eraser surround the whole piece? (Every corner of the piece's box inside both the
+ *  cutter's box and its bounding sphere, in the cutter's own space.) */
+function surrounds(piece: THREE.Mesh, cutterGeo: THREE.BufferGeometry, cutterWorld: THREE.Matrix4): boolean {
+  if (!cutterGeo.boundingBox) cutterGeo.computeBoundingBox();
+  if (!cutterGeo.boundingSphere) cutterGeo.computeBoundingSphere();
+  if (!piece.geometry.boundingBox) piece.geometry.computeBoundingBox();
+  const cb = cutterGeo.boundingBox!, cs = cutterGeo.boundingSphere!, pb = piece.geometry.boundingBox!;
+  const toCutter = new THREE.Matrix4().copy(cutterWorld).invert().multiply(piece.matrixWorld);
+  const v = new THREE.Vector3();
+  for (const x of [pb.min.x, pb.max.x]) for (const y of [pb.min.y, pb.max.y]) for (const z of [pb.min.z, pb.max.z]) {
+    v.set(x, y, z).applyMatrix4(toCutter);
+    if (!cb.containsPoint(v) || !cs.containsPoint(v)) return false;
+  }
+  return true;
+}
+
 /**
  * Subtract `cutterGeo` (placed by `cutterWorld`) from `piece`. Returns the new geometry in the
  * piece's local space, null when nothing of the piece is left, undefined when the eraser does not
@@ -51,7 +67,14 @@ export function subtract(piece: THREE.Mesh, cutterGeo: THREE.BufferGeometry, cut
   const result = evaluator.evaluate(a, b, SUBTRACTION);
   a.geometry.dispose(); b.geometry.dispose();
   const geo = result.geometry;
-  if (!geo.getAttribute('position') || geo.getAttribute('position').count === 0) { geo.dispose(); return null; }
+  if (!geo.getAttribute('position') || geo.getAttribute('position').count === 0) {
+    geo.dispose();
+    // Only delete a piece the eraser really surrounds; an empty result otherwise means the cut
+    // failed, and the piece is left as it was rather than being deleted.
+    if (surrounds(piece, cutterGeo, cutterWorld)) return null;
+    console.warn('[carve] the cut came back empty but the eraser does not surround the piece: left unchanged');
+    return undefined;
+  }
   if (geo.getAttribute('position').count === before) { geo.dispose(); return undefined; }   // the eraser only grazed its box: no change
   geo.applyMatrix4(inv.copy(piece.matrixWorld).invert());   // back into the piece's own space
   geo.computeBoundingBox();

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { subtract } from '../scene/carve';
 import { BLE, BUILD, FLY, GEMINI, GLOBAL_ACTIONS, VOICE, GLOVE_COLOR, GLOVE_DEFAULT_MODE, MODE_COLORS, MODE_HINTS, MODE_ORDER, RENDER, ROTATE_IN_MODES, RUNTIME, SENSITIVITY, UI, UNITS, type FlyAxis, type ModeName, type PrimitiveName, type RotateStyle, type SizeName } from '../config';
 import { geminiAvailable, isImperative, planScene } from '../ai/gemini';
 import { describeBuilt, rebuildScene, sanitize } from '../ai/scene';
@@ -134,6 +135,14 @@ export class Engine {
     this.wire(0);
     this.wire(1);
 
+    // Dev check that carving (CSG) works on this phone's JS engine: shows up in the Metro log.
+    if (__DEV__) setTimeout(() => {
+      try {
+        const big = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2)); big.scale.setScalar(6); big.position.set(0, 6, 0); big.updateMatrixWorld(true);
+        const g = subtract(big, new THREE.BoxGeometry(2, 2, 2), new THREE.Matrix4().makeTranslation(0, 12, 0));
+        console.log(`[carve] self-test: ${g === null ? 'GONE (bad)' : g === undefined ? 'no change (bad)' : `carved ok, ${g.getAttribute('position').count} verts`}`);
+      } catch (err) { console.log('[carve] self-test failed:', err instanceof Error ? err.message : String(err)); }
+    }, 1500);
     // Enter glove 1's initial mode so its label/hint are right from the start (glove 2's on connect).
     MODES[this.sessions[0].modeIndex].enter?.(this.sessions[0], this.ctx);
   }
