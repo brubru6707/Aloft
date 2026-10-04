@@ -38,15 +38,15 @@ is which. Build V1 with `--build-property "compiler.cpp.extra_flags=-DGLOVE_VERS
 | Glove | Bluetooth name | Pins |
 |---|---|---|
 | V1 | `Aloft-V1` | 13 index, 25 middle, 26 ring, 27 pinky |
-| V2 | `Aloft-V2` | index side 27 (bottom), 32 (middle), 13 (top); fingertips 25 index, 33 middle, 26 ring; 14 middle finger, thumb side |
+| V2 | `Aloft-V2` | index side 14 (bottom), 32 (middle), 13 (top); fingertips 25 index, 33 middle, 26 ring; 27 middle of the middle finger, thumb side |
 
 Layouts, switched by voice ("X2D, backup V2"), by typing, or from the glove panel:
 
 | Layout | Buttons |
 |---|---|
 | Default V1 | 13 mode, 25 action, 26 sensitivity, 27 reset |
-| Default V2 | whole index side (27, 32, 13) option; 25 BUILD, 33 ERASE, 26 FLY (press again in that mode to place / erase / toggle rotate-move); 14 sensitivity |
-| Backup V2 | index side: 13 mode, 32 option, 27 sensitivity; tips: 25 mode, 33 option, 26 sensitivity; 14 (middle finger side) action |
+| Default V2 | whole index side (14, 32, 13) option (cube / sphere / cylinder, or FLY direction); 25 BUILD, 33 ERASE, 26 FLY (press again in that mode to place / erase / toggle rotate-move); 27 sensitivity |
+| Backup V2 | index side: 13 mode, 32 option, 14 action; tips: 25 mode, 33 option, 26 sensitivity; 27 (middle finger side) sensitivity |
 
 Option = next shape (BUILD, ERASE) or next direction X / Y / Z (FLY). Sensitivity: tap = speed
 (FLY) or size (BUILD, ERASE); **hold 1.2 s = reset everything** (start view, roll / pitch / yaw

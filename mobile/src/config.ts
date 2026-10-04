@@ -45,7 +45,9 @@ export const SENSITIVITY = {
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };
 
-export const MODE_ORDER = ['FLY', 'BUILD', 'ERASE'] as const;
+// Left to right like the V2 fingertips (index BUILD, middle ERASE, ring FLY). The MODE button still
+// cycles FLY -> BUILD -> ERASE -> FLY (the same loop, just shown starting at BUILD).
+export const MODE_ORDER = ['BUILD', 'ERASE', 'FLY'] as const;
 export type ModeName = (typeof MODE_ORDER)[number];
 
 export const MODE_COLORS: Record<ModeName, string> = {
@@ -280,7 +282,7 @@ export const BUILD = {
   maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
   primitives: ALL_SHAPES,
   // The glove OPTION button and the SHAPE chips cycle only these; every kit part is in the device library.
-  quickShapes: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] as PrimitiveName[],
+  quickShapes: ['cube', 'sphere', 'cylinder'] as PrimitiveName[],   // glove OPTION + SHAPE chips; kit parts by voice / device list
   devices: ['rpi', 'esp32', 'uno', 'nano', 'breadboard', 'servo', 'motor', 'ultrasonic', 'lcd', 'pot', 'buzzer', 'ldr', 'resistor', 'led', 'button', 'jumper', 'battery'] as PrimitiveName[],
   // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,

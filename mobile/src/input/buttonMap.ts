@@ -22,8 +22,8 @@ export const GLOVE_PINOUTS: Record<GloveVersion, number[]> = {
 export const PIN_PLACES: Record<GloveVersion, Record<number, string>> = {
   1: { 13: 'index finger', 25: 'middle finger', 26: 'ring finger', 27: 'pinky' },
   2: {
-    27: 'index finger, side, bottom', 32: 'index finger, side, middle', 13: 'index finger, side, near the tip',
-    25: 'index fingertip', 33: 'middle fingertip', 14: 'middle finger, thumb side', 26: 'ring fingertip',
+    14: 'index finger, side, bottom', 32: 'index finger, side, middle', 13: 'index finger, side, near the tip',
+    25: 'index fingertip', 33: 'middle fingertip', 27: 'middle finger, thumb side', 26: 'ring fingertip',
   },
 };
 
@@ -52,15 +52,15 @@ export const PROFILES: Profile[] = [
     roles: { 13: BTN.MODE, 25: BTN.ACTION, 26: BTN.SENS, 27: BTN.RESET },
   },
   {
-    // Whole side of the index finger (27, 32, 13) = option; fingertips pick the mode (press again
-    // to act); 14 (middle finger, thumb side) = sensitivity.
+    // Whole side of the index finger (14, 32, 13) = option; fingertips pick the mode (press again
+    // to act); 27 (middle of the middle finger, thumb side) = sensitivity.
     id: 'default-v2', name: 'Default V2', version: 2,
-    roles: { 27: BTN.OPTION, 32: BTN.OPTION, 13: BTN.OPTION, 25: BTN.BUILD, 33: BTN.ERASE, 26: BTN.FLY, 14: BTN.SENS },
+    roles: { 14: BTN.OPTION, 32: BTN.OPTION, 13: BTN.OPTION, 25: BTN.BUILD, 33: BTN.ERASE, 26: BTN.FLY, 27: BTN.SENS },
   },
   {
     // Mode / option / sensitivity on the side of the index finger AND on the fingertips, so
-    // either row alone still drives everything (27 is the bottom of the index side); 14 (middle
-    // finger, thumb side) places / erases / toggles FLY.
+    // either row alone still drives everything; 14 (bottom of the index side) places / erases /
+    // toggles FLY; 27 (middle of the middle finger) is sensitivity.
     id: 'backup-v2', name: 'Backup V2', version: 2,
     roles: { 13: BTN.MODE, 32: BTN.OPTION, 14: BTN.ACTION, 25: BTN.MODE, 33: BTN.OPTION, 26: BTN.SENS, 27: BTN.SENS },
   },
@@ -69,7 +69,7 @@ const DEFAULT_PROFILE: Record<GloveVersion, string> = { 1: 'default-v1', 2: 'def
 export const profilesFor = (v: GloveVersion) => PROFILES.filter((p) => p.version === v);
 
 // ---------- state (per glove version, remembered on this device when storage exists) ----------
-const STORE_KEY = 'aloft.buttonLayouts.v3';   // v3: GPIO 14 / 27 positions corrected
+const STORE_KEY = 'aloft.buttonLayouts.v4';   // v4: 14 = index side bottom, 27 = middle finger side
 interface Stored { roles: Record<GloveVersion, Record<number, number>>; profile: Record<GloveVersion, string> }
 let state: Stored = load();
 let lastVersion: GloveVersion = 2;

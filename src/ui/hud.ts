@@ -1,7 +1,7 @@
 import { BUILD, FLY, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { ghostInfo } from '../modes/build';
-import { applyProfile, currentVersion, cycleRole, OFF, PIN_PLACES, pinDown, pinsOf, profileName, profileOf, profilesFor, resetRoles, roleOf, ROLES, roleShort, type GloveVersion } from '../input/buttonMap';
+import { applyProfile, cycleRole, OFF, PIN_PLACES, pinDown, pinsOf, profileName, profileOf, profilesFor, resetRoles, roleOf, ROLES, roleShort, type GloveVersion } from '../input/buttonMap';
 import type { VoiceState } from './voice';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -310,7 +310,8 @@ export class Hud {
       p.rpy[2].textContent = fmt(g.tilt.yaw);
       // Glove pins of the connected glove (V1 or V2): label = current job; lit while pressed
       // (real glove: the pin itself; simulator: its job).
-      const v: GloveVersion = g.version ?? currentVersion();
+      // Glove 1 is the 4-button V1 and Glove 2 the 7-button V2, until a real glove reports its version.
+      const v: GloveVersion = g.version ?? (g.gloveId === 0 ? 1 : 2);
       if (p.pinVersion !== v) this.buildPins(p, v);
       p.buttons.forEach((el) => {
         const pin = Number(el.dataset.pin);

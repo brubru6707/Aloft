@@ -20,8 +20,8 @@ const PIN_POS: Record<GloveVersion, Record<number, { at: Pt; tag: Pt }>> = {
   },
   2: {
     25: { at: [67, 24], tag: [6, -14] }, 33: { at: [52, 16], tag: [-2, -11] }, 26: { at: [37, 22], tag: [-4, -14] },
-    13: { at: [74, 33], tag: [16, 0] }, 32: { at: [74, 46], tag: [16, 0] }, 27: { at: [74, 59], tag: [16, 0] },
-    14: { at: [59, 41], tag: [-13, 8] },
+    13: { at: [74, 33], tag: [16, 0] }, 32: { at: [74, 46], tag: [16, 0] }, 14: { at: [74, 59], tag: [16, 0] },
+    27: { at: [59, 41], tag: [-13, 8] },
   },
 };
 const FINGERS: { cx: number; top: number }[] = [{ cx: 22, top: 34 }, { cx: 37, top: 18 }, { cx: 52, top: 12 }, { cx: 67, top: 20 }];
@@ -77,7 +77,7 @@ function drawHand(g: CanvasRenderingContext2D, v: GloveVersion, active: number |
 // ---------- pixel viewport ----------
 const VW = 160, VH = 96;
 interface Piece { shape: string; size: number; x: number }
-const QUICK = ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'];
+const QUICK = ['cube', 'sphere', 'cylinder'];
 const SIZES = ['small', 'medium', 'large'];
 const AXES = ['X', 'Y', 'Z'] as const;
 
@@ -178,7 +178,7 @@ function apply(s: Sim, role: number, hold: boolean): string {
 /** Demo sequence per layout: pin presses that show every job. */
 const SCRIPTS: Record<string, { pin: number; hold?: boolean }[]> = {
   'default-v1': [{ pin: 13 }, { pin: 25 }, { pin: 26 }, { pin: 25 }, { pin: 13 }, { pin: 25 }, { pin: 13 }, { pin: 25 }, { pin: 26 }, { pin: 27 }, { pin: 26, hold: true }],
-  'default-v2': [{ pin: 25 }, { pin: 27 }, { pin: 25 }, { pin: 32 }, { pin: 14 }, { pin: 25 }, { pin: 33 }, { pin: 33 }, { pin: 26 }, { pin: 13 }, { pin: 32 }, { pin: 26 }, { pin: 14 }, { pin: 14, hold: true }],
+  'default-v2': [{ pin: 25 }, { pin: 14 }, { pin: 25 }, { pin: 32 }, { pin: 27 }, { pin: 25 }, { pin: 33 }, { pin: 33 }, { pin: 26 }, { pin: 13 }, { pin: 32 }, { pin: 26 }, { pin: 27 }, { pin: 27, hold: true }],
   'backup-v2': [{ pin: 13 }, { pin: 32 }, { pin: 14 }, { pin: 27 }, { pin: 14 }, { pin: 25 }, { pin: 14 }, { pin: 13 }, { pin: 33 }, { pin: 14 }, { pin: 26 }, { pin: 27, hold: true }],
 };
 
