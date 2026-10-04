@@ -38,6 +38,8 @@ export const SENSITIVITY = {
   button: 2,
   levels: [1, 0.8, 0.6, 0.4, 0.2, 0],   // B2 steps down 0.2 at a time, then wraps back to 1
   startIndex: 0,
+  holdResetMs: 1200,     // hold the SENS button this long to reset view, glove and sensitivity
+  holdResetLevel: 1,     // sensitivity after a hold-reset (set 0 to freeze movement instead)
 };
 /** Mutable runtime state (changed live by buttons / UI, not a tuning constant). */
 export const RUNTIME = { sensitivity: SENSITIVITY.levels[SENSITIVITY.startIndex] };

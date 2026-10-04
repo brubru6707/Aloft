@@ -4,10 +4,18 @@
  * set_control tool and by typed requests (handled instantly, no Gemini call).
  * Pure parsing only; each app applies the command with its own setters.
  */
-export type ControlSetting = 'mode' | 'shape' | 'size' | 'sensitivity' | 'fly_state' | 'rotate_style' | 'reset_view';
+import { profileFromText } from '../input/buttonMap';
+
+export type ControlSetting = 'mode' | 'shape' | 'size' | 'sensitivity' | 'fly_state' | 'rotate_style' | 'reset_view' | 'controls';
 export interface ControlCommand { setting: ControlSetting; value: string }
 
-export const CONTROL_SETTINGS: ControlSetting[] = ['mode', 'shape', 'size', 'sensitivity', 'fly_state', 'rotate_style', 'reset_view'];
+export const CONTROL_SETTINGS: ControlSetting[] = ['mode', 'shape', 'size', 'sensitivity', 'fly_state', 'rotate_style', 'reset_view', 'controls'];
+
+/** Glove button layout named in loose words ("backup v2", "default version one"). */
+function layoutOf(t: string, loose: boolean): string | null {
+  const named = /\bback ?up\b/.test(t) || /\bv ?[12]\b|\bversion (1|2|one|two)\b/.test(t) || /\b(layout|controls?|buttons?|glove|setup)\b/.test(t);
+  return loose || named ? profileFromText(t) : null;
+}
 
 const has = (t: string, re: RegExp) => re.test(t);
 
@@ -61,6 +69,9 @@ function rotateStyleOf(t: string): string | null {
 export function normalizeControl(settingRaw: unknown, valueRaw: unknown): ControlCommand | { error: string } {
   const setting = String(settingRaw ?? '').toLowerCase().trim().replace(/[\s-]+/g, '_') as ControlSetting;
   const v = String(valueRaw ?? '').toLowerCase().trim();
+  // A glove layout ("backup v2") wins whatever setting the agent filed it under.
+  const layout = layoutOf(`${String(settingRaw ?? '').toLowerCase()} ${v}`, false);
+  if (layout && setting !== 'size' && setting !== 'sensitivity') return { setting: 'controls', value: layout };
   switch (setting) {
     case 'mode': { const m = modeOf(v); return m ? { setting, value: m } : { error: `unknown mode "${v}" (FLY, BUILD or ERASE)` }; }
     case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere, cylinder, nano (Arduino Nano), led or button)` }; }
@@ -69,6 +80,7 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
     case 'fly_state': { const s = flyStateOf(v); return s ? { setting, value: s } : { error: `unknown FLY state "${v}" (rotate, X, Y or Z)` }; }
     case 'rotate_style': { const s = rotateStyleOf(v); return s ? { setting, value: s } : { error: `unknown rotate style "${v}" (rate or absolute)` }; }
     case 'reset_view': return { setting, value: '' };
+    case 'controls': { const l = layoutOf(v, true); return l ? { setting, value: l } : { error: `unknown layout "${v}" (default v1, default v2 or backup v2)` }; }
     default: return { error: `unknown setting "${settingRaw}" (${CONTROL_SETTINGS.join(', ')})` };
   }
 }
@@ -81,6 +93,7 @@ export function parseControl(text: string): ControlCommand | null {
   const t = text.toLowerCase().replace(/(?<!\d)[.,!?]|[.,!?](?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t || t.split(' ').length > 9) return null;
   if (has(t, /^(center|centre|recenter|recentre|reset)( me| the view| view| camera| everything| it)?$/) || has(t, /\b(center|centre) me\b|\bback to (the )?start\b|\breset (the )?(view|camera)\b/)) return { setting: 'reset_view', value: '' };
+  { const l = layoutOf(t, false); if (l && has(t, /\b(default|back ?up)\b/)) return { setting: 'controls', value: l }; }
   if (has(t, /\bsensitivity\b|\bsens\b/)) { const s = sensOf(t); if (s) return { setting: 'sensitivity', value: s }; }
   if (has(t, /\b(rotate|rotation) (style|mode)?\s*(to )?(absolute|rate)\b|^(absolute|rate) (rotate|rotation)$/)) { const s = rotateStyleOf(t); if (s) return { setting: 'rotate_style', value: s }; }
   if (has(t, /\b(move|moving) (on |along |in )?(the )?[xyz]( axis)?\b|\b[xyz] axis\b|^(rotate|move [xyz])$/)) { const s = flyStateOf(t); if (s) return { setting: 'fly_state', value: s }; }

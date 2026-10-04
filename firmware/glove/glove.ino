@@ -2,12 +2,12 @@
  * Aloft glove firmware — ESP32 + MPU-6050 (GY-521) + up to 6 buttons, BLE Nordic UART.
  *
  * Streams one ASCII line at 50 Hz over the NUS TX (notify) characteristic:
- *     roll,pitch,yaw,buttonsBitmask\n
- * e.g. "12.3,-4.8,91.0,5\n"   (degrees; bitmask bit n = BUTTON_PINS[n] pressed)
+ *     roll,pitch,yaw,buttonsBitmask,gloveVersion\n
+ * e.g. "12.3,-4.8,91.0,5,2\n"   (degrees; bitmask bit n = BUTTON_PINS[n] pressed)
  *
  * Wiring
  *   GY-521  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22 (default ESP32 I2C pins)
- *   Buttons: GPIO 13, 14, 27, 26, 25, 32, 33 (bits 0-6), each to GND. (GPIO 34-39 are input-only with
+ *   Buttons: V1 = GPIO 13, 25, 27, 26; V2 = GPIO 13, 14, 27, 26, 25, 32, 33 (bit order), each to GND. (GPIO 34-39 are input-only with
  *   NO internal pull-up, so avoid them for buttons unless you add a 10k resistor to 3V3.) What each one does is chosen
  *   in the app (glove panel), so any button can be any job.
  *   INPUT_PULLUP, pressed = LOW.
@@ -33,13 +33,27 @@
 #include <NimBLEDevice.h>
 
 // ---------------- Config ----------------
-static const char*   DEVICE_NAME   = "Aloft-Glove";
 static const uint8_t MPU_ADDR      = 0x68;   // AD0 low. Use 0x69 if AD0 is tied high.
 static const int     PIN_SDA       = 21;   // default wiring; if the sensor does not answer there,
 static const int     PIN_SCL       = 22;   // setup() tries SDA/SCL swapped (the 6-button glove has them swapped)
 static const uint32_t I2C_HZ        = 100000;
+// Which glove this build is for. Default V2; build V1 with
+//   arduino-cli compile --build-property "compiler.cpp.extra_flags=-DGLOVE_VERSION=1" ...
+// Each glove has its own Bluetooth name and pinout, and reports its version in every line
+// so the app knows which pin is which (GLOVE_PINOUTS in src/input/buttonMap.ts).
+#ifndef GLOVE_VERSION
+#define GLOVE_VERSION 2
+#endif
+#if GLOVE_VERSION == 1
+static const char*   DEVICE_NAME   = "Aloft-V1";
+static const int     NUM_BUTTONS   = 4;
+static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 25, 27, 26};   // index, middle, pinky, ring
+#else
+static const char*   DEVICE_NAME   = "Aloft-V2";
 static const int     NUM_BUTTONS   = 7;
-static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32, 33};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping); 34-39 need an external pull-up.
+static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32, 33};   // bit order of the bitmask
+#endif
+// Avoid GPIO 0/2/12/15 (strapping); 34-39 have no internal pull-up.
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
 static const float   SIGN_ROLL     = -1.0f;  // sensor mounted mirrored: flip so rolling right reads positive
@@ -94,7 +108,7 @@ static const uint16_t RAW_RING = 1024;
 static DRAM_ATTR volatile RawEdge rawRing[RAW_RING];
 static volatile uint16_t rawHead = 0, rawTail = 0;
 static volatile uint32_t rawDropped = 0;
-static DRAM_ATTR int dbgPins[NUM_BUTTONS] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3], BUTTON_PINS[4], BUTTON_PINS[5], BUTTON_PINS[6]};
+static DRAM_ATTR int dbgPins[NUM_BUTTONS];   // filled in setup()
 static uint32_t dbgI2cFail = 0, dbgNotifyFail = 0, dbgLoops = 0, dbgLoopSumUs = 0, dbgLoopMaxUs = 0, dbgLastStats = 0;
 
 void IRAM_ATTR onButtonEdge(void* arg) {
@@ -350,6 +364,7 @@ void setup() {
     Serial.printf("GPIO %d rests %s: pressed = %s\n", BUTTON_PINS[i], highs > 25 ? "HIGH" : "LOW", highs > 25 ? "LOW" : "HIGH");
   }
 #if BUTTON_DEBUG
+  for (int i = 0; i < NUM_BUTTONS; i++) dbgPins[i] = BUTTON_PINS[i];
   for (int i = 0; i < NUM_BUTTONS; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
   Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");
 #endif
@@ -395,7 +410,7 @@ void setup() {
   adv->setScanResponse(true);
 #endif
   adv->start();
-  Serial.println("Advertising as Aloft-Glove");
+  Serial.printf("Advertising as %s\n", DEVICE_NAME);
   lastMicros = micros();
 }
 
@@ -418,8 +433,8 @@ void loop() {
     lastSend = nowMs;
     const uint8_t buttons = readButtons();
     char line[48];
-    const int n = snprintf(line, sizeof(line), "%.1f,%.1f,%.1f,%u\n",
-                           SIGN_ROLL * roll, SIGN_PITCH * pitch, SIGN_YAW * yaw, buttons);
+    const int n = snprintf(line, sizeof(line), "%.1f,%.1f,%.1f,%u,%d\n",
+                           SIGN_ROLL * roll, SIGN_PITCH * pitch, SIGN_YAW * yaw, buttons, GLOVE_VERSION);
     if (clientConnected && txChar) {
       txChar->setValue((uint8_t*)line, n);
 #if BUTTON_DEBUG

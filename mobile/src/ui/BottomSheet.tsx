@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { engine, type HudState } from '../core/Engine';
 import { BUILD, MODE_COLORS, MODE_ORDER, type FlyAxis } from '../config';
-import { cycleRole, GLOVE_PINS, OFF, resetRoles, roleShort } from '../input/buttonMap';
+import { applyProfile, cycleRole, OFF, profilesFor, resetRoles, roleShort } from '../input/buttonMap';
 import { Btn, Chip, Readout, SignedBar, fmtDeg } from './widgets';
 import { FONT, T } from './theme';
 
@@ -66,13 +66,18 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                   {hud.sourceKind ? <Btn small label="✕" onPress={() => engine.disconnect()} /> : null}
                 </View>
                 <View style={s.row}>
-                  {GLOVE_PINS.map((pin, i) => (
-                    <Pressable key={pin} onPress={() => cycleRole(i)} onLongPress={() => cycleRole(i, -1)} style={[s.pin, hud.roles[i] === OFF && s.pinOff, hud.pins[i] && s.pinDown]}>
+                  {hud.pinList.map((pin, i) => (
+                    <Pressable key={pin} onPress={() => cycleRole(hud.gloveVersion, pin)} onLongPress={() => cycleRole(hud.gloveVersion, pin, -1)} style={[s.pin, hud.roles[i] === OFF && s.pinOff, hud.pins[i] && s.pinDown]}>
                       <Text style={[s.pinNum, hud.pins[i] && { color: '#fff' }]}>{pin}</Text>
                       <Text style={[s.pinRole, hud.pins[i] && { color: '#fff' }]} numberOfLines={1}>{roleShort(hud.roles[i])}</Text>
                     </Pressable>
                   ))}
-                  <Pressable onPress={() => resetRoles()} style={[s.pin, s.pinReset]}><Text style={s.pinNum}>↺</Text></Pressable>
+                  <Pressable onPress={() => resetRoles(hud.gloveVersion)} style={[s.pin, s.pinReset]}><Text style={s.pinNum}>↺</Text></Pressable>
+                </View>
+                <View style={s.row}>
+                  <Text style={s.rowLabel}>V{hud.gloveVersion}</Text>
+                  {profilesFor(hud.gloveVersion).map((p) => <Chip key={p.id} flex label={p.name} on={hud.profile === p.id} onColor={T.accent} onPress={() => { applyProfile(p.id); engine.toast(`Layout: ${p.name}`); }} />)}
+                  {hud.profile === 'custom' ? <Text style={s.note}>custom</Text> : null}
                 </View>
                 <View style={s.row}>
                   <Readout label="ROLL" value={fmtDeg(hud.roll)} />

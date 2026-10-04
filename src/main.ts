@@ -5,6 +5,8 @@ import { describeBuilt, rebuildScene, sanitize } from './ai/scene';
 import { normalizeControl, parseControl, type ControlCommand } from './ai/control';
 import { setPrimitive, setSize } from './modes/build';
 import { exportSTL } from './export';
+import { onGlovePress, onGloveRelease, type ActionHost } from './input/gloveActions';
+import { applyProfile } from './input/buttonMap';
 import { GloveManager } from './input/GloveManager';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from './modes';
 import { applyRotate, flyAxis, flyDeflection, resetRotateAnchor, setFlyAxis } from './modes/fly';
@@ -121,6 +123,7 @@ function applyControl(cmd: ControlCommand): string {
     }
     case 'rotate_style': setRotateStyle(cmd.value as 'rate' | 'absolute'); return `Rotation style set to ${cmd.value}.`;
     case 'reset_view': resetView(); return 'Centred you back at the start.';
+    case 'controls': { const p = applyProfile(cmd.value); if (!p) return `Unknown layout ${cmd.value}.`; hud.toast(`Layout: ${p.name}`); return `Glove buttons switched to ${p.name}.`; }
   }
 }
 
@@ -338,13 +341,23 @@ function setMode(s: GloveSession, index: number): void {
 }
 
 const is = (a: { button: number; gesture: string } | null, button: number, gesture: string) => !!a && a.button === button && a.gesture === gesture;
+// Jobs shared with the phone app (OPTION, FLY / BUILD / ERASE keys, SENS tap vs hold-to-reset).
+const actionHost: ActionHost = {
+  ctx,
+  setMode: (s, i) => setMode(s, i),
+  resetView: () => resetView(),
+  cycleSensitivity: () => cycleSensitivity(),
+  resetSensitivity: () => { RUNTIME.sensitivity = SENSITIVITY.holdResetLevel; hud.syncSensitivityButton(); },
+  toast: (m) => hud.toast(m),
+};
+gloves.onAll('release', ({ gloveId, button }) => { onGloveRelease(actionHost, sessions[gloveId], button); });
 gloves.onAll('press', ({ gloveId, button }) => {
   const s = sessions[gloveId];
+  if (onGlovePress(actionHost, s, button)) return;
   if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);
   if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return setMode(s, s.modeIndex - 1);
   if (is(GLOBAL_ACTIONS.reset, button, 'press')) return resetView();
   if (is(GLOBAL_ACTIONS.undo, button, 'press')) return doUndo();
-  if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] === 'FLY') return cycleSensitivity();   // BUILD and ERASE use this button for size
   MODES[s.modeIndex].onPress?.(s, ctx, button);
 });
 gloves.onAll('tap', ({ gloveId, button }) => {

@@ -1,5 +1,5 @@
 import { INPUT } from '../config';
-import { clearMask, NUM_LOGICAL } from './buttonMap';
+import { NUM_LOGICAL, type GloveVersion } from './buttonMap';
 import { AngleFilter, clamp, deadzone, wrapDeg } from './filter';
 import { Emitter, type GloveEvents, type GloveSample, type GloveSource, type RawSample, type SourceKind, type SourceStatus } from './types';
 
@@ -24,6 +24,10 @@ export class GloveInput extends Emitter<GloveEvents> {
   /** Auto-recenter schedule after a connect: on the first sample, then again once settled. */
   private recenterOnSample = false;
   private settleRecenterAt = 0;
+
+  /** Raw pin bitmask from the firmware (which pins are held) and the glove version it reported. */
+  pinMask = 0;
+  version: GloveVersion | null = null;
 
   source: GloveSource | null = null;
   status: SourceStatus = 'disconnected';
@@ -90,11 +94,13 @@ export class GloveInput extends Emitter<GloveEvents> {
     }
     this.rawDown = new Array(NUM_LOGICAL).fill(false);
     this.state.buttons = new Array<boolean>(NUM_LOGICAL).fill(false);
-    clearMask();
+    this.pinMask = 0;
   }
 
   private ingest(s: RawSample): void {
     this.lastSampleAt = s.timestamp;
+    this.pinMask = s.pinMask ?? 0;
+    if (s.version) this.version = s.version;
     this.rawLatest = { roll: s.roll, pitch: s.pitch, yaw: s.yaw };
     this.emit('raw', s);
     if (this.recenterOnSample || (this.settleRecenterAt && s.timestamp >= this.settleRecenterAt)) {

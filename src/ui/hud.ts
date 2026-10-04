@@ -1,7 +1,7 @@
 import { BUILD, FLY, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
 import { ghostInfo } from '../modes/build';
-import { cycleRole, getRoles, GLOVE_PINS, OFF, pinDown, resetRoles, ROLES, roleShort } from '../input/buttonMap';
+import { applyProfile, currentVersion, cycleRole, OFF, PIN_PLACES, pinDown, pinsOf, profileName, profileOf, profilesFor, resetRoles, roleOf, ROLES, roleShort, type GloveVersion } from '../input/buttonMap';
 import type { VoiceState } from './voice';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -39,6 +39,9 @@ interface GlovePanel {
   status: HTMLElement;
   rpy: HTMLElement[];
   buttons: HTMLElement[];
+  buttonsRow: HTMLElement;
+  layoutsRow: HTMLElement;
+  pinVersion: GloveVersion | null;
   connect: HTMLButtonElement;
   sim: HTMLButtonElement;
   recenter: HTMLButtonElement;
@@ -154,7 +157,7 @@ export class Hud {
           <div><span>PITCH</span><b>+0°</b></div>
           <div><span>YAW</span><b>+0°</b></div>
         </div>
-        <div class="buttons" title="Glove pins: click to change what a pin does (Shift-click goes back). Lights up while pressed.">${GLOVE_PINS.map((pin, i) => `<i data-pin="${i}"><b>${pin}</b><span></span></i>`).join('')}<i class="reset-roles" title="Back to the default jobs">↺</i></div>
+        <div class="buttons" title="Glove pins: click to change what a pin does (Shift-click goes back). Lights up while pressed."></div><div class="layouts" title="Button layouts (also by voice: \"X2D, backup V2\")"></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
         <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
@@ -191,7 +194,10 @@ export class Hud {
         root: panel,
         status: panel.querySelector('.status')!,
         rpy: [...panel.querySelectorAll<HTMLElement>('.rpy b')],
-        buttons: [...panel.querySelectorAll<HTMLElement>('.buttons i[data-pin]')],
+        buttons: [],
+        buttonsRow: panel.querySelector('.buttons')!,
+        layoutsRow: panel.querySelector('.layouts')!,
+        pinVersion: null,
         connect: panel.querySelector('.connect')!,
         sim: panel.querySelector('.sim')!,
         recenter: panel.querySelector('.recenter')!,
@@ -213,8 +219,6 @@ export class Hud {
       p.shapeChips.forEach((chip) => (chip.onclick = () => actions.setPrimitive(g.gloveId, chip.dataset.shape as PrimitiveName)));
       p.sizeChips.forEach((chip) => { chip.title = chip.dataset.size!; chip.onclick = () => actions.setSize(g.gloveId, chip.dataset.size as SizeName); });
       p.modeChips.forEach((chip, idx) => (chip.onclick = () => actions.setMode(g.gloveId, idx)));
-      p.buttons.forEach((el, i) => (el.onclick = (e) => { cycleRole(i, e.shiftKey ? -1 : 1); this.toast(`GPIO ${GLOVE_PINS[i]} → ${roleShort(getRoles()[i])}`); }));
-      panel.querySelector<HTMLElement>('.buttons .reset-roles')!.onclick = () => { resetRoles(); this.toast('Glove buttons back to default'); };
       p.flyChips.forEach((chip) => (chip.onclick = () => actions.setFlyAxis(g.gloveId, (chip.dataset.axis || null) as FlyAxis | null)));
       p.connect.onclick = () => actions.connectBle(g.gloveId);
       p.sim.onclick = () => actions.toggleSim(g.gloveId);
@@ -232,6 +236,20 @@ export class Hud {
     this.voiceBtn.querySelector('i')!.textContent = state === 'talking' ? '🔴' : '🎙';
     this.voiceBtn.classList.toggle('active', state === 'talking' || state === 'connecting');
     this.voiceBtn.disabled = state === 'unsupported';
+  }
+
+  /** (Re)build the pin chips and layout chips for a glove version (V1 has 4 pins, V2 has 7). */
+  private buildPins(p: GlovePanel, v: GloveVersion): void {
+    p.pinVersion = v;
+    p.buttonsRow.innerHTML = pinsOf(v).map((pin) => `<i data-pin="${pin}"><b>${pin}</b><span></span></i>`).join('') + '<i class="reset-roles" title="Back to this glove\'s default layout">↺</i>';
+    p.buttons = [...p.buttonsRow.querySelectorAll<HTMLElement>('i[data-pin]')];
+    p.buttons.forEach((el) => {
+      const pin = Number(el.dataset.pin);
+      el.onclick = (e) => { cycleRole(v, pin, e.shiftKey ? -1 : 1); this.toast(`GPIO ${pin} → ${roleShort(roleOf(v, pin))}`); };
+    });
+    p.buttonsRow.querySelector<HTMLElement>('.reset-roles')!.onclick = () => { resetRoles(v); this.toast(`Glove V${v}: default layout`); };
+    p.layoutsRow.innerHTML = `<span>V${v}</span>` + profilesFor(v).map((pr) => `<i data-profile="${pr.id}">${pr.name}</i>`).join('') + '<em class="custom">custom</em>';
+    p.layoutsRow.querySelectorAll<HTMLElement>('i[data-profile]').forEach((el) => (el.onclick = () => { applyProfile(el.dataset.profile!); this.toast(`Layout: ${profileName(el.dataset.profile!)}`); }));
   }
 
   /** Reflect the current sensitivity on the toolbar button. */
@@ -265,17 +283,23 @@ export class Hud {
       p.rpy[0].textContent = fmt(g.tilt.roll);
       p.rpy[1].textContent = fmt(g.tilt.pitch);
       p.rpy[2].textContent = fmt(g.tilt.yaw);
-      // Glove pins: label = current job; lit while pressed (real glove: the pin itself; simulator: its job).
-      const roles = getRoles();
-      p.buttons.forEach((el, i) => {
-        const r = roles[i];
-        const down = g.sourceKind === 'sim' ? r !== OFF && !!st.buttons[r] : pinDown(i);
+      // Glove pins of the connected glove (V1 or V2): label = current job; lit while pressed
+      // (real glove: the pin itself; simulator: its job).
+      const v: GloveVersion = g.version ?? currentVersion();
+      if (p.pinVersion !== v) this.buildPins(p, v);
+      p.buttons.forEach((el) => {
+        const pin = Number(el.dataset.pin);
+        const r = roleOf(v, pin);
+        const down = g.sourceKind === 'sim' ? r !== OFF && !!st.buttons[r] : pinDown(g.pinMask, v, pin);
         el.classList.toggle('down', down);
         el.classList.toggle('off', r === OFF);
         const span = el.querySelector('span')!;
         const txt = roleShort(r);
-        if (span.textContent !== txt) { span.textContent = txt; el.title = `GPIO ${GLOVE_PINS[i]}: ${r === OFF ? 'off' : ROLES[r].label}. Click to change.`; }
+        if (span.textContent !== txt) { span.textContent = txt; el.title = `GPIO ${pin} (${PIN_PLACES[v][pin] ?? ''}): ${r === OFF ? 'off' : ROLES[r].label}. Click to change.`; }
       });
+      const prof = profileOf(v);
+      p.layoutsRow.querySelectorAll<HTMLElement>('i[data-profile]').forEach((el) => el.classList.toggle('on', el.dataset.profile === prof));
+      p.layoutsRow.querySelector<HTMLElement>('.custom')!.style.display = prof === 'custom' ? '' : 'none';
 
       const stale = g.connected && g.sourceKind === 'ble' && performance.now() - g.lastSampleAt > 1500;
       const label = g.status === 'connected'

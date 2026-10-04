@@ -26,8 +26,31 @@ No glove? Click **Simulator** on a glove panel and drive it from the keyboard:
 | `↑` `↓` | pitch (springs back) |
 | `Q` `E` | yaw |
 | mouse drag on the scene | roll / pitch |
-| `1` … `6` | button jobs MODE, ACTION, SENS, RESET, UNDO, PREV (hold the key to hold the button) |
+| `1` … `9`, `0` | button jobs MODE, ACTION, SENS (hold = reset all), RESET, UNDO, PREV, OPTION, FLY, BUILD, ERASE |
 | `Tab` / `Shift+Tab`, `R`, `Cmd+Z` | next/prev mode, recenter, undo (desktop shortcuts) |
+
+## Glove layouts (V1 and V2)
+
+Two right-hand gloves, each with its own Bluetooth name and pinout. The firmware reports the
+glove version in every line (`roll,pitch,yaw,mask,version`), so the app always knows which pin
+is which. Build V1 with `--build-property "compiler.cpp.extra_flags=-DGLOVE_VERSION=1"`.
+
+| Glove | Bluetooth name | Pins |
+|---|---|---|
+| V1 | `Aloft-V1` | 13 index, 25 middle, 26 ring, 27 pinky |
+| V2 | `Aloft-V2` | index side 14 (bottom), 32 (middle), 13 (top); fingertips 25 index, 33 middle, 26 ring; 27 middle finger, thumb side |
+
+Layouts, switched by voice ("X2D, backup V2"), by typing, or from the glove panel:
+
+| Layout | Buttons |
+|---|---|
+| Default V1 | 13 mode, 25 action, 26 sensitivity, 27 reset |
+| Default V2 | index side (14, 32, 13) option; 25 BUILD, 33 ERASE, 26 FLY (press again in that mode to place / erase / toggle rotate-move); 27 sensitivity |
+| Backup V2 | side: 13 mode, 32 option, 14 sensitivity; tips: 25 mode, 33 option, 26 sensitivity; 27 action |
+
+Option = next shape (BUILD, ERASE) or next direction X / Y / Z (FLY). Sensitivity: tap = speed
+(FLY) or size (BUILD, ERASE); **hold 1.2 s = reset everything** (start view, roll / pitch / yaw
+zeroed, sensitivity back to 1×). Every pin can also be changed by clicking its chip.
 
 ## Modes
 

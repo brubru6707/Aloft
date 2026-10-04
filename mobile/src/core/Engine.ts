@@ -9,7 +9,8 @@ import { TouchSimSource } from '../input/TouchSimSource';
 import type { SourceKind, SourceStatus } from '../input/types';
 import { MODES, modeIndexOf, type AppContext, type GloveSession } from '../modes';
 import { ghostInfo as ghostInfoOf, setPrimitive, setSize } from '../modes/build';
-import { getRoles, GLOVE_PINS, OFF, onRolesChange, pinDown } from '../input/buttonMap';
+import { applyProfile, currentVersion, OFF, onRolesChange, pinDown, pinsOf, profileOf, roleOf, type GloveVersion } from '../input/buttonMap';
+import { onGlovePress, onGloveRelease, type ActionHost } from '../input/gloveActions';
 import { applyRotate, flyAxis, flyDeflection, flyLabel, resetRotateAnchor, setFlyAxis } from '../modes/fly';
 import { CameraRig } from '../scene/cameraRig';
 import { ObjectRegistry } from '../scene/objects';
@@ -30,8 +31,11 @@ export interface HudState {
   deflection: number;      // -1..1 along the active MOVE axis
   roll: number; pitch: number; yaw: number;   // smoothed, recentred tilt (what FLY reads), degrees
   buttons: boolean[];      // logical jobs (MODE, ACTION, SENS, RESET, UNDO, PREV)
-  pins: boolean[];         // physical glove pins (GLOVE_PINS order) held right now
+  gloveVersion: GloveVersion;  // which glove's pinout is shown (the connected one)
+  pinList: number[];       // its GPIO pins
+  pins: boolean[];         // each pin held right now
   roles: number[];         // job per pin (OFF = -1)
+  profile: string;         // active layout id, or 'custom'
   status: SourceStatus;
   statusLabel: string;
   connected: boolean;
@@ -93,14 +97,23 @@ export class Engine {
     };
     this.ctx = { rig: this.rig, objects: this.objects, undo: this.undo, world: this.world, toast: (m) => this.toast(m) };
 
-    // Button routing, same as the web main.ts: global actions first, then the mode.
+    // Button routing, same as the web main.ts: shared jobs, then global actions, then the mode.
+    const host: ActionHost = {
+      ctx: this.ctx,
+      setMode: (_s, i) => this.setMode(i),
+      resetView: () => this.resetView(),
+      cycleSensitivity: () => this.cycleSensitivity(),
+      resetSensitivity: () => { RUNTIME.sensitivity = SENSITIVITY.holdResetLevel; this.notify(); },
+      toast: (m) => this.toast(m),
+    };
+    this.glove.on('release', ({ button }) => { onGloveRelease(host, this.session, button); });
     this.glove.on('press', ({ button }) => {
       const s = this.session;
+      if (onGlovePress(host, s, button)) return;
       if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setMode(s.modeIndex + 1);
       if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setMode(s.modeIndex - 1);
       if (is(GLOBAL_ACTIONS.reset, button, 'press')) return this.resetView();
       if (is(GLOBAL_ACTIONS.undo, button, 'press')) return this.doUndo();
-      if (button === SENSITIVITY.button && MODE_ORDER[s.modeIndex] === 'FLY') return this.cycleSensitivity();   // BUILD and ERASE use B2 for size
       MODES[s.modeIndex].onPress?.(s, this.ctx, button);
     });
     this.glove.on('tap', ({ button }) => {
@@ -243,6 +256,7 @@ export class Engine {
       }
       case 'rotate_style': this.setRotateStyle(cmd.value as RotateStyle); return `Rotation style set to ${cmd.value}.`;
       case 'reset_view': this.resetView(); return 'Centred you back at the start.';
+      case 'controls': { const p = applyProfile(cmd.value); if (!p) return `Unknown layout ${cmd.value}.`; this.toast(`Layout: ${p.name}`); return `Glove buttons switched to ${p.name}.`; }
     }
   }
 
@@ -373,6 +387,7 @@ export class Engine {
     const statusLabel = g.status === 'connected'
       ? `${g.sourceKind === 'sim' ? 'simulator' : g.statusDetail || 'connected'}${stale ? ' · no data' : ''}`
       : g.statusDetail || g.status;
+    const v: GloveVersion = g.version ?? currentVersion();
     let ghostInfo = '';
     if ((mode === 'BUILD' || mode === 'ERASE') && s.ghost) ghostInfo = ghostInfoOf(s);
     return {
@@ -384,8 +399,11 @@ export class Engine {
       deflection: mode === 'FLY' ? flyDeflection(s) : 0,
       roll: g.tilt.roll, pitch: g.tilt.pitch, yaw: g.tilt.yaw,
       buttons: [...g.state.buttons],
-      pins: GLOVE_PINS.map((_p, i) => (g.sourceKind === 'sim' ? getRoles()[i] !== OFF && !!g.state.buttons[getRoles()[i]] : pinDown(i))),
-      roles: [...getRoles()],
+      gloveVersion: v,
+      pinList: [...pinsOf(v)],
+      pins: pinsOf(v).map((pin) => { const r = roleOf(v, pin); return g.sourceKind === 'sim' ? r !== OFF && !!g.state.buttons[r] : pinDown(g.pinMask, v, pin); }),
+      roles: pinsOf(v).map((pin) => roleOf(v, pin)),
+      profile: profileOf(v),
       status: g.status,
       statusLabel,
       connected: g.connected,

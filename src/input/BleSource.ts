@@ -1,5 +1,5 @@
 import { BLE } from '../config';
-import { decodeMask } from './buttonMap';
+import { decodeMask, parseVersion } from './buttonMap';
 import type { GloveSource, RawSample, SourceStatus } from './types';
 
 /**
@@ -121,10 +121,13 @@ export class BleSource implements GloveSource {
     const pitch = parseFloat(parts[1]);
     const yaw = parseFloat(parts[2]);
     const mask = parseInt(parts[3], 10);
+    const version = parseVersion(parts[4]);   // 5th field: glove version (absent = original V1 glove)
     if (![roll, pitch, yaw, mask].every(Number.isFinite)) return;
     this.sampleCb?.({
       roll, pitch, yaw,
-      buttons: decodeMask(mask),   // firmware bits -> jobs (mix and match in the glove panel)
+      buttons: decodeMask(mask, version),   // firmware bits -> jobs (layouts in the glove panel / by voice)
+      pinMask: mask,
+      version,
       timestamp: performance.now(),
     });
   }

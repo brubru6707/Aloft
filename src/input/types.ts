@@ -5,6 +5,9 @@ export interface RawSample {
   yaw: number;    // degrees
   buttons: boolean[];   // logical buttons (see input/buttonMap.ts)
   timestamp: number; // performance.now()
+  /** Raw firmware pin bitmask and glove version (real gloves only; absent for the simulator). */
+  pinMask?: number;
+  version?: 1 | 2;
 }
 
 /** Processed glove state emitted to the app. */
