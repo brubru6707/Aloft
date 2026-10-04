@@ -45,7 +45,7 @@ Layouts, switched by voice ("X2D, backup V2"), by typing, or from the glove pane
 | Layout | Buttons |
 |---|---|
 | Default V1 | 13 mode, 25 action, 26 sensitivity, 27 reset |
-| Default V2 | whole index side (14, 32, 13) option (cube / sphere / cylinder, or FLY direction); 25 BUILD, 33 ERASE, 26 FLY (press again in that mode to place / erase / toggle rotate-move); 27 sensitivity |
+| Default V2 | index side, one fixed option each: 14 cube (X in FLY), 32 sphere (Y), 13 cylinder (Z); 25 BUILD, 33 ERASE, 26 FLY (press again in that mode to place / erase / toggle rotate-move); 27 sensitivity |
 | Backup V2 | index side: 13 mode, 32 option, 14 action; tips: 25 mode, 33 option, 26 sensitivity; 27 (middle finger side) sensitivity |
 
 Option = next shape (BUILD, ERASE) or next direction X / Y / Z (FLY). Sensitivity: tap = speed

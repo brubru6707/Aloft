@@ -168,6 +168,11 @@ function apply(s: Sim, role: number, hold: boolean): string {
     case BTN.OPTION:
       if (s.mode === 'FLY') { s.axis = AXES[((s.axis ? AXES.indexOf(s.axis) : s.lastAxis ? AXES.indexOf(s.lastAxis) : -1) + 1) % 3]; return `Direction: ${s.axis}`; }
       s.shape = QUICK[(QUICK.indexOf(s.shape) + 1) % QUICK.length]; return `Shape: ${s.shape}`;
+    case BTN.OPT1: case BTN.OPT2: case BTN.OPT3: {
+      const k = role - BTN.OPT1;
+      if (s.mode === 'FLY') { s.axis = AXES[k]; return `Direction: ${s.axis}`; }
+      s.shape = QUICK[k]; return `Shape: ${s.shape}`;
+    }
     case BTN.FLY: return s.mode === 'FLY' ? flyToggle() : go('FLY');
     case BTN.BUILD: return s.mode === 'BUILD' ? place() : go('BUILD');
     case BTN.ERASE: return s.mode === 'ERASE' ? erase() : go('ERASE');

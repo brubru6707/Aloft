@@ -3,12 +3,13 @@
  *  - SENS: tap = sensitivity (FLY) or piece / eraser size (BUILD, ERASE);
  *          hold = reset everything (start view, roll / pitch / yaw zeroed, sensitivity reset).
  *  - OPTION: next shape (BUILD, ERASE) or next direction X → Y → Z (FLY).
+ *  - OPT1 / OPT2 / OPT3: one fixed choice each (cube / sphere / cylinder, or X / Y / Z in FLY).
  *  - FLY / BUILD / ERASE keys: switch to that mode; pressed again in it, do its action
  *    (FLY: toggle rotate / move, BUILD: place, ERASE: erase).
  * The app calls onGlovePress / onGloveRelease first and handles the button itself only
  * when they return false.
  */
-import { FLY, MODE_BUTTONS, MODE_ORDER, SENSITIVITY, type FlyAxis, type ModeName } from '../config';
+import { BUILD, FLY, MODE_BUTTONS, MODE_ORDER, SENSITIVITY, type FlyAxis, type ModeName } from '../config';
 import { cycleSize, setPrimitive } from '../modes/build';
 import { flyAxis, setFlyAxis } from '../modes/fly';
 import { MODES } from '../modes/index';
@@ -45,6 +46,20 @@ function option(host: ActionHost, s: GloveSession): void {
   host.toast(`Shape: ${next}`);
 }
 
+/** Fixed option k (0, 1, 2): that exact shape in BUILD / ERASE, that exact direction in FLY. */
+function fixedOption(host: ActionHost, s: GloveSession, k: number): void {
+  if (modeName(s) === 'FLY') {
+    const axis = FLY.axisOrder[k];
+    if (flyAxis(s) !== axis) setFlyAxis(s, axis);
+    host.toast(`Direction: ${axis}`);
+    return;
+  }
+  const shape = BUILD.quickShapes[k];
+  if (!shape) return;
+  if (s.primitive !== shape) setPrimitive(s, host.ctx, shape);
+  host.toast(`Shape: ${shape}`);
+}
+
 function modeKey(host: ActionHost, s: GloveSession, target: ModeName): void {
   const index = MODE_ORDER.indexOf(target);
   if (s.modeIndex !== index) { host.setMode(s, index); return; }
@@ -71,6 +86,7 @@ export function onGlovePress(host: ActionHost, s: GloveSession, button: number):
     return true;
   }
   if (button === BTN.OPTION) { option(host, s); return true; }
+  if (button === BTN.OPT1 || button === BTN.OPT2 || button === BTN.OPT3) { fixedOption(host, s, button - BTN.OPT1); return true; }
   const target = MODE_KEYS[button];
   if (target) { modeKey(host, s, target); return true; }
   return false;

@@ -40,8 +40,12 @@ export const ROLES: ButtonRole[] = [
   { id: 'fly', short: 'FLY', label: 'FLY: switch to FLY; in FLY, toggle rotate / move' },
   { id: 'build', short: 'BUILD', label: 'BUILD: switch to BUILD; in BUILD, place a piece' },
   { id: 'erase', short: 'ERASE', label: 'ERASE: switch to ERASE; in ERASE, erase' },
+  // Fixed options: always the same choice, pressing again does not move on.
+  { id: 'opt1', short: 'CUBE·X', label: 'Option 1: cube (BUILD, ERASE) / direction X (FLY)' },
+  { id: 'opt2', short: 'SPH·Y', label: 'Option 2: sphere (BUILD, ERASE) / direction Y (FLY)' },
+  { id: 'opt3', short: 'CYL·Z', label: 'Option 3: cylinder (BUILD, ERASE) / direction Z (FLY)' },
 ];
-export const BTN = { MODE: 0, ACTION: 1, SENS: 2, RESET: 3, UNDO: 4, PREV: 5, OPTION: 6, FLY: 7, BUILD: 8, ERASE: 9 } as const;
+export const BTN = { MODE: 0, ACTION: 1, SENS: 2, RESET: 3, UNDO: 4, PREV: 5, OPTION: 6, FLY: 7, BUILD: 8, ERASE: 9, OPT1: 10, OPT2: 11, OPT3: 12 } as const;
 export const NUM_LOGICAL = ROLES.length;
 export const OFF = -1;
 
@@ -52,10 +56,10 @@ export const PROFILES: Profile[] = [
     roles: { 13: BTN.MODE, 25: BTN.ACTION, 26: BTN.SENS, 27: BTN.RESET },
   },
   {
-    // Whole side of the index finger (14, 32, 13) = option; fingertips pick the mode (press again
-    // to act); 27 (middle of the middle finger, thumb side) = sensitivity.
+    // Side of the index finger: one fixed option per button, bottom to top 14 cube / X, 32 sphere / Y,
+    // 13 cylinder / Z; fingertips pick the mode (press again to act); 27 (middle finger) = sensitivity.
     id: 'default-v2', name: 'Default V2', version: 2,
-    roles: { 14: BTN.OPTION, 32: BTN.OPTION, 13: BTN.OPTION, 25: BTN.BUILD, 33: BTN.ERASE, 26: BTN.FLY, 27: BTN.SENS },
+    roles: { 14: BTN.OPT1, 32: BTN.OPT2, 13: BTN.OPT3, 25: BTN.BUILD, 33: BTN.ERASE, 26: BTN.FLY, 27: BTN.SENS },
   },
   {
     // Mode / option / sensitivity on the side of the index finger AND on the fingertips, so
@@ -69,7 +73,7 @@ const DEFAULT_PROFILE: Record<GloveVersion, string> = { 1: 'default-v1', 2: 'def
 export const profilesFor = (v: GloveVersion) => PROFILES.filter((p) => p.version === v);
 
 // ---------- state (per glove version, remembered on this device when storage exists) ----------
-const STORE_KEY = 'aloft.buttonLayouts.v4';   // v4: 14 = index side bottom, 27 = middle finger side
+const STORE_KEY = 'aloft.buttonLayouts.v5';   // v5: Default V2 side buttons are fixed options
 interface Stored { roles: Record<GloveVersion, Record<number, number>>; profile: Record<GloveVersion, string> }
 let state: Stored = load();
 let lastVersion: GloveVersion = 2;
