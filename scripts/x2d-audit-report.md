@@ -34,7 +34,7 @@ Branches: `x2d-audit` in `aloft-web-x2d` (web) and `aloft-mobile-x2d` (phone). N
 - The phone fixes are typechecked only (no native rebuild, as asked); Metro will pick them up.
 - Why `set_control` timed out once (item 1): not reproducible; the app answers in milliseconds.
 
-## ElevenLabs edits to make (not published)
+## ElevenLabs edits (applied and published 4 Oct 2026)
 
 **Tools → set_control** (`tool_5801m41j58jpexy8fm8d1k2p5y4m`)
 - Advanced → **Response timeout: 5 → 20 s** (item 1).
