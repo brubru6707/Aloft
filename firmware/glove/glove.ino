@@ -7,7 +7,8 @@
  *
  * Wiring
  *   GY-521  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22 (default ESP32 I2C pins)
- *   Buttons: GPIO 13, 14, 27, 26, 25, 32 (bits 0-5), each to GND. What each one does is chosen
+ *   Buttons: GPIO 13, 14, 27, 26, 25, 32, 34 (bits 0-6), each to GND. GPIO 34 is input-only with
+ *   NO internal pull-up: give it an external 10k resistor to 3V3 or it floats. What each one does is chosen
  *   in the app (glove panel), so any button can be any job.
  *   INPUT_PULLUP, pressed = LOW.
  *   (Unwired buttons simply read "not pressed" thanks to the pull-ups. GPIO 12 is a boot strapping pin, so it is not used.)
@@ -37,8 +38,8 @@ static const uint8_t MPU_ADDR      = 0x68;   // AD0 low. Use 0x69 if AD0 is tied
 static const int     PIN_SDA       = 21;   // default wiring; if the sensor does not answer there,
 static const int     PIN_SCL       = 22;   // setup() tries SDA/SCL swapped (the 6-button glove has them swapped)
 static const uint32_t I2C_HZ        = 100000;
-static const int     NUM_BUTTONS   = 6;
-static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
+static const int     NUM_BUTTONS   = 7;
+static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32, 34};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping); 34-39 need an external pull-up.
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
 static const float   SIGN_ROLL     = -1.0f;  // sensor mounted mirrored: flip so rolling right reads positive
@@ -93,7 +94,7 @@ static const uint16_t RAW_RING = 1024;
 static DRAM_ATTR volatile RawEdge rawRing[RAW_RING];
 static volatile uint16_t rawHead = 0, rawTail = 0;
 static volatile uint32_t rawDropped = 0;
-static DRAM_ATTR int dbgPins[NUM_BUTTONS] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3], BUTTON_PINS[4], BUTTON_PINS[5]};
+static DRAM_ATTR int dbgPins[NUM_BUTTONS] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3], BUTTON_PINS[4], BUTTON_PINS[5], BUTTON_PINS[6]};
 static uint32_t dbgI2cFail = 0, dbgNotifyFail = 0, dbgLoops = 0, dbgLoopSumUs = 0, dbgLoopMaxUs = 0, dbgLastStats = 0;
 
 void IRAM_ATTR onButtonEdge(void* arg) {
@@ -334,7 +335,8 @@ void setup() {
   Serial.setTxBufferSize(8192);   // bursts of edge lines must not block loop()
 #endif
   Serial.begin(115200);
-  for (int i = 0; i < NUM_BUTTONS; i++) pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+  // GPIO 34-39 have no internal pull-up (input only): plain INPUT, needs an external pull-up.
+  for (int i = 0; i < NUM_BUTTONS; i++) pinMode(BUTTON_PINS[i], BUTTON_PINS[i] >= 34 ? INPUT : INPUT_PULLUP);
 #if BUTTON_DEBUG
   for (int i = 0; i < NUM_BUTTONS; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
   Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");

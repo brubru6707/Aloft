@@ -7,7 +7,7 @@
  */
 
 /** Pin behind each firmware bit, in the firmware's BUTTON_PINS order. */
-export const GLOVE_PINS = [13, 14, 27, 26, 25, 32];
+export const GLOVE_PINS = [13, 14, 27, 26, 25, 32, 34];
 
 export interface ButtonRole { id: string; short: string; label: string }
 /** Index = logical button the modes and global actions listen to. */
@@ -22,8 +22,9 @@ export const ROLES: ButtonRole[] = [
 export const NUM_LOGICAL = ROLES.length;
 export const OFF = -1;
 
-/** Default jobs per pin: the original four pins keep their old jobs, 14 and 32 are new. */
-export const DEFAULT_ROLES = [0 /* 13 mode */, 4 /* 14 undo */, 3 /* 27 reset */, 2 /* 26 sens */, 1 /* 25 action */, 5 /* 32 prev */];
+/** Default jobs per pin: the original four pins keep their old jobs, 14 and 32 are new. GPIO 34
+ *  starts OFF: it has no internal pull-up, so without an external resistor it floats. */
+export const DEFAULT_ROLES = [0 /* 13 mode */, 4 /* 14 undo */, 3 /* 27 reset */, 2 /* 26 sens */, 1 /* 25 action */, 5 /* 32 prev */, -1 /* 34 off */];
 
 const STORE_KEY = 'aloft.buttonRoles.v1';
 let roles: number[] = load();
@@ -33,7 +34,9 @@ const listeners = new Set<() => void>();
 function load(): number[] {
   try {
     const saved = JSON.parse(globalThis.localStorage?.getItem(STORE_KEY) ?? 'null');
-    if (Array.isArray(saved) && saved.length === GLOVE_PINS.length && saved.every((r) => Number.isInteger(r) && r >= OFF && r < NUM_LOGICAL)) return saved;
+    if (Array.isArray(saved) && saved.length <= GLOVE_PINS.length && saved.every((r) => Number.isInteger(r) && r >= OFF && r < NUM_LOGICAL)) {
+      return [...saved, ...DEFAULT_ROLES.slice(saved.length)];   // pins added since it was saved start at their default
+    }
   } catch { /* no storage (phone) or bad data: defaults */ }
   return [...DEFAULT_ROLES];
 }
