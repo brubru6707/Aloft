@@ -133,7 +133,7 @@ app.innerHTML = QUADS.map((q) => `
     <div class="effect">${q.effect}</div>
     <p class="note">${q.note}</p>
   </section>`).join('') + `
-  <div class="center"><h1>Aloft controls</h1><p>each quadrant shows one glove button</p><a href="/">← back to Aloft</a></div>`;
+  <div class="center"><h1>Aloft controls</h1><p>each quadrant shows one glove button</p><a href="/">← back to Aloft</a> <a href="/layouts.html">Glove layouts →</a></div>`;
 
 // Animate: each quadrant presses its button once per cycle, staggered so they do not all fire together.
 QUADS.forEach((q, i) => {
