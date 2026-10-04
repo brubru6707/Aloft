@@ -55,6 +55,11 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
             {tab === 'glove' ? (
               <>
                 <View style={s.row}>
+                  {hud.gloves.map((g, i) => (
+                    <Chip key={i} flex label={`Glove ${i + 1} · ${g.label}`} on={hud.selected === i} onColor={g.color} onPress={() => engine.selectGlove(i)} />
+                  ))}
+                </View>
+                <View style={s.row}>
                   <View style={[s.dot, { backgroundColor: statusOn ? T.accentHover : T.muted }]} />
                   <Text style={[s.status, statusOn && { color: T.accentHover }, hud.status === 'error' && { color: T.bad }]} numberOfLines={1}>{hud.statusLabel}</Text>
                   <Text style={s.note}>tap a pin to change its job</Text>

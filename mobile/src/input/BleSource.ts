@@ -50,6 +50,9 @@ function waitPoweredOn(m: BleManager, timeoutMs: number): Promise<void> {
   });
 }
 
+/** Device ids of gloves this app is connected to (a second connect must pick the other glove). */
+const inUse = new Set<string>();
+
 function isGlove(d: Device): boolean {
   const name = d.name ?? d.localName ?? '';
   if (name.startsWith(BLE.namePrefix)) return true;
@@ -73,6 +76,9 @@ export class BleSource implements GloveSource {
   private statusCb: ((s: SourceStatus, d?: string) => void) | null = null;
   private reconnectAttempts = 0;
   private closed = false;
+
+  /** `prefer`: glove name to wait briefly for (e.g. glove 2 prefers "Aloft-V2"); any glove otherwise. */
+  constructor(private prefer?: (name: string) => boolean) {}
 
   onSample(cb: (s: RawSample) => void): void { this.sampleCb = cb; }
   onStatus(cb: (s: SourceStatus, d?: string) => void): void { this.statusCb = cb; }
@@ -105,9 +111,16 @@ export class BleSource implements GloveSource {
       let done = false;
       const finish = (fn: () => void) => { if (done) return; done = true; clearTimeout(timer); m.stopDeviceScan().catch(() => {}); fn(); };
       const timer = setTimeout(() => finish(() => reject(new Error(`no ${BLE.namePrefix} glove found (is it on and not connected elsewhere?)`))), BLE.scanTimeoutMs);
+      // Take a preferred glove at once; otherwise remember the first other glove and use it after a
+      // short wait. Gloves already connected to this phone are skipped.
+      let fallback: Device | null = null;
+      let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
       m.startDeviceScan(null, { allowDuplicates: false }, (err, d) => {
         if (err) return finish(() => reject(err));
-        if (d && isGlove(d)) finish(() => resolve(d));
+        if (!d || !isGlove(d) || inUse.has(d.id)) return;
+        const name = d.name ?? d.localName ?? '';
+        if (!this.prefer || (name && this.prefer(name))) { if (fallbackTimer) clearTimeout(fallbackTimer); return finish(() => resolve(d)); }
+        if (!fallback) { fallback = d; fallbackTimer = setTimeout(() => finish(() => resolve(fallback!)), BLE.preferWaitMs); }
       });
     });
   }
@@ -119,6 +132,7 @@ export class BleSource implements GloveSource {
     // The advertisement often carries no name on iOS; the connected device usually does.
     this.name = connected.name ?? connected.localName ?? this.name;
     this.device = connected;
+    inUse.add(connected.id);
     this.discSub = connected.onDisconnected(this.onDisconnected);
     this.buffer = '';
     this.monitor = connected.monitorCharacteristicForService(BLE.service, BLE.txCharacteristic, (err, ch) => {
@@ -140,6 +154,7 @@ export class BleSource implements GloveSource {
   private cleanup(): void {
     this.monitor?.remove(); this.monitor = null;
     this.discSub?.remove(); this.discSub = null;
+    if (this.device) inUse.delete(this.device.id);
     this.device = null;
   }
 

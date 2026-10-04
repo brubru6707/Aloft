@@ -6,7 +6,8 @@ import { useHud } from '../core/useHud';
 import { UI } from '../config';
 import { exportSTL } from '../export';
 import { BottomSheet, TopModes } from '../ui/BottomSheet';
-import { Crosshair, ModeLabel, Toast } from '../ui/Hud';
+import { Crosshair, ModeLabel, SplitOverlay, Toast } from '../ui/Hud';
+import { splitViews } from '../ui/splitViews';
 import { DeviceList } from '../ui/DeviceList';
 import { SceneView } from '../ui/SceneView';
 
@@ -33,10 +34,16 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
     <View style={s.root}>
       <SceneView gizmoTop={insets.top + TOP_BAR + 6} />
       <TopModes hud={hud} top={insets.top + 4} right={landscape ? 454 : 26} />
-      <View style={[s.overlay, { top: insets.top + TOP_BAR + 6, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
-        <ModeLabel hud={hud} compact={landscape} />
-      </View>
-      <Crosshair hover={!!engine.session.hit} />
+      {hud.split ? (
+        <SplitOverlay hud={hud} views={splitViews(true, width, height)} labelTop={insets.top + TOP_BAR - 30} />
+      ) : (
+        <>
+          <View style={[s.overlay, { top: insets.top + TOP_BAR + 6, right: landscape ? 428 : 0 }]} pointerEvents="box-none">
+            <ModeLabel hud={hud} compact={landscape} />
+          </View>
+          <Crosshair hover={!!engine.session.hit} />
+        </>
+      )}
       {/* Device list: left edge under the mode label, above the bottom row; never over the centre. */}
       <DeviceList
         hud={hud}

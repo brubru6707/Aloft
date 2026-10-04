@@ -209,6 +209,7 @@ export const BLE = {
   reconnectDelayMs: 1000,
   // --- mobile only ---
   scanTimeoutMs: 12000,   // give up scanning after this
+  preferWaitMs: 2500,     // when connecting a specific glove, wait this long for it before taking another one
   powerOnTimeoutMs: 5000, // wait this long for the Bluetooth radio to be powered on
   staleMs: 1500,          // show "no data" when no sample arrived for this long
   requestMtu: 185,        // Android: ask for a bigger MTU so a 50 Hz line fits one notification

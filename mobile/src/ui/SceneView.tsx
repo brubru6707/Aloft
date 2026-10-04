@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { engine } from '../core/Engine';
 import { RENDER, UI } from '../config';
 import { AxisGizmo } from './AxisGizmo';
+import { splitViews } from './splitViews';
 
 /** Runs the engine every frame, then renders the main scene and the corner gizmo. */
 function EngineDriver({ gizmoTop }: { gizmoTop: number }) {
@@ -27,9 +28,22 @@ function EngineDriver({ gizmoTop }: { gizmoTop: number }) {
     const present = ctx.endFrameEXP?.bind(ctx);
     ctx.endFrameEXP = () => {};
     try {
-      gl.render(engine.world.scene, engine.rig.camera);
-      const { axis, deflection } = engine.gizmoState();
-      gizmo.current!.render(gl, engine.rig.camera, axis, deflection, size.width, size.height);
+      // One view, or two halves when both gloves are connected: each glove's camera in its own
+      // rectangle (scissored), with its own corner gizmo; still presented once.
+      const W = size.width, H = size.height;
+      splitViews(engine.split, W, H).forEach((v, i) => {
+        const cam = engine.rigOf(i).camera;
+        if (Math.abs(cam.aspect - v.w / v.h) > 1e-3) { cam.aspect = v.w / v.h; cam.updateProjectionMatrix(); }
+        const y = H - v.y - v.h;   // GL origin is bottom-left
+        gl.setScissorTest(true);
+        gl.setScissor(v.x, y, v.w, v.h);
+        gl.setViewport(v.x, y, v.w, v.h);
+        gl.render(engine.world.scene, cam);
+        const { axis, deflection } = engine.gizmoState(i);
+        gizmo.current!.render(gl, cam, axis, deflection, v.x + v.w, H - v.y);
+      });
+      gl.setScissorTest(false);
+      gl.setViewport(0, 0, W, H);
     } finally {
       if (present) ctx.endFrameEXP = present;
     }

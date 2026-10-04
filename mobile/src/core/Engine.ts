@@ -23,6 +23,8 @@ import { UndoStack } from '../undo';
 export type VoiceState = 'off' | 'listening' | 'connecting' | 'talking' | 'unsupported';
 
 /** Plain-data view of the engine for the React overlays, refreshed at UI.hudRefreshHz. */
+export interface GloveBrief { connected: boolean; label: string; mode: ModeName; modeColor: string; hint: string; flyLabel: string; hover: boolean; color: string }
+
 export interface HudState {
   mode: ModeName;
   modeColor: string;
@@ -54,6 +56,10 @@ export interface HudState {
   toast: string;
   /** Device list on the right (BUILD / ERASE): unfolded or folded to its header. */
   devicesOpen: boolean;
+  /** Which glove the panels act on, whether the view is split, and a short summary of each glove. */
+  selected: number;
+  split: boolean;
+  gloves: GloveBrief[];
 }
 
 type Listener = () => void;
@@ -61,6 +67,7 @@ type Listener = () => void;
 export const shapeLabel = (p: PrimitiveName): string => (isPart(p) ? PART_LABELS[p] : p);
 const DEVICES_OPEN = /\b(show|open|list|see|display|bring up|pull up)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b|^(devices|parts list|device list)$/i;
 const DEVICES_CLOSE = /\b(hide|close|fold|dismiss)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b/i;
+const GLOVE2_COLOR = '#4f8ff7';   // glove 2's ghost / cursor colour (glove 1 is GLOVE_COLOR)
 type Action = { button: number; gesture: string } | null;
 const is = (a: Action, button: number, gesture: string) => !!a && a.button === button && a.gesture === gesture;
 
@@ -73,8 +80,19 @@ export class Engine {
   readonly rig = new CameraRig(9 / 16);
   readonly objects = new ObjectRegistry(this.world.scene);
   readonly undo = new UndoStack();
-  readonly glove = new GloveInput(0);
-  readonly session: GloveSession;
+  /** Up to two gloves, each with its own session; in split view glove 2 also gets its own camera. */
+  readonly gloves = [new GloveInput(0), new GloveInput(1)];
+  readonly sessions: GloveSession[];
+  readonly rig2 = new CameraRig(9 / 16);
+  /** Which glove the on-screen controls (Glove / Build tabs, mode chips) act on. */
+  selected = 0;
+  private wasSplit = false;
+  get glove(): GloveInput { return this.gloves[this.selected]; }
+  get session(): GloveSession { return this.sessions[this.selected]; }
+  /** Both gloves connected: the view splits in half, one camera each. */
+  get split(): boolean { return this.gloves[0].connected && this.gloves[1].connected; }
+  /** The camera a glove drives: glove 2's own in split view, otherwise the shared one. */
+  rigOf(i: number): CameraRig { return this.split && i === 1 ? this.rig2 : this.rig; }
   private ctx: AppContext;
   private raycaster = new THREE.Raycaster();
   private toastText = '';
@@ -87,15 +105,18 @@ export class Engine {
   /** Set by the VoiceAssistant component: start / end a voice session. */
   voiceToggle: (() => void) | null = null;
   /** Live simulator, when one is attached. */
-  get sim(): TouchSimSource | null { return this.glove.source instanceof TouchSimSource ? this.glove.source : null; }
+  get sim(): TouchSimSource | null {
+    const g = this.gloves.find((x) => x.source instanceof TouchSimSource);
+    return g ? (g.source as TouchSimSource) : null;
+  }
 
   constructor() {
     onRolesChange(() => this.notify());
     this.raycaster.far = 400;
-    this.session = {
-      glove: this.glove,
-      color: GLOVE_COLOR,
-      modeIndex: modeIndexOf(GLOVE_DEFAULT_MODE),
+    const mkSession = (g: GloveInput, color: string, mode: ModeName): GloveSession => ({
+      glove: g,
+      color,
+      modeIndex: modeIndexOf(mode),
       ndc: new THREE.Vector2(0, 0),
       hit: null,
       ray: new THREE.Ray(),
@@ -103,74 +124,99 @@ export class Engine {
       size: BUILD.defaultSize,
       ghost: null,
       scratch: {},
-    };
+    });
+    this.sessions = [mkSession(this.gloves[0], GLOVE_COLOR, GLOVE_DEFAULT_MODE), mkSession(this.gloves[1], GLOVE2_COLOR, 'BUILD')];
     this.ctx = { rig: this.rig, objects: this.objects, undo: this.undo, world: this.world, toast: (m) => this.toast(m) };
+    this.wire(0);
+    this.wire(1);
 
-    // Button routing, same as the web main.ts: shared jobs, then global actions, then the mode.
+    // Enter glove 1's initial mode so its label/hint are right from the start (glove 2's on connect).
+    MODES[this.sessions[0].modeIndex].enter?.(this.sessions[0], this.ctx);
+  }
+
+  /** Run fn with ctx.rig = the camera glove i drives (modes move / aim ctx.rig). */
+  private as<T>(i: number, fn: () => T): T {
+    const prev = this.ctx.rig;
+    this.ctx.rig = this.rigOf(i);
+    try { return fn(); } finally { this.ctx.rig = prev; }
+  }
+
+  /** Button routing for one glove, same as the web main.ts: shared jobs, global actions, then the mode. */
+  private wire(i: number): void {
+    const g = this.gloves[i];
+    const s = this.sessions[i];
     const host: ActionHost = {
       ctx: this.ctx,
-      setMode: (_s, i) => this.setMode(i),
-      resetView: () => this.resetView(),
+      setMode: (ss, idx) => this.setModeFor(ss, idx),
+      resetView: () => this.resetViewFor(i),
       cycleSensitivity: () => this.cycleSensitivity(),
       resetSensitivity: () => { RUNTIME.sensitivity = SENSITIVITY.holdResetLevel; this.notify(); },
       toast: (m) => this.toast(m),
     };
-    this.glove.on('release', ({ button }) => { onGloveRelease(host, this.session, button); });
-    this.glove.on('press', ({ button }) => {
-      const s = this.session;
+    const tag = `G${i + 1}`;
+    g.on('release', ({ button }) => this.as(i, () => { onGloveRelease(host, s, button); }));
+    g.on('press', ({ button }) => this.as(i, () => {
       if (onGlovePress(host, s, button)) return;
-      if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setMode(s.modeIndex + 1);
-      if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setMode(s.modeIndex - 1);
-      if (is(GLOBAL_ACTIONS.reset, button, 'press')) return this.resetView();
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setModeFor(s, s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setModeFor(s, s.modeIndex - 1);
+      if (is(GLOBAL_ACTIONS.reset, button, 'press')) return this.resetViewFor(i);
       if (is(GLOBAL_ACTIONS.undo, button, 'press')) return this.doUndo();
       MODES[s.modeIndex].onPress?.(s, this.ctx, button);
-    });
-    this.glove.on('tap', ({ button }) => {
-      const s = this.session;
-      if (is(GLOBAL_ACTIONS.modeNext, button, 'tap')) return this.setMode(s.modeIndex + 1);
-      if (is(GLOBAL_ACTIONS.modePrev, button, 'tap')) return this.setMode(s.modeIndex - 1);
+    }));
+    g.on('tap', ({ button }) => this.as(i, () => {
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'tap')) return this.setModeFor(s, s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'tap')) return this.setModeFor(s, s.modeIndex - 1);
       if (is(GLOBAL_ACTIONS.undo, button, 'tap')) return this.doUndo();
       MODES[s.modeIndex].onTap?.(s, this.ctx, button);
-    });
-    this.glove.on('holdstart', ({ button }) => {
-      const s = this.session;
-      if (is(GLOBAL_ACTIONS.modeNext, button, 'hold')) return this.setMode(s.modeIndex + 1);
-      if (is(GLOBAL_ACTIONS.modePrev, button, 'hold')) return this.setMode(s.modeIndex - 1);
+    }));
+    g.on('holdstart', ({ button }) => this.as(i, () => {
+      if (is(GLOBAL_ACTIONS.modeNext, button, 'hold')) return this.setModeFor(s, s.modeIndex + 1);
+      if (is(GLOBAL_ACTIONS.modePrev, button, 'hold')) return this.setModeFor(s, s.modeIndex - 1);
       if (is(GLOBAL_ACTIONS.undo, button, 'hold')) return this.doUndo();
       MODES[s.modeIndex].onHoldStart?.(s, this.ctx, button);
-    });
-    this.glove.on('holdend', ({ button }) => MODES[this.session.modeIndex].onHoldEnd?.(this.session, this.ctx, button));
-    this.glove.on('recentered', () => { resetRotateAnchor(this.session); console.log('[glove] auto-recentered'); });
-    this.glove.on('status', ({ status, source, detail }) => {
-      console.log(`[glove] ${source ?? '-'} ${status}${detail ? ' · ' + detail : ''}`);
+    }));
+    g.on('holdend', ({ button }) => this.as(i, () => MODES[s.modeIndex].onHoldEnd?.(s, this.ctx, button)));
+    g.on('recentered', () => { resetRotateAnchor(s); console.log(`[glove] ${tag} auto-recentered`); });
+    g.on('status', ({ status, source, detail }) => {
+      console.log(`[glove] ${tag} ${source ?? '-'} ${status}${detail ? ' · ' + detail : ''}`);
       if (status === 'connected') {
-        this.toast(source === 'sim' ? 'Simulator on' : `Connected to ${detail ?? 'glove'}`);
+        this.toast(`Glove ${i + 1}: ${source === 'sim' ? 'simulator on' : `connected to ${detail ?? 'glove'}`}`);
         hapticConnected();
-        MODES[this.session.modeIndex].enter?.(this.session, this.ctx); // e.g. show the BUILD ghost
+        MODES[s.modeIndex].enter?.(s, this.ctx); // e.g. show the BUILD ghost
       } else if (status === 'error') {
-        this.toast(detail ?? 'error');
+        this.toast(`Glove ${i + 1}: ${detail ?? 'error'}`);
         hapticError();
+      } else if (status === 'disconnected' && s.ghost) {
+        MODES[s.modeIndex].exit?.(s, this.ctx);   // hide its ghost / eraser
       }
       this.notify();
     });
-
     // Trace a sample now and then so a dev log shows live data without flooding.
     let n = 0;
-    this.glove.on('raw', (r) => {
-      if (n++ % 250 === 0) console.log(`[raw] #${n - 1} roll ${r.roll.toFixed(1)} pitch ${r.pitch.toFixed(1)} yaw ${r.yaw.toFixed(1)} buttons ${r.buttons.map(Number).join('')}`);
+    g.on('raw', (r) => {
+      if (n++ % 250 === 0) console.log(`[raw] ${tag} #${n - 1} roll ${r.roll.toFixed(1)} pitch ${r.pitch.toFixed(1)} yaw ${r.yaw.toFixed(1)} buttons ${r.buttons.map(Number).join('')}`);
     });
-    this.glove.on('press', ({ button }) => console.log(`[btn] press B${button}`));
-
-    // Enter the initial mode so its label/hint are right from the start.
-    MODES[this.session.modeIndex].enter?.(this.session, this.ctx);
+    g.on('press', ({ button }) => console.log(`[btn] ${tag} press B${button}`));
   }
+
+  /** Which glove the on-screen controls act on. */
+  selectGlove(i: number): void { this.selected = i === 1 ? 1 : 0; this.notify(); }
 
   // ---------- connection ----------
   async connectBle(): Promise<void> {
-    try { await this.glove.attach(new BleSource()); } catch { /* status already reported through the source */ }
+    // Connect on a glove that already has a real glove: put the new one in the free slot instead.
+    if (this.glove.sourceKind === 'ble' && this.glove.connected) {
+      const free = this.gloves.findIndex((g) => !g.connected || g.sourceKind === 'sim');
+      if (free >= 0) this.selected = free;
+    }
+    const i = this.selected;
+    // Glove 2 prefers the 7-button "Aloft-V2"; glove 1 prefers any other glove (falls back to whatever is found).
+    const prefer = i === 1 ? (name: string) => /v2/i.test(name) : (name: string) => !/v2/i.test(name);
+    try { await this.gloves[i].attach(new BleSource(prefer)); } catch { /* status already reported through the source */ }
   }
   async toggleSimulator(): Promise<void> {
     if (this.glove.sourceKind === 'sim') { this.glove.detach(); this.notify(); return; }
+    this.gloves.forEach((g) => { if (g !== this.glove && g.sourceKind === 'sim') g.detach(); });   // one simulator at a time
     await this.glove.attach(new TouchSimSource());
   }
   disconnect(): void { this.glove.detach(); this.notify(); }
@@ -182,11 +228,13 @@ export class Engine {
 
   // ---------- actions ----------
   /** Pinky (B2): camera back to the start pose and the glove zeroed to 0/0/0. */
-  resetView(): void {
-    this.rig.reset();
-    this.glove.recenter();
-    resetRotateAnchor(this.session);
-    this.toast('Reset: start view, roll / pitch / yaw = 0');
+  resetView(): void { this.resetViewFor(this.selected); }
+  /** One glove's camera back to the start pose and that glove zeroed to 0/0/0. */
+  resetViewFor(i: number): void {
+    this.rigOf(i).reset();
+    this.gloves[i].recenter();
+    resetRotateAnchor(this.sessions[i]);
+    this.toast(this.split ? `Glove ${i + 1}: start view, roll / pitch / yaw = 0` : 'Reset: start view, roll / pitch / yaw = 0');
     hapticFlyState();
   }
 
@@ -195,8 +243,8 @@ export class Engine {
     this.toast(e ? `Undid ${e.label}` : 'Nothing to undo');
   }
 
-  setMode(index: number): void {
-    const s = this.session;
+  setMode(index: number): void { this.setModeFor(this.session, index); }
+  setModeFor(s: GloveSession, index: number): void {
     const n = MODES.length;
     const next = ((index % n) + n) % n;
     if (next === s.modeIndex && (s.ghost !== null) === (MODES[next].name === 'BUILD' || MODES[next].name === 'ERASE')) return;
@@ -375,34 +423,50 @@ export class Engine {
 
   // ---------- per frame ----------
   private updateCursor(): void {
-    const s = this.session;
-    s.ndc.set(0, 0);
-    this.raycaster.setFromCamera(s.ndc, this.rig.camera);
-    s.ray.copy(this.raycaster.ray);
-    const hits = this.raycaster.intersectObjects(this.objects.selectables, false);
-    s.hit = hits.length ? (hits[0].object as THREE.Mesh) : null;
-    this.objects.setHover(s.hit);
+    // Each glove aims with the crosshair at the centre of its own view.
+    this.sessions.forEach((s, i) => {
+      s.ndc.set(0, 0);
+      this.raycaster.setFromCamera(s.ndc, this.rigOf(i).camera);
+      s.ray.copy(this.raycaster.ray);
+      const hits = this.raycaster.intersectObjects(this.objects.selectables, false);
+      s.hit = hits.length ? (hits[0].object as THREE.Mesh) : null;
+    });
+    this.objects.setHover(this.session.hit);
   }
 
   /** Advance the simulation by dt seconds (called from the GL frame loop). */
   frame(dtRaw: number): void {
     const dt = Math.min(dtRaw, RENDER.maxFrameDt);
+    if (this.split !== this.wasSplit) {
+      this.wasSplit = this.split;
+      if (this.split) {   // glove 2's camera starts where the shared one is, then each steers its own
+        this.rig2.camera.position.copy(this.rig.camera.position);
+        this.rig2.yaw = this.rig.yaw; this.rig2.pitch = this.rig.pitch; this.rig2.apply();
+      }
+      this.sessions.forEach(resetRotateAnchor);
+      this.toast(this.split ? 'Two gloves: split view, one camera each' : 'One glove: full view');
+      this.notify();
+    }
     this.updateCursor();
     // Floor labels face the camera (the web uses sprites; native draws stroke text).
     for (const l of this.world.labels) l.quaternion.copy(this.rig.camera.quaternion);
-    const s = this.session;
-    if (!s.glove.connected) return;
     // Sensitivity scales every hand-driven rate by scaling the time step the modes integrate over.
     const sdt = dt * RUNTIME.sensitivity;
-    MODES[s.modeIndex].update(s, this.ctx, sdt);
-    // In modes that leave tilt free (BUILD, ERASE), the hand keeps aiming the camera.
-    if (ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, this.ctx, sdt);
+    this.sessions.forEach((s, i) => {
+      if (!s.glove.connected) return;
+      this.as(i, () => {
+        MODES[s.modeIndex].update(s, this.ctx, sdt);
+        // In modes that leave tilt free (BUILD, ERASE), the hand keeps aiming its camera.
+        if (ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, this.ctx, sdt);
+      });
+    });
   }
 
   /** Active FLY axis / deflection for the gizmo (null / 0 outside FLY). */
-  gizmoState(): { axis: FlyAxis | null; deflection: number } {
-    const inFly = MODE_ORDER[this.session.modeIndex] === 'FLY';
-    return { axis: inFly ? flyAxis(this.session) : null, deflection: inFly ? flyDeflection(this.session) : 0 };
+  gizmoState(i = this.selected): { axis: FlyAxis | null; deflection: number } {
+    const s = this.sessions[i];
+    const inFly = MODE_ORDER[s.modeIndex] === 'FLY';
+    return { axis: inFly ? flyAxis(s) : null, deflection: inFly ? flyDeflection(s) : 0 };
   }
 
   hud(): HudState {
@@ -445,6 +509,20 @@ export class Engine {
       geminiAvailable: geminiAvailable(),
       toast: this.toastText,
       devicesOpen: this.devicesOpen,
+      selected: this.selected,
+      split: this.split,
+      gloves: this.gloves.map((gg, i) => {
+        const ss = this.sessions[i];
+        const m = MODE_ORDER[ss.modeIndex];
+        return {
+          connected: gg.connected,
+          label: gg.connected ? (gg.sourceKind === 'sim' ? 'simulator' : gg.statusDetail || 'connected') : gg.status === 'connecting' ? 'connecting…' : 'off',
+          mode: m, modeColor: MODE_COLORS[m], hint: MODE_HINTS[m],
+          flyLabel: m === 'FLY' ? flyLabel(ss) : '',
+          hover: !!ss.hit,
+          color: ss.color,
+        };
+      }),
     };
   }
 }

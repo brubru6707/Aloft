@@ -89,6 +89,11 @@ export class Hud {
       <header id="topbar">
         <div class="brand"><img src="/favicon.svg" alt="" /><span>Aloft</span></div>
         <button id="project-chip" title="Current project · click for all projects (• = saving changes)"><span id="project-name">unsaved build</span></button>
+        <!-- X2D + Ask Gemini live in the top bar, next to the project name, off the 3D view. -->
+        <div id="dock">
+          <button id="voice" title="X2D voice assistant: say “X2D” or click to talk; click again to hang up"><i>🎙</i><span class="lbl">X2D</span></button>
+          <form id="ask" title="Ask Gemini to build or change something, or ask about the scene"><input id="ask-q" type="text" placeholder="✨ Ask Gemini: “make me a stickman”…" autocomplete="off" /></form>
+        </div>
         <div class="spacer"></div>
         <div class="group">
           ${btn('projects', '📁', 'Projects', 'Saved projects: open, continue, rename, delete')}
@@ -109,10 +114,6 @@ export class Hud {
       </header>
       <div id="modes"></div>
       <div id="gloves"></div>
-      <div id="dock" class="panel">
-        <button id="voice" title="X2D voice assistant: say “X2D” or click to talk; click again to hang up"><i>🎙</i><span class="lbl">X2D</span></button>
-        <form id="ask" title="Ask Gemini to build or change something, or ask about the scene"><input id="ask-q" type="text" placeholder="✨ Ask Gemini: “make me a stickman”…" autocomplete="off" /></form>
-      </div>
       <div id="help" class="panel" hidden>
         <b>Glove</b> B0 next mode (previous: click a mode chip, Shift+Tab) · B1 action · B2 sensitivity (size in BUILD) · B3 (pinky) reset view + zero<br/>
         <b>FLY</b> B1 alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · roll turns, pitch looks<br/>
@@ -343,8 +344,8 @@ export class Hud {
       p.connect.classList.toggle('active', g.sourceKind === 'ble' && g.connected);
       p.connect.textContent = g.sourceKind === 'ble' && g.status === 'connecting' ? 'Connecting…' : 'Connect Glove';
       p.disconnect.hidden = !g.source;
-      // A second glove that is not connected shrinks to its header and connect buttons.
-      p.root.classList.toggle('idle', g.gloveId > 0 && !g.source);
+      // No metrics or settings until this glove is connected (or on the simulator): just its name and Connect.
+      p.root.classList.toggle('idle', !g.connected);
 
       // Mode label (only shown when the glove is active; glove 1 always shown)
       const modeName = MODE_ORDER[s.modeIndex];
