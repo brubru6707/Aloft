@@ -100,7 +100,7 @@ export function BottomSheet({ hud, bottomInset, onExport, landscape }: { hud: Hu
                   <>
                     <View style={s.row}>
                       <Text style={s.rowLabel}>SHAPE</Text>
-                      {BUILD.primitives.map((p) => <Chip key={p} flex label={p} on={hud.primitive === p} onColor={MODE_COLORS[hud.mode]} onPress={() => engine.setPrimitive(p)} />)}
+                      {BUILD.quickShapes.map((p) => <Chip key={p} flex label={p} on={hud.primitive === p} onColor={MODE_COLORS[hud.mode]} onPress={() => engine.setPrimitive(p)} />)}
                     </View>
                     <View style={s.row}>
                       <Text style={s.rowLabel}>SIZE</Text>

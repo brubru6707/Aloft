@@ -13,6 +13,7 @@ import { applyProfile, currentVersion, OFF, onRolesChange, pinDown, pinsOf, prof
 import { onGlovePress, onGloveRelease, type ActionHost } from '../input/gloveActions';
 import { applyRotate, flyAxis, flyDeflection, flyLabel, resetRotateAnchor, setFlyAxis } from '../modes/fly';
 import { CameraRig } from '../scene/cameraRig';
+import { PART_LABELS, isPart } from '../scene/parts';
 import { ObjectRegistry } from '../scene/objects';
 import { createWorld, type World } from '../scene/world';
 import { hapticConnected, hapticError, hapticFlyState, hapticModeChange } from '../ui/haptics';
@@ -51,9 +52,15 @@ export interface HudState {
   voiceState: VoiceState;
   geminiAvailable: boolean;
   toast: string;
+  /** Device list on the right (BUILD / ERASE): unfolded or folded to its header. */
+  devicesOpen: boolean;
 }
 
 type Listener = () => void;
+/** Shape name for toasts and the agent: "Raspberry Pi 4" rather than "rpi". */
+export const shapeLabel = (p: PrimitiveName): string => (isPart(p) ? PART_LABELS[p] : p);
+const DEVICES_OPEN = /\b(show|open|list|see|display|bring up|pull up)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b|^(devices|parts list|device list)$/i;
+const DEVICES_CLOSE = /\b(hide|close|fold|dismiss)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b/i;
 type Action = { button: number; gesture: string } | null;
 const is = (a: Action, button: number, gesture: string) => !!a && a.button === button && a.gesture === gesture;
 
@@ -75,6 +82,8 @@ export class Engine {
   private listeners = new Set<Listener>();
   /** X2D voice assistant state, published by the VoiceAssistant component. */
   voiceState: VoiceState = 'off';
+  /** Device list unfolded (it only shows in BUILD / ERASE). */
+  devicesOpen = true;
   /** Set by the VoiceAssistant component: start / end a voice session. */
   voiceToggle: (() => void) | null = null;
   /** Live simulator, when one is attached. */
@@ -215,7 +224,15 @@ export class Engine {
     hapticFlyState();
   }
 
-  setPrimitive(p: PrimitiveName): void { setPrimitive(this.session, this.ctx, p); this.toast(`Shape: ${p}`); }
+  setPrimitive(p: PrimitiveName): void { setPrimitive(this.session, this.ctx, p); this.toast(`Shape: ${shapeLabel(p)}`); }
+
+  /** "X2D, show me the devices": unfold (or fold) the device list, switching to BUILD if flying. */
+  showDevices(open: boolean): string {
+    this.devicesOpen = open;
+    if (open && MODE_ORDER[this.session.modeIndex] === 'FLY') this.setMode(modeIndexOf('BUILD'));
+    this.notify();
+    return open ? `The device list is open on the right: ${BUILD.devices.map(shapeLabel).join(', ')}.` : 'Closed the device list.';
+  }
   setSize(size: SizeName): void { setSize(this.session, this.ctx, size); this.toast(`Size: ${size}`); }
 
   toggleRotateStyle(): void { this.setRotateStyle(FLY.rotate.style === 'rate' ? 'absolute' : 'rate'); }
@@ -235,7 +252,11 @@ export class Engine {
   applyControl(cmd: ControlCommand): string {
     switch (cmd.setting) {
       case 'mode': this.setMode(modeIndexOf(cmd.value as ModeName)); return `Switched to ${cmd.value}.`;
-      case 'shape': this.setPrimitive(cmd.value as PrimitiveName); this.notify(); return `Shape set to ${cmd.value}.`;
+      case 'shape': {
+        // A shape only shows in BUILD / ERASE: "X2D, use a servo" while flying switches to BUILD.
+        if (MODE_ORDER[this.session.modeIndex] === 'FLY') this.setMode(modeIndexOf('BUILD'));
+        this.setPrimitive(cmd.value as PrimitiveName); this.notify(); return `Shape set to ${shapeLabel(cmd.value as PrimitiveName)}.`;
+      }
       case 'size': this.setSize(cmd.value as SizeName); this.notify(); return `Piece size set to ${cmd.value}.`;
       case 'sensitivity': {
         const levels = SENSITIVITY.levels;
@@ -299,6 +320,9 @@ export class Engine {
    */
   async askAssistant(request: string, opts: { forceRebuild?: boolean } = {}): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
     if (!request.trim()) return null;
+    // "show me the devices" unfolds the device list; no Gemini call.
+    if (DEVICES_CLOSE.test(request)) return { action: 'answer', message: this.showDevices(false), pieces: 0 };
+    if (DEVICES_OPEN.test(request)) return { action: 'answer', message: this.showDevices(true), pieces: 0 };
     // "switch to build", "use a cylinder", "center me" … are settings, not builds: no Gemini call.
     const cmd = parseControl(request);
     if (cmd) { const message = this.applyControl(cmd); return { action: 'answer', message, pieces: 0 }; }
@@ -339,6 +363,8 @@ export class Engine {
         if ('error' in cmd) return `Could not change that: ${cmd.error}.`;
         return this.applyControl(cmd);
       },
+      // Optional `open` (true / "open" by default, false / "close" to fold the list).
+      [VOICE.tools.devices]: (params) => this.showDevices(!/^(false|close|hide|no|0)$/i.test(String(params.open ?? 'true').trim())),
       [VOICE.tools.undo]: () => { const e = this.undo.undo(); this.toast(e ? `Undid ${e.label}` : 'Nothing to undo'); this.notify(); return e ? `Undid ${e.label}.` : 'There was nothing to undo.'; },
     };
   }
@@ -418,6 +444,7 @@ export class Engine {
       voiceState: this.voiceState,
       geminiAvailable: geminiAvailable(),
       toast: this.toastText,
+      devicesOpen: this.devicesOpen,
     };
   }
 }

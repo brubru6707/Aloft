@@ -20,6 +20,8 @@ import { speak } from './ui/speak';
 import { UndoStack } from './undo';
 import { captureScene, deleteProject, getProject, listProjects, loadScene, newId, putProject, renameProject, thumbnailOf } from './projects';
 import { Dashboard } from './ui/dashboard';
+import { DeviceLibrary } from './ui/library';
+import { PART_LABELS, isPart } from './scene/parts';
 
 // ---------- Renderer / scene ----------
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
@@ -33,6 +35,12 @@ renderer.toneMappingExposure = 0.9;
 
 const world = createWorld();
 const rig = new CameraRig(window.innerWidth / window.innerHeight);
+// Split view (both gloves connected): glove 2 gets its own camera; both edit the same world.
+const rig2 = new CameraRig(window.innerWidth / window.innerHeight);
+const rigs = [rig, rig2];
+let split = false;
+/** The camera the modes act on right now (ctx.rig): glove 2's own camera while it is being handled in split view. */
+let activeRig = rig;
 const objects = new ObjectRegistry(world.scene);
 world.buildings.forEach((b) => objects.registerSelectable(b));
 const undo = new UndoStack();
@@ -84,6 +92,24 @@ const hud = new Hud(document.getElementById('hud')!, gloves, {
   toggleRotateStyle: () => setRotateStyle(FLY.rotate.style === 'rate' ? 'absolute' : 'rate'),
 });
 
+/** Shape name for toasts and the agent: "Raspberry Pi 4" rather than "rpi". */
+const shapeLabel = (p: PrimitiveName) => (isPart(p) ? PART_LABELS[p] : p);
+
+/** Device library on the right edge (BUILD / ERASE only): a click picks that part for the glove. */
+const library = new DeviceLibrary(document.getElementById('hud')!, (id, p) => { setPrimitive(sessions[id], ctx, p); hud.toast(`Shape: ${shapeLabel(p)}`); });
+
+/** "X2D, show me the devices": open (or close) the device library, switching glove 1 to BUILD if it is flying. */
+function showDevices(open: boolean): string {
+  library.setOpen(open);
+  if (!open) return 'Closed the device list.';
+  const s0 = sessions[0];
+  if (MODE_ORDER[s0.modeIndex] === 'FLY') setMode(s0, modeIndexOf('BUILD'));
+  hud.toast('Devices: pick one on the right');
+  return `The device list is open on the right: ${BUILD.devices.map(shapeLabel).join(', ')}.`;
+}
+const DEVICES_OPEN = /\b(show|open|list|see|display|bring up|pull up)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b|^(devices|parts list|device list)$/i;
+const DEVICES_CLOSE = /\b(hide|close|fold|dismiss)\b.*\b(devices?|parts?( list)?|components?|library|kit|catalog(ue)?)\b/i;
+
 function setRotateStyle(style: 'rate' | 'absolute'): void {
   FLY.rotate.style = style;
   sessions.forEach(resetRotateAnchor);
@@ -101,7 +127,14 @@ function applyControl(cmd: ControlCommand): string {
   const s0 = sessions[0];
   switch (cmd.setting) {
     case 'mode': setMode(s0, modeIndexOf(cmd.value as (typeof MODE_ORDER)[number])); return `Switched to ${cmd.value}.`;
-    case 'shape': setPrimitive(s0, ctx, cmd.value as PrimitiveName); hud.toast(`Shape: ${cmd.value}`); return `Shape set to ${cmd.value}.`;
+    case 'shape': {
+      // A shape only shows in BUILD / ERASE: "X2D, use a servo" while flying switches to BUILD.
+      if (MODE_ORDER[s0.modeIndex] === 'FLY') setMode(s0, modeIndexOf('BUILD'));
+      const p = cmd.value as PrimitiveName;
+      setPrimitive(s0, ctx, p);
+      hud.toast(`Shape: ${shapeLabel(p)}`);
+      return `Shape set to ${shapeLabel(p)}.`;
+    }
     case 'size': setSize(s0, ctx, cmd.value as SizeName); hud.toast(`Size: ${cmd.value}`); return `Piece size set to ${cmd.value}.`;
     case 'sensitivity': {
       const levels = SENSITIVITY.levels;
@@ -127,7 +160,54 @@ function applyControl(cmd: ControlCommand): string {
   }
 }
 
-const ctx: AppContext = { rig, objects, undo, world, toast: (m) => hud.toast(m) };
+const ctx: AppContext = { get rig() { return activeRig; }, objects, undo, world, toast: (m) => hud.toast(m) };
+
+/** The camera a glove drives: its own in split view, otherwise the shared one. */
+const rigOf = (s: GloveSession): CameraRig => (split ? rigs[s.glove.gloveId] ?? rig : rig);
+// Registered before the button dispatch below: while a glove's button event is handled, ctx.rig is that
+// glove's camera (so glove 2's reset or placement uses its own view), then back to glove 1's.
+for (const type of ['press', 'release', 'tap', 'holdstart', 'holdend'] as const) {
+  gloves.onAll(type, ({ gloveId }) => {
+    activeRig = rigOf(sessions[gloveId]);
+    queueMicrotask(() => { activeRig = rig; });
+  });
+}
+
+/**
+ * Screen rectangles (CSS px, top-left origin) of each glove's view: one full-screen view, or two
+ * halves in split view (side by side, stacked when the window is taller than wide).
+ */
+function views(): { x: number; y: number; w: number; h: number }[] {
+  const W = window.innerWidth, H = window.innerHeight;
+  if (!split) return [{ x: 0, y: 0, w: W, h: H }];
+  return W >= H
+    ? [{ x: 0, y: 0, w: Math.floor(W / 2), h: H }, { x: Math.floor(W / 2), y: 0, w: W - Math.floor(W / 2), h: H }]
+    : [{ x: 0, y: 0, w: W, h: Math.floor(H / 2) }, { x: 0, y: Math.floor(H / 2), w: W, h: H - Math.floor(H / 2) }];
+}
+
+/** Turn split view on when both gloves are connected (real, or one real + simulator), off otherwise. */
+function syncSplit(): void {
+  const want = sessions.length > 1 && sessions[0].glove.connected && sessions[1].glove.connected;
+  if (want === split) return;
+  split = want;
+  if (split) {
+    // Glove 2's camera starts where glove 1's is, then each steers its own.
+    rig2.camera.position.copy(rig.camera.position);
+    rig2.yaw = rig.yaw; rig2.pitch = rig.pitch; rig2.apply();
+  }
+  sessions.forEach(resetRotateAnchor);
+  gizmo.size = split ? 90 : 130;
+  hud.toast(split ? 'Two gloves: split view, one camera each' : 'One glove: full view');
+}
+
+/** Keep each camera's aspect matched to its view. */
+function syncAspects(v: { w: number; h: number }[]): void {
+  rigs.forEach((r, i) => {
+    const view = v[Math.min(i, v.length - 1)];
+    const aspect = view.w / view.h;
+    if (Math.abs(r.camera.aspect - aspect) > 1e-4) { r.camera.aspect = aspect; r.camera.updateProjectionMatrix(); }
+  });
+}
 
 // ---------- Projects (save / continue) ----------
 let currentProjectId: string | null = null;
@@ -140,8 +220,15 @@ let autosaveTimer: number | null = null;
  * buffer is only readable right after a render), so it also works while the tab is in the background.
  */
 function sceneThumbnail(): string | undefined {
+  // Glove 1's view, full canvas (in split view its camera is set up for half the screen).
+  const aspect = rig.camera.aspect;
+  rig.camera.aspect = window.innerWidth / window.innerHeight;
+  rig.camera.updateProjectionMatrix();
   renderer.render(world.scene, rig.camera);
-  return thumbnailOf(canvas);
+  const url = thumbnailOf(canvas);
+  rig.camera.aspect = aspect;
+  rig.camera.updateProjectionMatrix();
+  return url;
 }
 
 function syncProjectLabel(): void { hud.syncProject(currentProjectName, dirty); }
@@ -265,6 +352,9 @@ function sceneSummary(): string {
 async function askAssistant(request: string, opts: { speakReply?: boolean; forceRebuild?: boolean } = {}): Promise<{ action: 'answer' | 'rebuild'; message: string; pieces: number } | null> {
   const speakReply = opts.speakReply ?? true;   // false when the ElevenLabs agent is the one talking
   if (!request.trim()) return null;
+  // "show me the devices" opens the device library; no Gemini call.
+  if (DEVICES_CLOSE.test(request)) return { action: 'answer', message: showDevices(false), pieces: 0 };
+  if (DEVICES_OPEN.test(request)) return { action: 'answer', message: showDevices(true), pieces: 0 };
   // "switch to build", "use a cylinder", "center me" … are settings, not builds: no Gemini call.
   const cmd = parseControl(request);
   if (cmd) { const message = applyControl(cmd); return { action: 'answer', message, pieces: 0 }; }
@@ -309,15 +399,19 @@ voice.setClientTools({
     if ('error' in cmd) return `Could not change that: ${cmd.error}.`;
     return applyControl(cmd);
   },
+  // Optional `open` (true / "open" by default, false / "close" to fold the list).
+  [VOICE.tools.devices]: (params) => showDevices(!/^(false|close|hide|no|0)$/i.test(String(params.open ?? 'true').trim())),
   [VOICE.tools.undo]: () => { const e = undo.undo(); hud.toast(e ? `Undid ${e.label}` : 'Nothing to undo'); return e ? `Undid ${e.label}.` : 'There was nothing to undo.'; },
 });
 
 /** Pinky (B2): camera back to the start pose and every glove zeroed to 0/0/0. */
 function resetView(): void {
-  rig.camera.position.set(...CAMERA_START.pos);
-  rig.yaw = CAMERA_START.yaw;
-  rig.pitch = CAMERA_START.pitch;
-  rig.apply();
+  // ctx.rig: the pressing glove's own camera in split view, otherwise the shared one.
+  const r = ctx.rig;
+  r.camera.position.set(...CAMERA_START.pos);
+  r.yaw = CAMERA_START.yaw;
+  r.pitch = CAMERA_START.pitch;
+  r.apply();
   gloves.recenterAll();
   sessions.forEach(resetRotateAnchor);
   hud.toast('Reset: start view, roll / pitch / yaw = 0');
@@ -408,7 +502,8 @@ const clock = new THREE.Clock();
 function updateCursors(): void {
   let anyHover: THREE.Mesh | null = null;
   for (const s of sessions) {
-    if (s.glove.gloveId === 0) s.ndc.set(0, 0);
+    // Glove 1, and in split view both gloves, aim with the crosshair at the centre of their own view.
+    if (s.glove.gloveId === 0 || split) s.ndc.set(0, 0);
     else {
       // Second glove steers its own cursor with hand tilt.
       s.ndc.set(
@@ -416,7 +511,7 @@ function updateCursors(): void {
         THREE.MathUtils.clamp(s.glove.state.pitch / INPUT.maxTiltDeg, -0.95, 0.95),
       );
     }
-    raycaster.setFromCamera(s.ndc, rig.camera);
+    raycaster.setFromCamera(s.ndc, rigOf(s).camera);
     s.ray.copy(raycaster.ray);
     if (!s.glove.connected && s.glove.gloveId !== 0) { s.hit = null; continue; }
     const hits = raycaster.intersectObjects(objects.selectables, false);
@@ -428,21 +523,50 @@ function updateCursors(): void {
 
 function frame(): void {
   const dt = Math.min(clock.getDelta(), 0.05);
+  syncSplit();
+  const v = views();
+  syncAspects(v);
   updateCursors();
   for (const s of sessions) {
     // Glove 0 drives without a connection only in the sense of showing the mode; modes need input.
     if (!s.glove.connected) continue;
     // Sensitivity scales every hand-driven rate by scaling the time step the modes integrate over.
     const sdt = dt * RUNTIME.sensitivity;
+    activeRig = rigOf(s);
     MODES[s.modeIndex].update(s, ctx, sdt);
-    // Glove 1 owns the camera: in modes that leave tilt free (BUILD, ERASE), it keeps aiming.
-    if (s.glove.gloveId === 0 && ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, ctx, sdt);
+    // Glove 1 owns the camera (in split view each glove owns its own): in BUILD / ERASE the hand keeps aiming.
+    if ((s.glove.gloveId === 0 || split) && ROTATE_IN_MODES.includes(MODE_ORDER[s.modeIndex])) applyRotate(s, ctx, sdt);
   }
-  hud.update(sessions, window.innerWidth, window.innerHeight);
-  renderer.render(world.scene, rig.camera);
-  const s0 = sessions[0];
-  const inFly = MODE_ORDER[s0.modeIndex] === 'FLY';
-  gizmo.render(renderer, rig.camera, inFly ? flyAxis(s0) : null, inFly ? flyDeflection(s0) : 0, window.innerWidth, window.innerHeight);
+  activeRig = rig;
+  hud.update(sessions, window.innerWidth, window.innerHeight, split ? v : null);
+  library.sync(sessions
+    .filter((s) => (s.glove.gloveId === 0 || s.glove.connected) && (MODE_ORDER[s.modeIndex] === 'BUILD' || MODE_ORDER[s.modeIndex] === 'ERASE'))
+    .map((s) => ({ id: s.glove.gloveId, primitive: s.primitive, color: s.color })));
+  const H = window.innerHeight;
+  if (!split) {
+    renderer.render(world.scene, rig.camera);
+    const s0 = sessions[0];
+    const inFly = MODE_ORDER[s0.modeIndex] === 'FLY';
+    gizmo.render(renderer, rig.camera, inFly ? flyAxis(s0) : null, inFly ? flyDeflection(s0) : 0, window.innerWidth, H);
+  } else {
+    // One pass per glove into its half (scissored), each with its own camera and corner gizmo.
+    renderer.setScissorTest(true);
+    v.forEach((r, i) => {
+      const gy = H - r.y - r.h;   // GL origin is bottom-left
+      renderer.setViewport(r.x, gy, r.w, r.h);
+      renderer.setScissor(r.x, gy, r.w, r.h);
+      renderer.render(world.scene, rigs[i].camera);
+    });
+    v.forEach((r, i) => {
+      const s = sessions[i];
+      const inFly = MODE_ORDER[s.modeIndex] === 'FLY';
+      gizmo.top = (r.y === 0 ? 44 : 0) + 14;
+      gizmo.render(renderer, rigs[i].camera, inFly ? flyAxis(s) : null, inFly ? flyDeflection(s) : 0, r.w, r.h, r.x, H - r.y - r.h);
+    });
+    gizmo.top = 44 + 14;
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, window.innerWidth, H);
+  }
   requestAnimationFrame(frame);
 }
 
@@ -466,4 +590,4 @@ hud.toast('Click “Simulator” or “Connect Glove” to start');
 if (PROJECTS.showDashboardOnStart && listProjects().length) dashboard.show();   // continue a saved build
 
 // Debug handle for the console / automated tests.
-(window as unknown as { __aloft: unknown }).__aloft = { rig, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, whistle, askAssistant, isImperative, sceneSummary, listGeminiModels, geminiQuota: geminiQuotaStatus, dashboard, openProject, saveAsNew, listProjects };
+(window as unknown as { __aloft: unknown }).__aloft = { rig, rig2, isSplit: () => split, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, whistle, askAssistant, isImperative, sceneSummary, listGeminiModels, geminiQuota: geminiQuotaStatus, dashboard, openProject, saveAsNew, listProjects };

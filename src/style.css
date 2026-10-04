@@ -224,3 +224,47 @@ button:disabled { opacity: .45; cursor: default; }
   #gloves { flex-direction: column; align-items: flex-start; bottom: 76px; }
   #dock { left: 14px; right: 14px; width: auto; min-width: 0; }
 }
+
+/* Device library: right edge, under the axis gizmo and above the dock, only in BUILD / ERASE. */
+#library {
+  position: absolute; right: 10px; top: calc(var(--bar-h) + 152px); bottom: 72px; width: 176px;
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; pointer-events: auto; z-index: 4;
+}
+#library[hidden] { display: none; }
+#library.folded { bottom: auto; }
+#library header {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px; cursor: pointer; user-select: none;
+  font-size: 10px; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--line);
+}
+#library.folded header { border-bottom: none; }
+#library header .fold { margin-left: auto; font-weight: 400; color: var(--text); }
+#library header .target { display: flex; gap: 3px; }
+#library header .target i {
+  font-style: normal; font-size: 10px; padding: 1px 5px; border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--btn); color: var(--text);
+}
+#library header .target i.on { background: var(--glove); color: #1d1d1d; }
+#library ul { list-style: none; margin: 0; padding: 4px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+#library.folded ul { display: none; }
+#library li {
+  display: flex; align-items: center; gap: 7px; padding: 3px; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid transparent; transition: background .1s;
+}
+#library li:hover { background: var(--btn); }
+#library li.on { background: var(--panel-2); border-color: var(--mode, var(--accent)); }
+#library .thumb { flex: 0 0 44px; height: 32px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; display: grid; place-items: center; }
+#library .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+#library .txt { display: flex; flex-direction: column; min-width: 0; }
+#library .txt b { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#library .txt small { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { #library { bottom: 76px; width: 150px; } #library .thumb { display: none; } }
+
+/* Split view (two gloves): a divider between the halves, smaller labels so both halves stay readable. */
+#split-divider { position: absolute; left: 0; right: 0; height: 2px; margin-top: -1px; background: var(--line); box-shadow: 0 0 0 1px rgba(255,255,255,0.08); z-index: 3; }
+#split-divider.vertical { top: 0; bottom: 0; right: auto; width: 2px; height: auto; margin: 0 0 0 -1px; }
+#split-divider[hidden] { display: none; }
+#hud.split #modes { inset: calc(var(--bar-h) + 12px) 0 0 0; max-width: none; }
+#hud.split .mode-label, #hud.split .mode-label.secondary { font-size: 28px; opacity: 1; }
+#hud.split .mode-label .tag { font-size: 10px; }
+#hud.split .mode-hint { font-size: 11px; }
+#hud.split .axis-label { font-size: 32px; margin-top: 4px; }

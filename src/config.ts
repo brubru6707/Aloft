@@ -95,12 +95,19 @@ export const VOICE = {
   // When false, a request spoken with the wake word skips the agent and goes straight to Gemini.
   routeViaAgent: true,
   /** Client tools the agent can call. The names must match the tools defined on the agent in the ElevenLabs dashboard. */
-  tools: { build: 'build_scene', describe: 'describe_scene', undo: 'undo_last', control: 'set_control' },
+  tools: { build: 'build_scene', describe: 'describe_scene', undo: 'undo_last', control: 'set_control', devices: 'show_devices' },
   // The agent no longer asks "are you still there?" (its turn timeout is -1 in the dashboard). Instead, when nobody
   // has spoken for this long during a session, the page plays a short whistle. Once per quiet stretch; 0 = off.
   idleWhistleMs: 15000,
   whistleVolume: 0.12,
 };
+
+/**
+ * Every shape the app can place: the plain shapes, then the electronics kit modelled at real
+ * size in src/scene/parts.ts. BUILD.quickShapes is the short list the glove OPTION button and the
+ * SHAPE chips cycle; the device library lists BUILD.devices.
+ */
+export const ALL_SHAPES = ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button', 'rpi', 'esp32', 'uno', 'servo', 'breadboard', 'pot', 'buzzer', 'ultrasonic', 'battery', 'resistor', 'jumper', 'motor', 'ldr', 'lcd'] as const;
 
 /** Gemini (Google AI Studio). Key lives in .env.local as VITE_GEMINI_API_KEY. */
 export const GEMINI = {
@@ -135,7 +142,7 @@ export const GEMINI = {
         items: {
           type: 'OBJECT',
           properties: {
-            shape: { type: 'STRING', enum: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] },
+            shape: { type: 'STRING', enum: [...ALL_SHAPES] },
             size: { type: 'ARRAY', items: { type: 'NUMBER' } },
             pos: { type: 'ARRAY', items: { type: 'NUMBER' } },
             rot: { type: 'ARRAY', items: { type: 'NUMBER' } },
@@ -159,11 +166,17 @@ export const GEMINI = {
     'change, refine, better, actual, proper, look like, etc. Even when the scene is empty, build the thing from scratch at the plaza',
     'centre (x=0, z=-28). pieces is the COMPLETE new layout that replaces every current piece (at most 40). message is one short spoken',
     'sentence saying what you built, never an explanation.',
-    'Piece format: {"shape":"cube|sphere|cylinder|nano|led|button","size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
+    `Piece format: {"shape":"${ALL_SHAPES.join('|')}",` + '"size":[w,h,d],"pos":[x,y,z],"rot":[rx,ry,rz],"color":"#rrggbb"}.',
     'nano, led and button are ready-made Arduino kit parts at real size: nano = an Arduino Nano board, size [4.4,1.4,1.8] (pins point',
     'down); led = a 5 mm LED with legs, size [0.6,3.7,0.6], color is the LED colour; button = a 12 mm push button with a round cap,',
     'size [1.35,1.3,1.2], color is the cap colour. Keep their proportions (multiply all three sizes by one factor to resize). When asked to',
     'turn a piece into one of these, keep its x and z, replace its shape, and set y to half its height so it rests on the floor (or on the piece below).',
+    'The rest of an electronics kit is ready-made at real size too (size [w,h,d] in cm, long side along x, pins and legs down):',
+    'rpi = Raspberry Pi 4 [8.8,1.7,5.7]; esp32 = ESP32 DevKit [5.3,1.4,2.8]; uno = Arduino Uno [7.6,1.3,5.3]; servo = SG90 micro servo',
+    'with its horn [4.5,3.1,1.2]; breadboard = half-size breadboard [8.3,0.9,5.5]; pot = potentiometer [1.6,3,1.7]; buzzer [1.2,2.4,1.2];',
+    'ultrasonic = HC-SR04 distance sensor standing up, its two eyes facing +z [4.5,2.8,1.6]; battery = 9 V battery standing up, color is',
+    'the label [2.7,5.2,1.8]; resistor [1.5,1.1,0.3]; jumper = jumper wire bent into an arch, color is the wire [5.3,4.6,0.3];',
+    'motor = small DC motor, shaft along -x [4,2,2]; ldr = photoresistor [0.5,3.1,0.5]; lcd = 16x2 character LCD, screen up [8,1.8,3.6].',
     'Use one piece per part, never rebuild them from cubes.',
     'Units are centimetres. Y is up and the floor is y=0, so a piece\'s centre y must be at least h/2 (a tilted cylinder of length h',
     'rotated by a degrees about Z has centre y ≥ h/2·cos(a)). rot is degrees about x, y, z. A cube is a box w×h×d. A sphere uses w as',
@@ -265,13 +278,16 @@ export const BUILD = {
   maxAimDistance: 400,    // the crosshair ray places the piece on whatever it hits within this range (cm)
   distance: 6,            // fallback float distance (cm) when the crosshair points at nothing
   maxDropDistance: 60,    // fallback: new objects fall onto the first surface this far below the point
-  primitives: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] as const,   // nano / led / button: Arduino kit parts (src/scene/parts.ts)
+  primitives: ALL_SHAPES,
+  // The glove OPTION button and the SHAPE chips cycle only these; every kit part is in the device library.
+  quickShapes: ['cube', 'sphere', 'cylinder', 'nano', 'led', 'button'] as PrimitiveName[],
+  devices: ['rpi', 'esp32', 'uno', 'nano', 'breadboard', 'servo', 'motor', 'ultrasonic', 'lcd', 'pot', 'buzzer', 'ldr', 'resistor', 'led', 'button', 'jumper', 'battery'] as PrimitiveName[],
   // Piece size. In BUILD, B2 cycles small -> medium -> large (elsewhere B2 is sensitivity).
   sizes: ['small', 'medium', 'large'] as const,
   sizeScale: { small: 0.5, medium: 1, large: 2 } as Record<'small' | 'medium' | 'large', number>,
   defaultSize: 'medium' as 'small' | 'medium' | 'large',
 };
-export type PrimitiveName = (typeof BUILD.primitives)[number];
+export type PrimitiveName = (typeof ALL_SHAPES)[number];
 export type SizeName = (typeof BUILD.sizes)[number];
 
 /** Saved projects (browser storage, no backend). */

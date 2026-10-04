@@ -104,8 +104,9 @@ export class ObjectRegistry {
     m.emissive.setHex(hex);
   }
 
+  /** Glove OPTION button: next of the short quick-shape list (a device from the library goes back to the first). */
   nextPrimitive(current: PrimitiveName): PrimitiveName {
-    const i = BUILD.primitives.indexOf(current);
-    return BUILD.primitives[(i + 1) % BUILD.primitives.length];
+    const q = BUILD.quickShapes;
+    return q[(q.indexOf(current) + 1) % q.length];
   }
 }

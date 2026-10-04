@@ -26,6 +26,21 @@ function modeOf(t: string): string | null {
   return null;
 }
 function shapeOf(t: string): string | null {
+  // Kit devices first: they are more specific ("servo motor", "arduino uno", "esp32 board", "photo resistor").
+  if (has(t, /\b(raspberry( ?pi)?|rasberry( ?pi)?|rpi|pi ?4|pi)\b/)) return 'rpi';
+  if (has(t, /\b(esp ?32|esp|e s p 32|esp32 dev ?kit|dev ?kit)\b/)) return 'esp32';
+  if (has(t, /\b(uno|arduino uno)\b/)) return 'uno';
+  if (has(t, /\b(servos?|servo motor|sg ?90|micro servo)\b/)) return 'servo';
+  if (has(t, /\b(bread ?boards?|proto ?board|solderless)\b/)) return 'breadboard';
+  if (has(t, /\b(ultrasonic|ultra sonic|hc ?-?sr ?0?4|sonar|distance sensor|range sensor|range finder)\b/)) return 'ultrasonic';
+  if (has(t, /\b(lcd|l c d|lcd screen|lcd display|character display|16 ?x ?2|display|screen)\b/)) return 'lcd';
+  if (has(t, /\b(photo ?resistors?|photo ?cell|ldr|l d r|light sensor|light dependent resistor)\b/)) return 'ldr';
+  if (has(t, /\b(potentiometers?|pot|pots|knob|dial|trimmer|variable resistor)\b/)) return 'pot';
+  if (has(t, /\b(resistors?)\b/)) return 'resistor';
+  if (has(t, /\b(buzzers?|piezo|beeper|speaker)\b/)) return 'buzzer';
+  if (has(t, /\b(batter(y|ies)|9 ?v|nine volt)\b/)) return 'battery';
+  if (has(t, /\b(jumpers?|jumper wires?|wires?|cables?|dupont)\b/)) return 'jumper';
+  if (has(t, /\b(motors?|dc motor|gear ?motor)\b/)) return 'motor';
   if (has(t, /\b(cube|cubes|box|square|block|brick)s?\b/)) return 'cube';
   if (has(t, /\b(sphere|spheres|ball|orb|round)\b/)) return 'sphere';
   if (has(t, /\b(cylinder|cylinders|sylinder|cilinder|cyllinder|tube|pipe|rod|can|column)\b/)) return 'cylinder';
@@ -74,7 +89,7 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
   if (layout && setting !== 'size' && setting !== 'sensitivity') return { setting: 'controls', value: layout };
   switch (setting) {
     case 'mode': { const m = modeOf(v); return m ? { setting, value: m } : { error: `unknown mode "${v}" (FLY, BUILD or ERASE)` }; }
-    case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere, cylinder, nano (Arduino Nano), led or button)` }; }
+    case 'shape': { const s = shapeOf(v); return s ? { setting, value: s } : { error: `unknown shape "${v}" (cube, sphere, cylinder, nano (Arduino Nano), led, button, or a kit device: raspberry pi, esp32, uno, servo, breadboard, potentiometer, buzzer, ultrasonic, battery, resistor, jumper wire, motor, photoresistor, lcd)` }; }
     case 'size': { const s = sizeOf(v); return s ? { setting, value: s } : { error: `unknown size "${v}" (small, medium or large)` }; }
     case 'sensitivity': { const s = sensOf(v); return s ? { setting, value: s } : { error: `unknown sensitivity "${v}" (0, 0.2, 0.4, 0.6, 0.8, 1, up or down)` }; }
     case 'fly_state': { const s = flyStateOf(v); return s ? { setting, value: s } : { error: `unknown FLY state "${v}" (rotate, X, Y or Z)` }; }

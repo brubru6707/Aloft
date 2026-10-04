@@ -7,6 +7,7 @@ import { UI } from '../config';
 import { exportSTL } from '../export';
 import { BottomSheet, TopModes } from '../ui/BottomSheet';
 import { Crosshair, ModeLabel, Toast } from '../ui/Hud';
+import { DeviceList } from '../ui/DeviceList';
 import { SceneView } from '../ui/SceneView';
 
 /** Height of the mode/mic bar under the status bar. */
@@ -36,6 +37,13 @@ export function MainScreen({ tabBarHeight }: { tabBarHeight: number }) {
         <ModeLabel hud={hud} compact={landscape} />
       </View>
       <Crosshair hover={!!engine.session.hit} />
+      {/* Device list: right edge under the gizmo, above the bottom row; capped in portrait so an open bottom panel stays clear. */}
+      <DeviceList
+        hud={hud}
+        top={insets.top + TOP_BAR + 6 + UI.gizmoSize + 8}
+        right={6 + insets.right}
+        maxHeight={landscape ? height - (insets.top + TOP_BAR + 6 + UI.gizmoSize + 8) - tabBarHeight - 8 : height * 0.4}
+      />
       <Toast text={hud.toast} top={insets.top + TOP_BAR + 58} />
       <BottomSheet hud={hud} bottomInset={tabBarHeight} onExport={onExport} landscape={landscape} />
     </View>

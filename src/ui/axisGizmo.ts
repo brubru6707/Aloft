@@ -65,8 +65,9 @@ export class AxisGizmo {
    * @param mainCamera camera whose orientation the gizmo mirrors
    * @param active     FLY move axis to highlight, or null for ROTATE / other modes
    * @param deflection signed -1..1 motion along the active axis (lights the end being moved toward)
+   * @param ox, oy     GL origin (bottom-left, CSS px) of the view whose top-right corner holds the gizmo (split view)
    */
-  render(renderer: THREE.WebGLRenderer, mainCamera: THREE.Camera, active: FlyAxis | null, deflection: number, width: number, height: number): void {
+  render(renderer: THREE.WebGLRenderer, mainCamera: THREE.Camera, active: FlyAxis | null, deflection: number, width: number, height: number, ox = 0, oy = 0): void {
     // Orbit the gizmo camera opposite to the main camera's rotation so world axes match the screen.
     this.quat.copy(mainCamera.quaternion);
     this.camera.position.set(0, 0, 5).applyQuaternion(this.quat);
@@ -92,8 +93,8 @@ export class AxisGizmo {
       this.negTips[a].scale.setScalar(towardNeg ? 1 + 2.5 * Math.abs(deflection) : 1);
     }
 
-    const x = width - this.margin - this.size;
-    const y = height - this.top - this.size;   // GL origin is bottom-left
+    const x = ox + width - this.margin - this.size;
+    const y = oy + height - this.top - this.size;   // GL origin is bottom-left
     // Draw over the main scene (no colour clear, so no black box), with a fresh depth buffer.
     const autoClear = renderer.autoClear;
     renderer.autoClear = false;

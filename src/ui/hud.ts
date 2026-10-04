@@ -71,6 +71,9 @@ export class Hud {
   private sensBtn: HTMLButtonElement;
   private voiceBtn: HTMLButtonElement;
   private projectEl!: HTMLElement;
+  private root: HTMLElement;
+  private divider: HTMLElement;
+  private splitKey = '';
 
   /** Show the current project name in the toolbar; a dot marks unsaved changes. */
   syncProject(name: string | null, dirty: boolean): void {
@@ -79,6 +82,7 @@ export class Hud {
   }
 
   constructor(root: HTMLElement, gloves: GloveManager, actions: HudActions) {
+    this.root = root;
     const btn = (id: string, icon: string, label: string, title: string) =>
       `<button id="${id}" title="${title}"><i>${icon}</i><span class="lbl">${label}</span></button>`;
     root.innerHTML = `
@@ -117,7 +121,9 @@ export class Hud {
         <a href="/controls.html" target="_blank" rel="noopener">▶ Animated guide to the glove buttons</a>
       </div>
       <div id="toast"></div>
+      <div id="split-divider" hidden></div>
     `;
+    this.divider = root.querySelector('#split-divider')!;
     const help = root.querySelector<HTMLElement>('#help')!;
     root.querySelector<HTMLButtonElement>('#help-toggle')!.onclick = () => { help.hidden = !help.hidden; };
     root.querySelector<HTMLButtonElement>('#project-chip')!.onclick = () => actions.openProjects();
@@ -159,7 +165,7 @@ export class Hud {
         </div>
         <div class="buttons" title="Glove pins: click to change what a pin does (Shift-click goes back). Lights up while pressed."></div><div class="layouts" title="Button layouts (also by voice: \"X2D, backup V2\")"></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
-        <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
+        <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.quickShapes.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
@@ -272,8 +278,27 @@ export class Hud {
     this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), ms);
   }
 
-  /** Called every frame. */
-  update(sessions: GloveSession[], width: number, height: number): void {
+  /**
+   * Called every frame. `views` = each glove's screen rectangle in split view (two gloves, one
+   * camera each), or null for the normal full-screen view.
+   */
+  update(sessions: GloveSession[], width: number, height: number, views: { x: number; y: number; w: number; h: number }[] | null = null): void {
+    const key = views ? views.map((v) => `${v.x},${v.y},${v.w},${v.h}`).join('|') : '';
+    if (key !== this.splitKey) {
+      // Split view: a divider between the halves, and each glove's mode label in the top-left of its own half.
+      this.splitKey = key;
+      this.root.classList.toggle('split', !!views);
+      this.divider.hidden = !views;
+      const side = !!views && views[1].x > 0;
+      this.divider.classList.toggle('vertical', side);
+      if (views) Object.assign(this.divider.style, side ? { left: `${views[1].x}px`, top: '0', width: '', height: '' } : { left: '0', top: `${views[1].y}px`, width: '', height: '' });
+      this.panels.forEach((p, i) => {
+        const v = views?.[i];
+        Object.assign(p.modeLabel.style, v
+          ? { position: 'absolute', left: `${v.x + 14}px`, top: `${v.y === 0 ? 0 : v.y - 44}px`, maxWidth: `${v.w - 140}px` }
+          : { position: '', left: '', top: '', maxWidth: '' });
+      });
+    }
     sessions.forEach((s, i) => {
       const p = this.panels[i];
       const g = s.glove;
@@ -343,10 +368,11 @@ export class Hud {
         p.axisLabel.style.setProperty('--mode', MODE_COLORS[modeName]);
       }
 
-      // Cursor
+      // Cursor (in split view, the centre of the glove's own half)
+      const view = views?.[i] ?? { x: 0, y: 0, w: width, h: height };
       p.cursor.style.display = g.connected || g.gloveId === 0 ? '' : 'none';
-      p.cursor.style.left = `${((s.ndc.x + 1) / 2) * width}px`;
-      p.cursor.style.top = `${((1 - s.ndc.y) / 2) * height}px`;
+      p.cursor.style.left = `${view.x + ((s.ndc.x + 1) / 2) * view.w}px`;
+      p.cursor.style.top = `${view.y + ((1 - s.ndc.y) / 2) * view.h}px`;
       p.cursor.classList.toggle('hover', !!s.hit);
     });
   }
