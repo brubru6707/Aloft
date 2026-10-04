@@ -1,6 +1,7 @@
 import { useConversationControls, useConversationStatus } from '@elevenlabs/react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { engine } from '../core/Engine';
 import { VOICE } from '../config';
 
@@ -48,6 +49,7 @@ export function VoiceAssistant() {
   const sessionOpen = useRef(false);
   const lastStatus = useRef(status);
   const failures = useRef(0);                       // consecutive recognizer failures (back-off)
+  const appActive = useRef(AppState.currentState === 'active');   // iOS refuses the mic in the background
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setState = (s: VoiceState, detail?: string) => engine.setVoiceState(s, detail);
@@ -55,6 +57,7 @@ export function VoiceAssistant() {
   /** Restart later, backing off 1 s, 2 s, 4 s … up to 30 s; give up after 8 failures in a row. */
   const scheduleRestart = (failed: boolean) => {
     if (retryTimer.current) return;   // 'error' and 'end' both fire for one failure: restart once
+    if (!appActive.current) return;   // locked / in the background: resume when the app comes back, not counted
     if (failed) failures.current++;
     if (failures.current >= 8) { wantListening.current = false; setState('off', 'mic busy: tap the mic to try again'); return; }
     const delay = failed ? Math.min(30000, 1000 * 2 ** (failures.current - 1)) : 300;
@@ -167,6 +170,30 @@ export function VoiceAssistant() {
     else if (status === 'error') { setState('off', message ?? 'voice error'); closeSession(`status error: ${message ?? ''}`); }
     else if (status === 'disconnected' && sessionOpen.current) closeSession('status disconnected');
   }, [status, message]);
+
+  // Locked / backgrounded: pause quietly (iOS refuses the mic, and those failures must not count).
+  // Back in front: clear the failure count and listen again, so "X2D" keeps working after the
+  // phone sleeps.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      const active = st === 'active';
+      if (active === appActive.current) return;
+      appActive.current = active;
+      if (active) {
+        failures.current = 0;
+        if (VOICE.autoListen && !sessionOpen.current) {
+          console.log('[x2d] app active again: wake-word listener restarting');
+          recognizing.current = false;
+          void startListening();
+        }
+      } else {
+        if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
+        if (recognizing.current) { try { ExpoSpeechRecognitionModule.abort(); } catch { /* already stopped */ } }
+        recognizing.current = false;
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Button: start a session if idle, end it if talking, start listening if off.
   useEffect(() => {
