@@ -94,6 +94,7 @@ export const VOICE = {
   // calls build_scene. Wait this long after a bare "X2D" for the request before opening the session.
   requestGraceMs: 1500,
   wakeSettleMs: 1200,     // after hearing "X2D", wait this long for the rest of the sentence before opening the session
+  connectTimeoutMs: 12000,   // give up on "connecting" after this and go back to listening
   /** Client tools the agent can call; names must match the tools on the agent in the ElevenLabs dashboard. */
   tools: { build: 'build_scene', describe: 'describe_scene', undo: 'undo_last', control: 'set_control', devices: 'show_devices' },
   autoListen: true,       // start watching for the wake word as soon as the app opens (asks for the mic once)

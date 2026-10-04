@@ -100,6 +100,7 @@ export const VOICE = {
   tools: { build: 'build_scene', describe: 'describe_scene', undo: 'undo_last', control: 'set_control', devices: 'show_devices' },
   // The agent no longer asks "are you still there?" (its turn timeout is -1 in the dashboard). Instead, when nobody
   // has spoken for this long during a session, the page plays a short whistle. Once per quiet stretch; 0 = off.
+  connectTimeoutMs: 12000,   // give up on "connecting" after this and go back to listening
   idleWhistleMs: 15000,
   whistleVolume: 0.12,
 };

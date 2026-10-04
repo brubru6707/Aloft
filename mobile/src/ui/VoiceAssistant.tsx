@@ -48,6 +48,8 @@ export function VoiceAssistant() {
   const recognizing = useRef(false);
   const sessionOpen = useRef(false);
   const lastStatus = useRef(status);
+  const attempt = useRef(0);                        // bumped per connect attempt and on cancel
+  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failures = useRef(0);                       // consecutive recognizer failures (back-off)
   const appActive = useRef(AppState.currentState === 'active');   // iOS refuses the mic in the background
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +102,14 @@ export function VoiceAssistant() {
     if (sessionOpen.current) { if (request) sendUserMessage(request); return; }
     pendingRequest.current = request ?? null;
     sessionOpen.current = true;
+    const id = ++attempt.current;
     setState('connecting');
+    // Never hang on "connecting": give up after a while and go back to listening.
+    if (connectTimer.current) clearTimeout(connectTimer.current);
+    connectTimer.current = setTimeout(() => {
+      connectTimer.current = null;
+      if (attempt.current === id && sessionOpen.current) { closeSession('connect timeout'); setState(wantListening.current ? 'listening' : 'off', "X2D couldn't connect. Say X2D or tap the mic to try again."); }
+    }, VOICE.connectTimeoutMs);
     if (recognizing.current) { ExpoSpeechRecognitionModule.abort(); recognizing.current = false; }   // do not transcribe the agent's own voice
     startSession({
       agentId: VOICE.agentId,
@@ -108,6 +117,8 @@ export function VoiceAssistant() {
       // The agent builds through these (build_scene → Gemini → pieces), like the web app.
       clientTools: engine.agentTools(),
       onConnect: () => {
+        if (attempt.current !== id || !sessionOpen.current) { try { endSession(); } catch { /* gone */ } return; }   // cancelled while connecting
+        if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null; }
         setState('talking');
         const req = pendingRequest.current;
         pendingRequest.current = null;
@@ -123,6 +134,8 @@ export function VoiceAssistant() {
     console.log('[x2d] closing session:', reason);
     if (!sessionOpen.current) return;
     sessionOpen.current = false;
+    attempt.current++;   // a connection still on its way for this session is closed when it arrives
+    if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null; }
     pendingRequest.current = null;
     try { endSession(); } catch { /* already closed */ }
     if (wantListening.current) startRecognizer(); else setState('off');
@@ -166,7 +179,7 @@ export function VoiceAssistant() {
   useEffect(() => {
     if (status === lastStatus.current) return;
     lastStatus.current = status;
-    if (status === 'connected') setState('talking');
+    if (status === 'connected') { if (sessionOpen.current) setState('talking'); else { try { endSession(); } catch { /* gone */ } } }
     else if (status === 'error') { setState('off', message ?? 'voice error'); closeSession(`status error: ${message ?? ''}`); }
     else if (status === 'disconnected' && sessionOpen.current) closeSession('status disconnected');
   }, [status, message]);

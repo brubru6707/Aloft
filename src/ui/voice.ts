@@ -76,7 +76,10 @@ export class VoiceAssistant {
   private toolRunning = 0;             // client tools in flight (a build takes a while; that is not silence)
   private whistled = false;            // already whistled for this quiet stretch
   private idleTimer: number | null = null;
-  private wakeTimer: number | null = null;   // wake word heard alone: waiting briefly for the request
+  private wakeTimer: number | null = null;
+  /** Bumped on every connect attempt and on cancel: a late-arriving session from an old attempt is closed. */
+  private attempt = 0;
+  private connectTimer: number | null = null;   // wake word heard alone: waiting briefly for the request
 
   onState(cb: (s: VoiceState, detail?: string) => void): void { this.stateCb = cb; }
   /** Called with the words that followed the wake word, e.g. "make it an actual stickman". */
@@ -190,19 +193,28 @@ export class VoiceAssistant {
   async startSession(request?: string): Promise<void> {
     if (this.session) { if (request) this.session.sendUserMessage(request); return; }
     if (this.state === 'connecting') { if (request) this.pendingRequest = request; return; }
+    const id = ++this.attempt;
     this.pendingRequest = request ?? null;
     this.setState('connecting');
     this.clearWakeTimer();
     this.recognition?.abort();   // do not transcribe the agent's own voice
+    // Never hang on "connecting": give up after a while and go back to listening.
+    this.clearConnectTimer();
+    this.connectTimer = window.setTimeout(() => {
+      if (id === this.attempt && !this.session) this.cancelConnect("X2D couldn't connect. Say X2D or tap the mic to try again.");
+    }, VOICE.connectTimeoutMs);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.session = await Conversation.startSession({
+      if (id !== this.attempt) return;   // cancelled while asking for the mic
+      const session = await Conversation.startSession({
         agentId: VOICE.agentId,
         connectionType: 'websocket',
         clientTools: this.wrappedTools(),
         onMessage: () => this.touch(),
         onModeChange: ({ mode }: { mode: string }) => { this.agentSpeaking = mode === 'speaking'; this.touch(); },
         onConnect: () => {
+          if (id !== this.attempt) return;   // a cancelled attempt; closed below
+          this.clearConnectTimer();
           this.setState('talking');
           this.startIdleWatch();
           // Hand over a request that came with the wake word (after the connection is up).
@@ -211,17 +223,38 @@ export class VoiceAssistant {
           if (req) setTimeout(() => this.session?.sendUserMessage(req), 300);
         },
         onUnhandledClientToolCall: (call: { tool_name?: string }) => console.warn('[x2d] agent called an unknown tool:', call?.tool_name),
-        onDisconnect: () => this.endSession(),
-        onError: (message: string) => this.setState('off', message),
+        onDisconnect: () => { if (id === this.attempt) void this.endSession(); },
+        onError: (message: string) => { if (id === this.attempt) this.setState('off', message); },
       });
+      if (id !== this.attempt) { void session.endSession().catch(() => {}); return; }   // cancelled while connecting
+      this.session = session;
     } catch (err) {
+      if (id !== this.attempt) return;
+      this.clearConnectTimer();
       this.session = null;
       this.setState('off', err instanceof Error ? err.message : String(err));
       if (this.wantListening) this.resumeListening();
     }
   }
 
+  private clearConnectTimer(): void {
+    if (this.connectTimer !== null) { clearTimeout(this.connectTimer); this.connectTimer = null; }
+  }
+
+  /** Stop a connect attempt that has not finished (button pressed, or it took too long). */
+  private cancelConnect(detail?: string): void {
+    this.attempt++;
+    this.clearConnectTimer();
+    this.pendingRequest = null;
+    this.stopIdleWatch();
+    if (this.wantListening) { this.resumeListening(); if (detail) this.stateCb?.('listening', detail); }
+    else this.setState('off', detail);
+  }
+
   async endSession(): Promise<void> {
+    if (!this.session && this.state === 'connecting') { this.cancelConnect('X2D cancelled'); return; }
+    this.attempt++;   // anything still arriving from this session's attempt is ignored
+    this.clearConnectTimer();
     const s = this.session;
     this.session = null;
     this.pendingRequest = null;
