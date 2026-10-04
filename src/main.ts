@@ -138,12 +138,18 @@ function applyControl(cmd: ControlCommand): string {
   switch (cmd.setting) {
     case 'mode': setMode(s0, modeIndexOf(cmd.value as (typeof MODE_ORDER)[number])); return `${whose(s0)}switched to ${cmd.value}.`;
     case 'shape': {
-      // A shape only shows in BUILD / ERASE: "X2D, use a servo" while flying switches to BUILD.
-      if (MODE_ORDER[s0.modeIndex] === 'FLY') setMode(s0, modeIndexOf('BUILD'));
+      // The shape goes to EVERY connected glove (you wear one glove at a time, so whichever one you
+      // place with gets it). A shape only shows in BUILD / ERASE, so a flying glove switches to BUILD.
       const p = cmd.value as PrimitiveName;
-      setPrimitive(s0, ctx, p);
-      hud.toast(`${whose(s0)}shape ${shapeLabel(p)}`);
-      return `${whose(s0)}shape set to ${shapeLabel(p)}.`;
+      const targets = sessions.filter((s) => s.glove.connected);
+      if (!targets.length) targets.push(s0);
+      for (const s of targets) {
+        if (MODE_ORDER[s.modeIndex] === 'FLY') setMode(s, modeIndexOf('BUILD'));
+        setPrimitive(s, ctx, p);
+      }
+      hud.toast(`Shape: ${shapeLabel(p)}`);
+      const who = targets.length > 1 ? 'both gloves' : `glove ${targets[0].glove.gloveId + 1}`;
+      return `Shape set to ${shapeLabel(p)} on ${who}. The next piece placed will be a ${shapeLabel(p)}.`;
     }
     case 'size': setSize(s0, ctx, cmd.value as SizeName); hud.toast(`${whose(s0)}size ${cmd.value}`); return `${whose(s0)}piece size set to ${cmd.value}.`;
     case 'sensitivity': {
@@ -604,3 +610,26 @@ if (PROJECTS.showDashboardOnStart && listProjects().length) dashboard.show();   
 
 // Debug handle for the console / automated tests.
 (window as unknown as { __aloft: unknown }).__aloft = { rig, rig2, isSplit: () => split, objects, undo, gloves, sessions, setMode, MODES, ctx, voice, whistle, askAssistant, isImperative, sceneSummary, listGeminiModels, geminiQuota: geminiQuotaStatus, dashboard, openProject, saveAsNew, listProjects };
+
+// New deploy check (production only): every minute, compare this page's script with the live one.
+// When the site has been updated, show a banner with a Reload button (no automatic reload: that
+// would drop the Bluetooth gloves mid-demo).
+{
+  const mine = [...document.querySelectorAll<HTMLScriptElement>('script[src]')].map((s) => new URL(s.src).pathname).find((p) => /\/assets\/main-/.test(p));
+  if (mine && !import.meta.env.DEV) {
+    const check = async () => {
+      try {
+        const html = await (await fetch('/', { cache: 'no-store' })).text();
+        if (html.includes('/assets/main-') && !html.includes(mine) && !document.getElementById('update-banner')) {
+          const b = document.createElement('div');
+          b.id = 'update-banner';
+          b.innerHTML = 'Aloft was updated. <button>Reload</button>';
+          Object.assign(b.style, { position: 'fixed', top: '52px', left: '50%', transform: 'translateX(-50%)', zIndex: '50', background: '#e87d0d', color: '#1d1d1d', padding: '6px 10px', borderRadius: '4px', font: '600 13px system-ui', display: 'flex', gap: '8px', alignItems: 'center', boxShadow: '0 4px 16px rgba(0,0,0,.4)' });
+          b.querySelector('button')!.onclick = () => location.reload();
+          document.body.appendChild(b);
+        }
+      } catch { /* offline: try again later */ }
+    };
+    setInterval(check, 60_000);
+  }
+}

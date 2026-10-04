@@ -325,9 +325,19 @@ export class Engine {
     switch (cmd.setting) {
       case 'mode': this.setMode(modeIndexOf(cmd.value as ModeName)); return `Switched to ${cmd.value}.`;
       case 'shape': {
-        // A shape only shows in BUILD / ERASE: "X2D, use a servo" while flying switches to BUILD.
-        if (MODE_ORDER[this.session.modeIndex] === 'FLY') this.setMode(modeIndexOf('BUILD'));
-        this.setPrimitive(cmd.value as PrimitiveName); this.notify(); return `Shape set to ${shapeLabel(cmd.value as PrimitiveName)}.`;
+        // The shape goes to EVERY connected glove (you wear one at a time, so whichever one you place
+        // with gets it); a flying glove switches to BUILD so the piece shows.
+        const p = cmd.value as PrimitiveName;
+        const targets = this.sessions.filter((s) => s.glove.connected);
+        if (!targets.length) targets.push(this.session);
+        for (const s of targets) {
+          if (MODE_ORDER[s.modeIndex] === 'FLY') this.setModeFor(s, modeIndexOf('BUILD'));
+          setPrimitive(s, this.ctx, p);
+        }
+        this.toast(`Shape: ${shapeLabel(p)}`);
+        this.notify();
+        const who = targets.length > 1 ? 'both gloves' : `glove ${this.sessions.indexOf(targets[0]) + 1}`;
+        return `Shape set to ${shapeLabel(p)} on ${who}. The next piece placed will be a ${shapeLabel(p)}.`;
       }
       case 'size': this.setSize(cmd.value as SizeName); this.notify(); return `Piece size set to ${cmd.value}.`;
       case 'sensitivity': {
