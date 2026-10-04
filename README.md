@@ -1,6 +1,6 @@
 # Aloft mobile
 
-Expo (React Native) companion app for [Aloft](../aloft) (web app in the `aloft` folder): a hardware glove
+Expo (React Native) companion app for [Aloft](../README.md) (the web app at the root of this repo): a hardware glove
 (ESP32 + MPU-6050 + four buttons) streams orientation over Bluetooth LE and the
 phone turns it into a drone-style camera, an object manipulator and a primitive
 builder. This is a port of the web app's logic and Blender-ish look to a phone.
