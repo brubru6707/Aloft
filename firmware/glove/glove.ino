@@ -292,11 +292,15 @@ void updateOrientation(float dt) {
 // Polled every loop pass (~200+ Hz) with debouncing. Each debounced press sets a latch bit so
 // that even a press shorter than one 50 Hz frame is reported in the next frame's bitmask.
 uint8_t btnLatch = 0;
+// Level that means "released" per pin. Pull-up pins rest HIGH. Pins without a pull-up (34-39)
+// have their resting level learned at boot, so a button to GND (with an external pull-up) or to
+// 3V3 (resting low) both work: whichever level the pin sits at untouched is "released".
+bool btnIdleLevel[NUM_BUTTONS];
 
 void pollButtons() {
   const uint32_t now = millis();
   for (int i = 0; i < NUM_BUTTONS; i++) {
-    const bool raw = digitalRead(BUTTON_PINS[i]) == LOW;   // pressed = LOW (pull-up)
+    const bool raw = digitalRead(BUTTON_PINS[i]) != btnIdleLevel[i];   // pressed = away from the resting level
     if (raw != btnRaw[i]) { btnRaw[i] = raw; btnChangedAt[i] = now; }
     if (now - btnChangedAt[i] >= DEBOUNCE_MS && btnState[i] != btnRaw[i]) {
       btnState[i] = btnRaw[i];
@@ -337,6 +341,14 @@ void setup() {
   Serial.begin(115200);
   // GPIO 34-39 have no internal pull-up (input only): plain INPUT, needs an external pull-up.
   for (int i = 0; i < NUM_BUTTONS; i++) pinMode(BUTTON_PINS[i], BUTTON_PINS[i] >= 34 ? INPUT : INPUT_PULLUP);
+  delay(20);
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    if (BUTTON_PINS[i] < 34) { btnIdleLevel[i] = HIGH; continue; }
+    int highs = 0;
+    for (int k = 0; k < 50; k++) { highs += digitalRead(BUTTON_PINS[i]); delay(1); }
+    btnIdleLevel[i] = highs > 25;
+    Serial.printf("GPIO %d rests %s: pressed = %s\n", BUTTON_PINS[i], highs > 25 ? "HIGH" : "LOW", highs > 25 ? "LOW" : "HIGH");
+  }
 #if BUTTON_DEBUG
   for (int i = 0; i < NUM_BUTTONS; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
   Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");
