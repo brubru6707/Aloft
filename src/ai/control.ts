@@ -43,7 +43,7 @@ function shapeOf(t: string): string | null {
   if (has(t, /\b(motors?|dc motor|gear ?motor)\b/)) return 'motor';
   if (has(t, /\b(cube|cubes|box|square|block|brick)s?\b/)) return 'cube';
   if (has(t, /\b(sphere|spheres|ball|orb|round)\b/)) return 'sphere';
-  if (has(t, /\b(cylinder|cylinders|sylinder|cilinder|cyllinder|tube|pipe|rod|can|column)\b/)) return 'cylinder';
+  if (has(t, /\b(cylinder|cylinders|sylinder|cilinder|cyllinder|tube|pipe|rod|column)\b/)) return 'cylinder';
   if (has(t, /\b(arduino|nano|nanos|micro ?controller|microcontroller|board)\b/)) return 'nano';
   if (has(t, /\b(led|leds|l e d|light emitting diode|diode|light bulb|bulb)\b/)) return 'led';
   if (has(t, /\b(push ?button|buttons?|tactile|tact switch|push switch)\b/)) return 'button';
@@ -115,6 +115,12 @@ export function parseControl(text: string): ControlCommand | null {
   const sel = /\b(use|select|pick|choose|switch( it)? to|change( it)? to|set( it)? to|set|go to|swap to|shape|make it a|i want (a|an))\b/;
   if (has(t, /\bsize\b/) || (has(t, sel) && !shapeOf(t) && !modeOf(t))) { const s = sizeOf(t); if (s) return { setting: 'size', value: s }; }
   if (shapeOf(t) && (has(t, sel) || t.split(' ').length <= 2)) return { setting: 'shape', value: shapeOf(t)! };
+  // "give me / place / add / let me place / can I have an Arduino Nano": pick it as the BUILD shape
+  // (you place it with the glove) instead of asking Gemini to redesign the scene. Requests that
+  // change existing pieces or describe an arrangement still go to Gemini.
+  const pick = /\b(give( me)?|place|put|add|get|grab|need|spawn|bring|hand me|drop|can i (have|get|use)|i'?d like|let me (have|place|use|put|build with))\b/;
+  const scene = /\b(into|turn|replace|convert|transform|make (it|them|this|that|me)|change|build (a|an|me)|on|onto|next to|beside|above|below|under|behind|in front|left of|right of|top of|around|between|with|stack|row|tower|house|robot|circuit|of)\b/;
+  if (shapeOf(t) && has(t, pick) && !has(t, scene)) return { setting: 'shape', value: shapeOf(t)! };
   if (modeOf(t) && (has(t, sel) || has(t, /\bmode\b/) || t.split(' ').length <= 2)) return { setting: 'mode', value: modeOf(t)! };
   return null;
 }
