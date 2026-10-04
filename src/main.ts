@@ -98,11 +98,21 @@ const shapeLabel = (p: PrimitiveName) => (isPart(p) ? PART_LABELS[p] : p);
 /** Device library on the right edge (BUILD / ERASE only): a click picks that part for the glove. */
 const library = new DeviceLibrary(document.getElementById('hud')!, (id, p) => { setPrimitive(sessions[id], ctx, p); hud.toast(`Shape: ${shapeLabel(p)}`); });
 
-/** "X2D, show me the devices": open (or close) the device library, switching glove 1 to BUILD if it is flying. */
+/** The glove whose button was pressed last (voice / typed settings go to it). */
+let lastGlove = 0;
+/** The glove X2D and typed settings act on: the last one used if it is connected, else a connected one. */
+function voiceSession(): GloveSession {
+  if (sessions[lastGlove]?.glove.connected) return sessions[lastGlove];
+  return sessions.find((s) => s.glove.connected) ?? sessions[0];
+}
+/** "Glove 2: " when two gloves are connected, so the reply says which glove changed. */
+const whose = (s: GloveSession) => (sessions.filter((x) => x.glove.connected).length > 1 ? `Glove ${s.glove.gloveId + 1}: ` : '');
+
+/** "X2D, show me the devices": open (or close) the device library, switching that glove to BUILD if it is flying. */
 function showDevices(open: boolean): string {
   library.setOpen(open);
   if (!open) return 'Closed the device list.';
-  const s0 = sessions[0];
+  const s0 = voiceSession();
   if (MODE_ORDER[s0.modeIndex] === 'FLY') setMode(s0, modeIndexOf('BUILD'));
   hud.toast('Devices: pick one on the right');
   return `The device list is open on the right: ${BUILD.devices.map(shapeLabel).join(', ')}.`;
@@ -124,18 +134,18 @@ function setRotateStyle(style: 'rate' | 'absolute'): void {
  * Returns a short sentence for the agent to read back.
  */
 function applyControl(cmd: ControlCommand): string {
-  const s0 = sessions[0];
+  const s0 = voiceSession();   // the glove you are using, not always glove 1
   switch (cmd.setting) {
-    case 'mode': setMode(s0, modeIndexOf(cmd.value as (typeof MODE_ORDER)[number])); return `Switched to ${cmd.value}.`;
+    case 'mode': setMode(s0, modeIndexOf(cmd.value as (typeof MODE_ORDER)[number])); return `${whose(s0)}switched to ${cmd.value}.`;
     case 'shape': {
       // A shape only shows in BUILD / ERASE: "X2D, use a servo" while flying switches to BUILD.
       if (MODE_ORDER[s0.modeIndex] === 'FLY') setMode(s0, modeIndexOf('BUILD'));
       const p = cmd.value as PrimitiveName;
       setPrimitive(s0, ctx, p);
-      hud.toast(`Shape: ${shapeLabel(p)}`);
-      return `Shape set to ${shapeLabel(p)}.`;
+      hud.toast(`${whose(s0)}shape ${shapeLabel(p)}`);
+      return `${whose(s0)}shape set to ${shapeLabel(p)}.`;
     }
-    case 'size': setSize(s0, ctx, cmd.value as SizeName); hud.toast(`Size: ${cmd.value}`); return `Piece size set to ${cmd.value}.`;
+    case 'size': setSize(s0, ctx, cmd.value as SizeName); hud.toast(`${whose(s0)}size ${cmd.value}`); return `${whose(s0)}piece size set to ${cmd.value}.`;
     case 'sensitivity': {
       const levels = SENSITIVITY.levels;
       const cur = RUNTIME.sensitivity;
@@ -446,6 +456,7 @@ const actionHost: ActionHost = {
 };
 gloves.onAll('release', ({ gloveId, button }) => { onGloveRelease(actionHost, sessions[gloveId], button); });
 gloves.onAll('press', ({ gloveId, button }) => {
+  lastGlove = gloveId;
   const s = sessions[gloveId];
   if (onGlovePress(actionHost, s, button)) return;
   if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return setMode(s, s.modeIndex + 1);

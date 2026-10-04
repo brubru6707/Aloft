@@ -91,6 +91,8 @@ export class Engine {
   readonly rig2 = new CameraRig(9 / 16);
   /** Which glove the on-screen controls (Glove / Build tabs, mode chips) act on. */
   selected = 0;
+  /** The glove whose button was pressed last: X2D / typed settings go to it. */
+  private lastGlove = 0;
   private wasSplit = false;
   get glove(): GloveInput { return this.gloves[this.selected]; }
   get session(): GloveSession { return this.sessions[this.selected]; }
@@ -169,6 +171,7 @@ export class Engine {
     const tag = `G${i + 1}`;
     g.on('release', ({ button }) => this.as(i, () => { onGloveRelease(host, s, button); }));
     g.on('press', ({ button }) => this.as(i, () => {
+      this.lastGlove = i;
       if (onGlovePress(host, s, button)) return;
       if (is(GLOBAL_ACTIONS.modeNext, button, 'press')) return this.setModeFor(s, s.modeIndex + 1);
       if (is(GLOBAL_ACTIONS.modePrev, button, 'press')) return this.setModeFor(s, s.modeIndex - 1);
@@ -288,7 +291,14 @@ export class Engine {
   setPrimitive(p: PrimitiveName): void { setPrimitive(this.session, this.ctx, p); this.toast(`Shape: ${shapeLabel(p)}`); }
 
   /** "X2D, show me the devices": unfold (or fold) the device list, switching to BUILD if flying. */
+  /** Point the panels at the glove X2D / typed settings should change (last used, else a connected one). */
+  private targetVoiceGlove(): void {
+    const i = this.gloves[this.lastGlove].connected ? this.lastGlove : this.gloves.findIndex((g) => g.connected);
+    if (i >= 0 && i !== this.selected) { this.selected = i; this.notify(); }
+  }
+
   showDevices(open: boolean): string {
+    this.targetVoiceGlove();
     this.devicesOpen = open;
     if (open && MODE_ORDER[this.session.modeIndex] === 'FLY') this.setMode(modeIndexOf('BUILD'));
     this.notify();
@@ -311,6 +321,7 @@ export class Engine {
    * size, sensitivity, FLY state, rotate style, or reset the view. Returns a sentence for the agent.
    */
   applyControl(cmd: ControlCommand): string {
+    this.targetVoiceGlove();
     switch (cmd.setting) {
       case 'mode': this.setMode(modeIndexOf(cmd.value as ModeName)); return `Switched to ${cmd.value}.`;
       case 'shape': {
