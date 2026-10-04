@@ -34,8 +34,9 @@
 // ---------------- Config ----------------
 static const char*   DEVICE_NAME   = "Aloft-Glove";
 static const uint8_t MPU_ADDR      = 0x68;   // AD0 low. Use 0x69 if AD0 is tied high.
-static const int     PIN_SDA       = 21;
-static const int     PIN_SCL       = 22;
+static const int     PIN_SDA       = 21;   // default wiring; if the sensor does not answer there,
+static const int     PIN_SCL       = 22;   // setup() tries SDA/SCL swapped (the 6-button glove has them swapped)
+static const uint32_t I2C_HZ        = 100000;
 static const int     NUM_BUTTONS   = 6;
 static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
 static const uint32_t SAMPLE_HZ    = 50;
@@ -313,6 +314,20 @@ uint8_t readButtons() {
   return mask;
 }
 
+// Free a stuck I2C bus: clock each of the two lines 10 times while the other floats high, so a
+// sensor left mid-byte (e.g. after probing with SDA/SCL the wrong way round) releases SDA.
+void i2cBusRecover(int a, int b) {
+  for (int k = 0; k < 2; k++) {
+    const int clk = k ? b : a, dat = k ? a : b;
+    pinMode(dat, INPUT_PULLUP);
+    pinMode(clk, OUTPUT_OPEN_DRAIN);
+    for (int i = 0; i < 10; i++) { digitalWrite(clk, LOW); delayMicroseconds(5); digitalWrite(clk, HIGH); delayMicroseconds(5); }
+  }
+  pinMode(a, INPUT_PULLUP);
+  pinMode(b, INPUT_PULLUP);
+  delayMicroseconds(20);
+}
+
 // ---------------- Arduino ----------------
 void setup() {
 #if BUTTON_DEBUG
@@ -325,7 +340,24 @@ void setup() {
   Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");
 #endif
 
-  Wire.begin(PIN_SDA, PIN_SCL, 400000);
+  // Find the MPU: normal wiring first, then SDA/SCL swapped.
+  bool mpuFound = false;
+  // 100 kHz: the 6-button glove's longer wires do not work at 400 kHz, and 100 kHz is plenty for 200 Hz reads.
+  delay(100);   // let the MPU power up
+  for (int attempt = 0; attempt < 6 && !mpuFound; attempt++) {
+    const bool swapped = attempt % 2 == 1;
+    const int sda = swapped ? PIN_SCL : PIN_SDA, scl = swapped ? PIN_SDA : PIN_SCL;
+    Wire.end();
+    i2cBusRecover(PIN_SDA, PIN_SCL);
+    Wire.begin(sda, scl, I2C_HZ);
+    Wire.setTimeOut(20);
+    delay(10);
+    Wire.beginTransmission(MPU_ADDR);
+    mpuFound = Wire.endTransmission() == 0;
+    Serial.printf("MPU on SDA=%d SCL=%d: %s\n", sda, scl, mpuFound ? "found" : "no answer");
+    if (!mpuFound) delay(50);
+  }
+  if (!mpuFound) { Wire.end(); Wire.begin(PIN_SDA, PIN_SCL, I2C_HZ); Serial.println("MPU not found: check VCC / GND / SDA / SCL wiring"); }
   mpuInit();
   Serial.println("Calibrating gyro, hold still...");
   calibrateGyro();
