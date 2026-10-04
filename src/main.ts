@@ -397,7 +397,9 @@ voice.setClientTools({
   [VOICE.tools.build]: async (params) => {
     const request = String(params.request ?? params.description ?? '').trim();
     if (!request) return 'No request given. Ask the user what to build.';
-    const result = await askAssistant(request, { speakReply: false, forceRebuild: true });
+    let result: Awaited<ReturnType<typeof askAssistant>> = null;
+    try { result = await askAssistant(request, { speakReply: false, forceRebuild: true }); }
+    catch (err) { console.warn('[x2d] build_scene failed:', err); return `Something went wrong building that (${err instanceof Error ? err.message : String(err)}). Apologise briefly and offer to try again.`; }
     if (!result) return 'The build failed (Gemini did not return a usable layout). Apologise briefly and offer to try again.';
     return result.action === 'rebuild'
       ? `Built it: ${result.message} (${result.pieces} pieces, now in the scene). Tell the user in one short sentence.`

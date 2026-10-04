@@ -106,7 +106,16 @@ export function normalizeControl(settingRaw: unknown, valueRaw: unknown): Contro
  */
 export function parseControl(text: string): ControlCommand | null {
   const t = text.toLowerCase().replace(/(?<!\d)[.,!?]|[.,!?](?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!t || t.split(' ').length > 9) return null;
+  if (!t) return null;
+  // About MY shape ("change my shape to …", "replace my cube with …", "switch the shape I'm on to …"):
+  // set the shape to whatever is named after the last to / into / with / as. "Turn the cube into …"
+  // (no "my" / "shape") still means changing built pieces and goes to Gemini.
+  if (has(t, /\b(shape|my (cube|sphere|cylinder|ball|block|piece|part|current one)|currently (on|using|placing|building|holding)|i('m| am) (on|using|placing|building with))\b/)) {
+    const target = t.split(/\b(?:to|into|with|as|be)\b/).pop() ?? '';
+    const s = shapeOf(target);
+    if (s) return { setting: 'shape', value: s };
+  }
+  if (t.split(' ').length > 9) return null;
   if (has(t, /^(center|centre|recenter|recentre|reset)( me| the view| view| camera| everything| it)?$/) || has(t, /\b(center|centre) me\b|\bback to (the )?start\b|\breset (the )?(view|camera)\b/)) return { setting: 'reset_view', value: '' };
   { const l = layoutOf(t, false); if (l && has(t, /\b(default|back ?up)\b/)) return { setting: 'controls', value: l }; }
   if (has(t, /\bsensitivity\b|\bsens\b/)) { const s = sensOf(t); if (s) return { setting: 'sensitivity', value: s }; }
