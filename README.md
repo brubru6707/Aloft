@@ -37,11 +37,10 @@ spoken aloud and shown large in the top-left, color-coded.
 | Mode | Color | Controls |
 | --- | --- | --- |
 | **FLY** (default) | cyan | tap **B1** (pinky) to alternate `MOVE: X` → `ROTATE` → `MOVE: Y` → `ROTATE` → `MOVE: Z` → `ROTATE` … (shown large and spoken). MOVE translates along that one world axis: X (left/right) from roll, Y (up/down) and Z (forward/back) from pitch (hand up = up, tilt forward = forward). ROTATE turns the camera with hand roll (roll right = turn right) and looks up/down with pitch. Deadzone, tilt mapping, signs and rates live in `FLY` in `src/config.ts` |
-| **SCALE** | green | pitch up/down scales the selection |
-| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the crosshair points: on top of the ground or piece you aim at (so pieces stack), or stuck to the side you aim at, at that height, so you can build outwards; the shape is chosen with the SHAPE chips in the glove panel and **B3** (or the SIZE chips) cycles small / medium / large |
-| **ERASE** | red | hand rotates the camera to aim; tap **B1** deletes the object under the cursor |
+| **BUILD** | yellow | hand rotates the camera to aim (same rate/absolute style as FLY); tap **B1** places a primitive where the crosshair points: on top of the ground or piece you aim at (so pieces stack), or stuck to the side you aim at, at that height, so you can build outwards; the shape is chosen with the SHAPE chips in the glove panel (cube, sphere, cylinder, or the Arduino kit parts: **nano** = Arduino Nano, **led** = 5 mm LED, **button** = 12 mm push button, all at real size; the colour paints the LED / button cap) and **B2** (or the SIZE chips) cycles small / medium / large. Say "X2D, use an Arduino Nano" to switch shape, or "turn the sphere into an Arduino Nano" to convert a piece |
+| **ERASE** | red | hand aims a red see-through eraser (shape from the SHAPE chips, size from **B2** or the SIZE chips: 2 / 5 / 12 cm); every piece it touches turns red and **B1** erases them all as one undo step |
 
-**B3** cycles the sensitivity multiplier (0.5×, 1×, 1.5×, 2×, also a toolbar button) and **B2** = undo in every mode (build, move, rotate, scale, erase). All mappings
+**B2** cycles the sensitivity multiplier (1×, 0.8×, 0.6×, 0.4×, 0.2×, 0×, also a toolbar button) and **B3** (GPIO 27, the pinky) resets the view: camera back to the start position and roll / pitch / yaw zeroed. Undo is the toolbar button, Cmd+Z, or saying "undo that" (build, move, rotate, erase). All mappings
 and tuning live in [`src/config.ts`](src/config.ts).
 
 The crosshair in the screen center is glove 1's cursor. A second glove gets its
@@ -65,6 +64,19 @@ MOVE axis is drawn bright and thick and the end you are moving toward grows. The
 panel's FLY row shows the same state as chips plus a bar of the current move amount.
 
 
+## Projects
+
+**💾 Save** (or Cmd/Ctrl+S) stores the current build: every piece, the camera and a thumbnail.
+The first save asks for a name in the dashboard; after that the project **autosaves** about
+1.5 s after each change (the toolbar shows the project name, with a dot while changes are
+pending). **📁 Projects** opens the dashboard: one card per project with its thumbnail, piece
+count and last edit; **Open** (or **Continue** for the one you are in), click the name to rename,
+**Delete** asks once more on the same button. **＋ New empty project** clears the scene. Opening
+another project or starting a new one never loses work: an unnamed build is kept as
+"Unsaved build …". When saved projects exist the dashboard opens at start-up so you can pick up
+where you left off. Projects live in this browser's localStorage (no backend), so they are per
+browser and per computer. Settings are under `PROJECTS` in `src/config.ts`.
+
 ## X2D voice assistant and Gemini
 
 - **X2D** (ElevenLabs Agents + Gemini): the page watches for the wake word "X2D" with
@@ -74,7 +86,7 @@ panel's FLY row shows the same state as chips plus a bar of the current move amo
   request**, e.g. *"X2D, I made a stickman but it looks ugly, make it an actual stickman"*,
   and the whole sentence goes to Gemini together with every piece you built (shape, size,
   position, colour). Gemini either answers out loud or returns a complete new layout, which
-  replaces your pieces as one undoable step (B2 undoes it). The ask box does the same with
+  replaces your pieces as one undoable step (Undo takes it back). The ask box does the same with
   typed text. The agent id and wake
   word spellings are under `VOICE` in `src/config.ts`; the agent itself is edited in the
   ElevenLabs dashboard (prompt, voice, LLM). Chrome asks for the microphone once.
@@ -109,6 +121,41 @@ without the app in the way, and to produce a report you can paste into a chat.
   and yaw changed and the yaw rate, so drift and reversed axes are obvious), every
   button press with its duration, the app's tap/hold classification events, and a
   0.5 s trace. **Copy report** puts it on the clipboard.
+
+### Refining, silence and the whistle
+
+After something is built, ask for changes in plain words ("make the arms longer", "give it a hat",
+"make it red"): build_scene sends Gemini the current pieces with the request and it rebuilds from
+them, one undo step per change. The agent's "Take turn after silence" is set to -1 in the dashboard
+so it never asks "are you still there?"; instead the page whistles once when nobody has spoken for
+`VOICE.idleWhistleMs` (15 s; a running build does not count as silence). Set it to 0 to turn the
+whistle off. `__aloft.whistle()` in the console plays it.
+
+### Letting the agent build (ElevenLabs dashboard setup)
+
+The flow is **you → X2D agent → Gemini → pieces in the scene**. The page registers three
+*client tools* with the agent session (`VOICE.tools` in `src/config.ts`). The agent can only
+call them once they are also defined on the agent in the ElevenLabs dashboard
+(Agents → Aloft X2D → Tools → Add tool → **Client**), each with **Wait for response** on:
+
+| Name | Description (what the agent reads) | Parameters |
+| --- | --- | --- |
+| `build_scene` | Builds or changes the 3D scene in Aloft. Call it whenever the user asks you to make, build, add, change, fix, move or remove anything. Pass their request in their own words. | `request` (string, required): what to build or change, e.g. "a stickman" or "make the arms longer" |
+| `describe_scene` | Returns what is currently built (pieces, sizes and positions in cm). Call it before answering questions about the scene. | none |
+| `undo_last` | Undoes the last change to the scene. | none |
+
+Set the `build_scene` response timeout to about 60 s (Gemini can take 10–30 s for a layout).
+Then add to the agent's system prompt:
+
+> You are X2D, the voice of Aloft, a 3D building app measured in centimetres. You cannot draw
+> images, but you CAN build 3D objects: whenever the user asks for something to be made or
+> changed, call `build_scene` with their request, then tell them in one short sentence what you
+> built, using the tool's reply. Never tell the user to build it themselves. Use
+> `describe_scene` for questions about what is built and `undo_last` when they want to undo.
+
+"X2D, make me a stickman" spoken in one breath opens a session and hands the request to the
+agent as its first message (`VOICE.routeViaAgent`; set it to `false` to send wake-word
+requests straight to Gemini as before). The **✨ ask Gemini** box still goes straight to Gemini.
 
 ## BLE protocol
 
@@ -160,12 +207,9 @@ times before giving up. Everything input-related is in [`src/input/`](src/input/
 2. **(0:10)** FLY. Turn your hand to look down a street. Tap B1 (pinky):
    *"x"*, tilt forward to slide along it. Tap: *"rotate"*, look up at a tower.
    Tap: *"y"*, roll to rise above it. "One axis at a time, one tilt, no joystick."
-3. **(0:25)** Tap B0 — the app says *"scale"*. Point at a piece, tap B1, and pitch
-   up to grow it.
-4. **(0:35)** Fly to the glowing plaza. Tap B0 twice to *"build"*. Place a cube,
-   pick sphere in the panel, place one on top, press B3 for a large one. Switch to
-   *"scale"* and grow it. Press B2 to undo the last change.
-5. **(0:50)** Hand the second glove to a teammate: a magenta cursor appears and
+3. **(0:30)** Fly to the glowing plaza. Tap B0 to *"build"*. Place a cube,
+   pick sphere in the panel, place one on top, press B2 for a large one. Press Undo to take back the last change.
+4. **(0:50)** Hand the second glove to a teammate: a magenta cursor appears and
    they drop shapes while you keep flying. "Two people, one world, no mice."
-6. **(0:55)** Click **Export STL**. "And what you built is a real file you can
+5. **(0:55)** Click **Export STL**. "And what you built is a real file you can
    print. That's navigating and building in 3D, with your hand."

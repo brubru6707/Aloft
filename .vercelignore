@@ -1,0 +1,9 @@
+# Never upload local secrets or hardware files to Vercel.
+.env
+.env.*
+!.env.example
+firmware/
+dist/
+node_modules/
+.DS_Store
+mobile/

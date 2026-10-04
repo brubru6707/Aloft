@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 
-// Two pages: the app (index.html) and the glove test bench (test.html).
+// Three pages: the app (index.html), the glove test bench (test.html) and the animated controls guide (controls.html).
 export default defineConfig({
-  build: { rollupOptions: { input: { main: 'index.html', test: 'test.html' } } },
+  build: { rollupOptions: { input: { main: 'index.html', test: 'test.html', controls: 'controls.html' } } },
 });

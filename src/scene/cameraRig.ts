@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FLY } from '../config';
+import { CAMERA_START, FLY } from '../config';
 
 /** Camera with explicit yaw/pitch/bank so modes can drive it in degrees. */
 export class CameraRig {
@@ -11,9 +11,9 @@ export class CameraRig {
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 2000);
-    this.camera.position.set(0, 5, 6);
-    this.yaw = 0;
-    this.pitch = -0.08;
+    this.camera.position.set(...CAMERA_START.pos);
+    this.yaw = CAMERA_START.yaw;
+    this.pitch = CAMERA_START.pitch;
     this.apply();
   }
 

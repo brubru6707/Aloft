@@ -17,5 +17,7 @@ export class UndoStack {
     e.undo();
     return e;
   }
+  /** Forget all history (after opening a saved project). */
+  clear(): void { this.stack = []; }
   get size(): number { return this.stack.length; }
 }

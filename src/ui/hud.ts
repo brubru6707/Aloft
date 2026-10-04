@@ -1,5 +1,6 @@
-import { BUILD, FLY, GLOBAL_ACTIONS, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, UNITS, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
+import { BUILD, FLY, MODE_COLORS, MODE_HINTS, MODE_ORDER, RUNTIME, type FlyAxis, type PrimitiveName, type SizeName } from '../config';
 import { flyDeflection, flyLabel } from '../modes/fly';
+import { ghostInfo } from '../modes/build';
 import type { VoiceState } from './voice';
 import { BleSource } from '../input/BleSource';
 import type { GloveManager } from '../input/GloveManager';
@@ -27,6 +28,9 @@ export interface HudActions {
   setPrimitive(gloveId: number, p: PrimitiveName): void;
   /** Choose the BUILD piece size for a glove (same as B2 in BUILD). */
   setSize(gloveId: number, size: SizeName): void;
+  /** Projects: open the dashboard, or save the current project (Cmd/Ctrl+S). */
+  openProjects(): void;
+  saveProject(): void;
 }
 
 interface GlovePanel {
@@ -62,32 +66,64 @@ export class Hud {
   private rotateBtn: HTMLButtonElement;
   private sensBtn: HTMLButtonElement;
   private voiceBtn: HTMLButtonElement;
+  private projectEl!: HTMLElement;
+
+  /** Show the current project name in the toolbar; a dot marks unsaved changes. */
+  syncProject(name: string | null, dirty: boolean): void {
+    this.projectEl.textContent = name ?? 'unsaved build';
+    this.projectEl.classList.toggle('dirty', dirty);
+  }
 
   constructor(root: HTMLElement, gloves: GloveManager, actions: HudActions) {
+    const btn = (id: string, icon: string, label: string, title: string) =>
+      `<button id="${id}" title="${title}"><i>${icon}</i><span class="lbl">${label}</span></button>`;
     root.innerHTML = `
+      <header id="topbar">
+        <div class="brand"><img src="/favicon.svg" alt="" /><span>Aloft</span></div>
+        <button id="project-chip" title="Current project · click for all projects (• = saving changes)"><span id="project-name">unsaved build</span></button>
+        <div class="spacer"></div>
+        <div class="group">
+          ${btn('projects', '📁', 'Projects', 'Saved projects: open, continue, rename, delete')}
+          ${btn('save', '💾', 'Save', 'Save this project (Cmd/Ctrl+S)')}
+        </div>
+        <div class="group">
+          ${btn('undo', '↶', 'Undo', 'Undo (Cmd/Ctrl+Z, or say “undo that”)')}
+          ${btn('recenter-all', '⌖', 'Recenter', "Zero every glove's orientation")}
+        </div>
+        <div class="group">
+          ${btn('rotate-style', '⟳', 'Rotate: rate', 'FLY rotation: rate = tilt sets turn speed and keeps turning; absolute = camera follows the hand angle and stays there')}
+          ${btn('sensitivity', '⚡', 'Sens 1×', 'Sensitivity multiplier on every hand-driven rate (B2 cycles it too)')}
+        </div>
+        <div class="group">
+          ${btn('export', '⬇', 'STL', 'Export everything built as one STL (mm)')}
+          <button id="help-toggle" title="Controls">?</button>
+        </div>
+      </header>
       <div id="modes"></div>
-      <div id="toolbar" class="panel">
-        <button id="undo" title="Undo (B${GLOBAL_ACTIONS.undo.button})">↶ Undo</button>
-        <button id="recenter-all" title="Zero every glove's orientation">⌖ Recenter</button>
-        <button id="rotate-style" title="FLY rotation: rate = tilt sets turn speed and keeps turning; absolute = camera follows the hand angle and stays there"></button>
-        <button id="sensitivity" title="Sensitivity multiplier on every hand-driven rate (B3 cycles it too)"></button>
-        <button id="voice" title="X2D voice assistant: say “X2D” or click to talk; click again to hang up">🎙 X2D</button>
-        <form id="ask" title="Ask Gemini about the scene"><input id="ask-q" type="text" placeholder="✨ ask Gemini…" autocomplete="off" /></form>
-        <button id="export">⬇ Export STL</button>
-      </div>
       <div id="gloves"></div>
-      <div id="help">
-        <b>Glove:</b> press B0 = next mode (previous: click a mode chip or Shift+Tab) · B2 undo · B3 sensitivity (size in BUILD)<br/>
-        <b>FLY:</b> tap B1 (pinky) alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · tilt to move or look<br/>
-        <b>Simulator:</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag mouse to tilt<br/>
-        <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> = buttons B0–B3 (hold = hold)
+      <div id="dock" class="panel">
+        <button id="voice" title="X2D voice assistant: say “X2D” or click to talk; click again to hang up"><i>🎙</i><span class="lbl">X2D</span></button>
+        <form id="ask" title="Ask Gemini to build or change something, or ask about the scene"><input id="ask-q" type="text" placeholder="✨ Ask Gemini: “make me a stickman”…" autocomplete="off" /></form>
+      </div>
+      <div id="help" class="panel" hidden>
+        <b>Glove</b> B0 next mode (previous: click a mode chip, Shift+Tab) · B1 action · B2 sensitivity (size in BUILD) · B3 (pinky) reset view + zero<br/>
+        <b>FLY</b> B1 alternates MOVE X / ROTATE / MOVE Y / ROTATE / MOVE Z … · roll turns, pitch looks<br/>
+        <b>Simulator</b> <kbd>←→</kbd> roll <kbd>↑↓</kbd> pitch <kbd>Q</kbd><kbd>E</kbd> yaw · drag to tilt · <kbd>1</kbd>–<kbd>4</kbd> = B0–B3<br/>
+        <b>Keys</b> <kbd>Tab</kbd> next mode · <kbd>R</kbd> recenter · <kbd>⌘Z</kbd> undo · <kbd>⌘S</kbd> save<br/>
+        <a href="/controls.html" target="_blank" rel="noopener">▶ Animated guide to the glove buttons</a>
       </div>
       <div id="toast"></div>
     `;
+    const help = root.querySelector<HTMLElement>('#help')!;
+    root.querySelector<HTMLButtonElement>('#help-toggle')!.onclick = () => { help.hidden = !help.hidden; };
+    root.querySelector<HTMLButtonElement>('#project-chip')!.onclick = () => actions.openProjects();
     this.toastEl = root.querySelector('#toast')!;
     root.querySelector<HTMLButtonElement>('#undo')!.onclick = () => actions.undo();
     root.querySelector<HTMLButtonElement>('#recenter-all')!.onclick = () => gloves.gloves.forEach((g) => actions.recenter(g.gloveId));
     root.querySelector<HTMLButtonElement>('#export')!.onclick = () => actions.exportSTL();
+    root.querySelector<HTMLButtonElement>('#projects')!.onclick = () => actions.openProjects();
+    root.querySelector<HTMLButtonElement>('#save')!.onclick = () => actions.saveProject();
+    this.projectEl = root.querySelector<HTMLElement>('#project-name')!;
     this.rotateBtn = root.querySelector<HTMLButtonElement>('#rotate-style')!;
     this.rotateBtn.onclick = () => actions.toggleRotateStyle();
     this.syncRotateButton();
@@ -119,7 +155,7 @@ export class Hud {
         </div>
         <div class="buttons"><i>B0</i><i>B1</i><i>B2</i><i>B3</i></div>
         <div class="modes" title="Click a mode (same as tapping B0)">${MODE_ORDER.map((m) => `<i data-mode="${m}" style="--mode:${MODE_COLORS[m]}">${m}</i>`).join('')}</div>
-        <div class="shapes" title="BUILD shape and size: click to choose (B3 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
+        <div class="shapes" title="BUILD shape and size: click to choose (B2 cycles the size)"><span>SHAPE</span>${BUILD.primitives.map((p) => `<i data-shape="${p}">${p}</i>`).join('')}<span class="gap">SIZE</span>${BUILD.sizes.map((z) => `<i data-size="${z}">${z[0].toUpperCase()}</i>`).join('')}<b class="pos"></b></div>
         <div class="fly" title="FLY state: click, or press the pinky button (B1) to alternate ROTATE and a MOVE axis"><span>FLY</span><i data-axis="">ROTATE</i><i data-axis="X">X</i><i data-axis="Y">Y</i><i data-axis="Z">Z</i><b class="amt" title="move amount along the active axis (−1 … +1)"><u></u></b></div>
         <div class="actions">
           <button class="connect">Connect Glove</button>
@@ -128,6 +164,7 @@ export class Hud {
           <button class="disconnect" hidden>✕</button>
         </div>`;
       glovesEl.appendChild(panel);
+      panel.querySelector<HTMLElement>('header')!.onclick = () => panel.classList.toggle('collapsed');
 
       const cursor = document.createElement('div');
       cursor.className = 'cursor';
@@ -188,21 +225,22 @@ export class Hud {
   /** Reflect the X2D assistant state on the toolbar button. */
   syncVoiceButton(state: VoiceState): void {
     const label = { off: '🎙 X2D', listening: '🎙 X2D · listening', connecting: '🎙 X2D · connecting…', talking: '🔴 X2D · talking', unsupported: '🎙 X2D (Chrome only)' }[state];
-    this.voiceBtn.textContent = label;
+    this.voiceBtn.querySelector('.lbl')!.textContent = label.replace(/^\S+\s/, '');
+    this.voiceBtn.querySelector('i')!.textContent = state === 'talking' ? '🔴' : '🎙';
     this.voiceBtn.classList.toggle('active', state === 'talking' || state === 'connecting');
     this.voiceBtn.disabled = state === 'unsupported';
   }
 
   /** Reflect the current sensitivity on the toolbar button. */
   syncSensitivityButton(): void {
-    this.sensBtn.textContent = `⚡ Sens: ${RUNTIME.sensitivity}×`;
+    this.sensBtn.querySelector('.lbl')!.textContent = `Sens ${RUNTIME.sensitivity}×`;
     this.sensBtn.classList.toggle('active', RUNTIME.sensitivity !== 1);
   }
 
   /** Reflect the current FLY rotation style on the toolbar button. */
   syncRotateButton(): void {
     const abs = FLY.rotate.style === 'absolute';
-    this.rotateBtn.textContent = abs ? '⟳ Rotate: absolute' : '⟳ Rotate: rate';
+    this.rotateBtn.querySelector('.lbl')!.textContent = abs ? 'Rotate: absolute' : 'Rotate: rate';
     this.rotateBtn.classList.toggle('active', abs);
   }
 
@@ -236,6 +274,8 @@ export class Hud {
       p.connect.classList.toggle('active', g.sourceKind === 'ble' && g.connected);
       p.connect.textContent = g.sourceKind === 'ble' && g.status === 'connecting' ? 'Connecting…' : 'Connect Glove';
       p.disconnect.hidden = !g.source;
+      // A second glove that is not connected shrinks to its header and connect buttons.
+      p.root.classList.toggle('idle', g.gloveId > 0 && !g.source);
 
       // Mode label (only shown when the glove is active; glove 1 always shown)
       const modeName = MODE_ORDER[s.modeIndex];
@@ -250,14 +290,10 @@ export class Hud {
       const axisText = modeName === 'FLY' ? flyLabel(s) : '';
       p.flyRow.style.display = modeName === 'FLY' ? '' : 'none';
       p.modeChips.forEach((c, k) => c.classList.toggle('on', k === s.modeIndex));
-      p.shapeRow.style.display = modeName === 'BUILD' ? '' : 'none';
+      p.shapeRow.style.display = modeName === 'BUILD' || modeName === 'ERASE' ? '' : 'none';
       p.shapeChips.forEach((c) => c.classList.toggle('on', c.dataset.shape === s.primitive));
       p.sizeChips.forEach((c) => c.classList.toggle('on', c.dataset.size === s.size));
-      if (modeName === 'BUILD' && s.ghost) {
-        const q = s.ghost.position;
-        const edge = (2 * BUILD.sizeScale[s.size]).toFixed(0);
-        p.pos.textContent = `${edge} ${UNITS.name} @ ${q.x.toFixed(0)}, ${q.y.toFixed(0)}, ${(-q.z).toFixed(0)} ${UNITS.name}`;
-      }
+      if (s.ghost) p.pos.textContent = ghostInfo(s);
       const active = axisText === 'ROTATE' ? 0 : ['X', 'Y', 'Z'].indexOf(axisText.slice(-1)) + 1;
       p.flyChips.forEach((c, k) => c.classList.toggle('on', k === active));
       // Deflection bar: fills from the centre toward − or + along the active axis.

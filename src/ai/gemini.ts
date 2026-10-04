@@ -1,13 +1,31 @@
 /**
- * Gemini client (Google AI Studio REST API, no SDK). The key comes from
- * VITE_GEMINI_API_KEY in .env.local, which is git-ignored. Anything shipped to a
- * browser is visible to whoever loads the page, so keep this for local use.
+ * Gemini client (Google AI Studio REST API, no SDK). In dev the key comes from
+ * VITE_GEMINI_API_KEY in .env.local (git-ignored); deployed builds go through /api/gemini
+ * so the key never reaches the browser.
  */
 import { GEMINI } from '../config';
 
 import type { PieceSpec } from './scene';
 
-export const geminiAvailable = (): boolean => !!import.meta.env.VITE_GEMINI_API_KEY;
+/**
+ * Where Gemini calls go. Local dev (`npm run dev`) calls Google directly with VITE_GEMINI_API_KEY
+ * from .env.local. A production build never contains the key: it calls the site's own /api/gemini
+ * function, which adds the key on the server (GEMINI_API_KEY in the Vercel project settings).
+ */
+const DEV_KEY: string | undefined = import.meta.env.DEV ? (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) : undefined;
+const USE_PROXY = !import.meta.env.DEV;
+
+export const geminiAvailable = (): boolean => USE_PROXY || !!DEV_KEY;
+
+/** POST a generateContent body for one model, directly (dev) or through /api/gemini (deployed). */
+function postGemini(model: string, body: unknown): Promise<Response> {
+  if (USE_PROXY) {
+    return fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, body }) });
+  }
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': DEV_KEY! }, body: JSON.stringify(body),
+  });
+}
 
 export interface ScenePlan {
   action: 'answer' | 'rebuild';
@@ -55,24 +73,95 @@ function errorMessage(status: number, bodyText: string, model: string): string {
   return `Gemini ${status}: ${msg}`;
 }
 
+/* ---------- model selection: skip exhausted models, prefer the last one that worked ---------- */
+
+interface QuotaState { skipUntil: Record<string, number>; lastGood?: string }
+
+function loadQuota(): QuotaState {
+  try {
+    const raw = localStorage.getItem(GEMINI.quotaStoreKey);
+    if (raw) { const q = JSON.parse(raw) as QuotaState; return { skipUntil: q.skipUntil ?? {}, lastGood: q.lastGood }; }
+  } catch { /* storage unavailable */ }
+  return { skipUntil: {} };
+}
+function saveQuota(q: QuotaState): void {
+  try { localStorage.setItem(GEMINI.quotaStoreKey, JSON.stringify(q)); } catch { /* storage unavailable */ }
+}
+
+/** Next midnight in America/Los_Angeles (when Gemini free-tier daily quotas reset), as epoch ms. */
+function nextPacificMidnight(now = Date.now()): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: 'numeric', minute: 'numeric', second: 'numeric' })
+    .formatToParts(new Date(now));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const secondsIntoDay = (get('hour') % 24) * 3600 + get('minute') * 60 + get('second');
+  return now + (86400 - secondsIntoDay) * 1000 + 60_000;   // plus a minute of slack
+}
+
+/** How long to skip a model after a 429: a daily quota until the reset, otherwise Google's retry delay. */
+function skipUntilFor429(bodyText: string): number {
+  if (/PerDay|per day|daily/i.test(bodyText)) return nextPacificMidnight();
+  const m = bodyText.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/) ?? bodyText.match(/retry in (\d+(?:\.\d+)?)s/i);
+  const seconds = m ? Number(m[1]) : 60;
+  return Date.now() + Math.max(5, seconds) * 1000;
+}
+
+/** Models to try, in order: the last one that worked, then the configured chain, minus any still out of quota. */
+function modelOrder(q: QuotaState): string[] {
+  const chain = [GEMINI.model, ...GEMINI.fallbackModels];
+  const ordered = q.lastGood && chain.includes(q.lastGood) ? [q.lastGood, ...chain.filter((m) => m !== q.lastGood)] : chain;
+  const now = Date.now();
+  return ordered.filter((m) => !(q.skipUntil[m] > now));
+}
+
+/** Which models are skipped right now and until when (for the console: __aloft.geminiQuota()). */
+export function geminiQuotaStatus(): { lastGood?: string; skipped: Record<string, string> } {
+  const q = loadQuota();
+  const skipped: Record<string, string> = {};
+  for (const [m, t] of Object.entries(q.skipUntil)) if (t > Date.now()) skipped[m] = new Date(t).toLocaleString();
+  return { lastGood: q.lastGood, skipped };
+}
+
 async function callGemini(systemText: string, contents: Turn[], opts: CallOptions): Promise<GeminiRaw> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!key) throw new Error('No Gemini key: put VITE_GEMINI_API_KEY in .env.local');
-  const body = buildRequest(systemText, contents, opts);
+  if (!geminiAvailable()) throw new Error('No Gemini key: put VITE_GEMINI_API_KEY in .env.local');
+  const body = buildRequest(systemText, contents, opts) as { generationConfig: Record<string, unknown> };
+  // Builds (JSON plans) think briefly: much faster, and far fewer 503s than long thinking.
+  if (opts.json && GEMINI.planThinkingLevel) body.generationConfig.thinkingConfig = { thinkingLevel: GEMINI.planThinkingLevel };
+  const q = loadQuota();
+  const models = modelOrder(q);
+  if (!models.length) {
+    const soonest = Math.min(...Object.values(q.skipUntil));
+    throw new Error(`Gemini: every model is out of quota until ${new Date(soonest).toLocaleTimeString()}`);
+  }
   let res: Response | null = null;
-  let model = GEMINI.model;
-  for (model of [GEMINI.model, ...GEMINI.fallbackModels]) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  let model = models[0];
+  let lastErr = '';
+  for (model of models) {
+    let r: Response | null = null;
     for (let attempt = 0; attempt <= GEMINI.retries; attempt++) {
-      res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) });
-      if (res.status !== 503 && res.status !== 429) break;     // overloaded / rate limited: back off and retry
-      if (attempt < GEMINI.retries) await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      r = await postGemini(model, body);
+      if (r.status !== 503) break;   // only "overloaded" is worth one quick retry on the same model
+      if (attempt < GEMINI.retries) await new Promise((done) => setTimeout(done, GEMINI.retryDelayMs));
     }
-    if (!res || res.ok) break;
-    if (res.status !== 503 && res.status !== 404 && res.status !== 429) break;   // a real error: do not mask it with a fallback
+    res = r!;
+    if (res.ok) break;
+    if (res.status === 429) {
+      // Out of quota: remember it so later builds go straight past this model.
+      const text = await res.text();
+      lastErr = errorMessage(429, text, model);
+      q.skipUntil[model] = skipUntilFor429(text);
+      saveQuota(q);
+      console.info('[gemini] skipping', model, 'until', new Date(q.skipUntil[model]).toLocaleString());
+      continue;
+    }
+    if (res.status === 503 || res.status === 404) { lastErr = errorMessage(res.status, await res.clone().text(), model); continue; }
+    break;   // a real error: do not mask it with a fallback
   }
   if (!res) throw new Error('Gemini: no response');
-  if (!res.ok) throw new Error(errorMessage(res.status, await res.text(), model));
+  if (!res.ok) {
+    if (res.bodyUsed) throw new Error(lastErr || `Gemini ${res.status}`);
+    throw new Error(errorMessage(res.status, await res.text(), model));
+  }
+  if (q.lastGood !== model) { q.lastGood = model; saveQuota(q); }
   const data = (await res.json()) as GeminiResponse;
   const candidate = data.candidates?.[0];
   const text = candidate?.content?.parts?.map((p) => p.text ?? '').join('').trim() ?? '';
@@ -127,9 +216,8 @@ export async function planScene(request: string, pieces: PieceSpec[], context: s
 
 /** Models this key can call with generateContent (for picking GEMINI.model / fallbacks). */
 export async function listGeminiModels(): Promise<string[]> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!key) return [];
-  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100', { headers: { 'x-goog-api-key': key } });
+  if (!DEV_KEY) return [];   // dev-only helper; the deployed site never sees the key
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100', { headers: { 'x-goog-api-key': DEV_KEY } });
   const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
   return (data.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace('models/', ''));
 }

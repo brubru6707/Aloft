@@ -38,10 +38,19 @@ static const int     PIN_SCL       = 22;
 static const int     BUTTON_PINS[4] = {13, 25, 27, 26};   // B0 mode, B1 pinky (axis cycle), B2, B3. Avoid GPIO 0/2/12/15 (strapping) and 34-39 (no pull-ups).
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
-static const float   SIGN_ROLL     = 1.0f;
+static const float   SIGN_ROLL     = -1.0f;  // sensor mounted mirrored: flip so rolling right reads positive
 static const float   SIGN_PITCH    = 1.0f;
 static const float   SIGN_YAW      = 1.0f;
 static const uint8_t DEBOUNCE_MS   = 15;
+
+// Diagnostics (USB serial only; the BLE stream is unchanged). Set BUTTON_DEBUG to 1 to add
+// timestamped lines: every raw button edge from a GPIO interrupt (R), every debounced edge (D),
+// every frame (F), once-a-second loop statistics (L) and BLE connection parameters (B).
+// Decode with firmware/tools/button_diag.py. Leave at 0 for normal use, or build with
+//   arduino-cli compile --build-property "compiler.cpp.extra_flags=-DBUTTON_DEBUG=1" ...
+#ifndef BUTTON_DEBUG
+#define BUTTON_DEBUG 0
+#endif
 
 // Gyro bias handling. Yaw is pure gyro integration, so any bias error becomes a steady drift.
 static const int   CALIB_SAMPLES        = 400;    // ~1.2 s at 3 ms/sample
@@ -72,19 +81,69 @@ bool     btnState[4]    = {false, false, false, false};
 bool     btnRaw[4]      = {false, false, false, false};
 uint32_t btnChangedAt[4] = {0, 0, 0, 0};
 
+#if BUTTON_DEBUG
+#include "soc/gpio_struct.h"
+// Raw edges are captured by GPIO interrupts into a ring buffer so contact bounce is seen even
+// while loop() is busy with I2C or BLE. loop() drains the ring and prints each edge.
+struct RawEdge { uint32_t us; uint8_t idx; uint8_t level; };
+static const uint16_t RAW_RING = 1024;
+static DRAM_ATTR volatile RawEdge rawRing[RAW_RING];
+static volatile uint16_t rawHead = 0, rawTail = 0;
+static volatile uint32_t rawDropped = 0;
+static DRAM_ATTR int dbgPins[4] = {BUTTON_PINS[0], BUTTON_PINS[1], BUTTON_PINS[2], BUTTON_PINS[3]};
+static uint32_t dbgI2cFail = 0, dbgNotifyFail = 0, dbgLoops = 0, dbgLoopSumUs = 0, dbgLoopMaxUs = 0, dbgLastStats = 0;
+
+void IRAM_ATTR onButtonEdge(void* arg) {
+  const uint8_t idx = (uint8_t)(uintptr_t)arg;
+  const int pin = dbgPins[idx];
+  const uint8_t level = pin < 32 ? ((GPIO.in >> pin) & 1) : ((GPIO.in1.val >> (pin - 32)) & 1);
+  const uint16_t next = (uint16_t)((rawHead + 1) % RAW_RING);
+  if (next == rawTail) { rawDropped++; return; }
+  rawRing[rawHead].us = (uint32_t)esp_timer_get_time();
+  rawRing[rawHead].idx = idx;
+  rawRing[rawHead].level = level;
+  rawHead = next;
+}
+
+void drainRawEdges() {
+  while (rawTail != rawHead) {
+    const RawEdge e = { rawRing[rawTail].us, rawRing[rawTail].idx, rawRing[rawTail].level };
+    rawTail = (uint16_t)((rawTail + 1) % RAW_RING);
+    Serial.printf("R%u %u %lu\n", e.idx, e.level, (unsigned long)e.us);
+  }
+}
+#define DBG_US() ((unsigned long)esp_timer_get_time())
+#endif
+
 // ---------------- BLE callbacks ----------------
 class ServerCallbacks : public NimBLEServerCallbacks {
 #if defined(NIMBLE_CPP_VERSION) || (defined(CONFIG_BT_NIMBLE_ENABLED) && __has_include(<NimBLEConnInfo.h>))
   // NimBLE-Arduino 2.x signatures
   void onConnect(NimBLEServer* s, NimBLEConnInfo& info) override {
     clientConnected = true;
+#if BUTTON_DEBUG
+    Serial.printf("B connect itvl=%.2fms latency=%u timeout=%ums mtu=%u %lu\n", info.getConnInterval() * 1.25f,
+                  info.getConnLatency(), info.getConnTimeout() * 10, info.getMTU(), DBG_US());
+#endif
     // Ask for a fast connection interval (7.5–15 ms) so 50 Hz notifies are not throttled.
     s->updateConnParams(info.getConnHandle(), 6, 12, 0, 200);
   }
   void onDisconnect(NimBLEServer* s, NimBLEConnInfo& info, int reason) override {
     clientConnected = false;
+#if BUTTON_DEBUG
+    Serial.printf("B disconnect reason=%d %lu\n", reason, DBG_US());
+#endif
     NimBLEDevice::startAdvertising();
   }
+#if BUTTON_DEBUG
+  void onMTUChange(uint16_t mtu, NimBLEConnInfo& info) override {
+    Serial.printf("B mtu=%u %lu\n", mtu, DBG_US());
+  }
+  void onConnParamsUpdate(NimBLEConnInfo& info) override {
+    Serial.printf("B params itvl=%.2fms latency=%u timeout=%ums %lu\n", info.getConnInterval() * 1.25f,
+                  info.getConnLatency(), info.getConnTimeout() * 10, DBG_US());
+  }
+#endif
 #else
   // NimBLE-Arduino 1.x signatures
   void onConnect(NimBLEServer* s, ble_gap_conn_desc* desc) override {
@@ -198,7 +257,12 @@ void adaptBiasIfStill(int16_t ax, int16_t ay, int16_t az, int16_t gx, int16_t gy
 
 void updateOrientation(float dt) {
   int16_t ax, ay, az, gx, gy, gz;
-  if (!mpuRead(&ax, &ay, &az, &gx, &gy, &gz)) return;
+  if (!mpuRead(&ax, &ay, &az, &gx, &gy, &gz)) {
+#if BUTTON_DEBUG
+    dbgI2cFail++;
+#endif
+    return;
+  }
   adaptBiasIfStill(ax, ay, az, gx, gy, gz);
 
   const float gxd = (gx - gyroBiasX) / 65.5f;   // °/s
@@ -233,6 +297,9 @@ void pollButtons() {
     if (now - btnChangedAt[i] >= DEBOUNCE_MS && btnState[i] != btnRaw[i]) {
       btnState[i] = btnRaw[i];
       if (btnState[i]) btnLatch |= (1 << i);
+#if BUTTON_DEBUG
+      Serial.printf("D%d %d %lu\n", i, btnState[i] ? 0 : 1, DBG_US());   // same level convention as R: 0 = pressed
+#endif
     }
   }
 }
@@ -246,8 +313,15 @@ uint8_t readButtons() {
 
 // ---------------- Arduino ----------------
 void setup() {
+#if BUTTON_DEBUG
+  Serial.setTxBufferSize(8192);   // bursts of edge lines must not block loop()
+#endif
   Serial.begin(115200);
   for (int i = 0; i < 4; i++) pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+#if BUTTON_DEBUG
+  for (int i = 0; i < 4; i++) attachInterruptArg(BUTTON_PINS[i], onButtonEdge, (void*)(uintptr_t)i, CHANGE);
+  Serial.println("BUTTON_DEBUG on: R<idx> <level> <us> raw edge | D<idx> <level> <us> debounced | F <us> <mask> | L loop stats | B ble");
+#endif
 
   Wire.begin(PIN_SDA, PIN_SCL, 400000);
   mpuInit();
@@ -282,6 +356,12 @@ void loop() {
   const uint32_t nowMicros = micros();
   const float dt = (nowMicros - lastMicros) * 1e-6f;
   lastMicros = nowMicros;
+#if BUTTON_DEBUG
+  {
+    const uint32_t loopUs = (uint32_t)(dt * 1e6f);
+    dbgLoops++; dbgLoopSumUs += loopUs; if (loopUs > dbgLoopMaxUs) dbgLoopMaxUs = loopUs;
+  }
+#endif
   updateOrientation(dt);            // run the filter as fast as the loop goes (~200 Hz)
   pollButtons();
 
@@ -294,8 +374,26 @@ void loop() {
                            SIGN_ROLL * roll, SIGN_PITCH * pitch, SIGN_YAW * yaw, buttons);
     if (clientConnected && txChar) {
       txChar->setValue((uint8_t*)line, n);
+#if BUTTON_DEBUG
+      if (!txChar->notify()) dbgNotifyFail++;
+#else
       txChar->notify();
+#endif
     }
+#if BUTTON_DEBUG
+    Serial.printf("F %lu %u\n", DBG_US(), buttons);
+#endif
     Serial.write(line, n);          // same stream on USB serial for debugging
   }
+
+#if BUTTON_DEBUG
+  drainRawEdges();
+  if (nowMs - dbgLastStats >= 1000) {
+    dbgLastStats = nowMs;
+    Serial.printf("L loops=%lu mean_us=%lu max_us=%lu i2c_fail=%lu notify_fail=%lu raw_dropped=%lu ble=%d %lu\n",
+                  (unsigned long)dbgLoops, (unsigned long)(dbgLoops ? dbgLoopSumUs / dbgLoops : 0), (unsigned long)dbgLoopMaxUs,
+                  (unsigned long)dbgI2cFail, (unsigned long)dbgNotifyFail, (unsigned long)rawDropped, clientConnected ? 1 : 0, DBG_US());
+    dbgLoops = 0; dbgLoopSumUs = 0; dbgLoopMaxUs = 0;
+  }
+#endif
 }

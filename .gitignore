@@ -5,3 +5,4 @@ dist
 # local secrets (never committed)
 .env.local
 .env.*.local
+.vercel

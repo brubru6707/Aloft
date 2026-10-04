@@ -1,4 +1,4 @@
-import { BLE } from '../config';
+import { BLE, BUTTON_MAP } from '../config';
 import type { GloveSource, RawSample, SourceStatus } from './types';
 
 /**
@@ -123,7 +123,7 @@ export class BleSource implements GloveSource {
     if (![roll, pitch, yaw, mask].every(Number.isFinite)) return;
     this.sampleCb?.({
       roll, pitch, yaw,
-      buttons: [!!(mask & 1), !!(mask & 2), !!(mask & 4), !!(mask & 8)],
+      buttons: BUTTON_MAP.map((bit) => !!(mask & (1 << bit))) as [boolean, boolean, boolean, boolean],   // finger order
       timestamp: performance.now(),
     });
   }
