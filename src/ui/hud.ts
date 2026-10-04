@@ -192,7 +192,8 @@ export class Hud {
       axisLabel.className = 'axis-label';
       axisLabel.style.display = 'none';
       const wrap = document.createElement('div');
-      wrap.append(modeLabel, modeHint, axisLabel);
+      wrap.className = 'mode-block';   // mode name and FLY state on one line, short hint under it
+      wrap.append(modeLabel, axisLabel, modeHint);
       wrap.style.display = 'none';
       modes.appendChild(wrap);
 

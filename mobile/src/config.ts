@@ -57,9 +57,9 @@ export const MODE_COLORS: Record<ModeName, string> = {
 };
 
 export const MODE_HINTS: Record<ModeName, string> = {
-  FLY:   'B1: MOVE X → ROTATE → MOVE Y → ROTATE → MOVE Z … · roll to turn, pitch to look · B2 sensitivity · B3 (pinky) reset',
-  BUILD: 'Turn hand to aim · press B1 to place · B2 cycles size · shape in the panel',
-  ERASE: 'Turn hand to aim the eraser · B1 erases everything it touches · B2 cycles eraser size · shape in the panel',
+  FLY:   'Tilt to turn and look · option: X / Y / Z · sens: speed, hold to reset',
+  BUILD: 'Aim with your hand · place · option: shape · sens: size, hold to reset',
+  ERASE: 'Aim the eraser · erase what it touches · sens: size, hold to reset',
 };
 
 /** World units: 1 three.js unit = 1 cm. The floor grid, readouts and STL export use this. */

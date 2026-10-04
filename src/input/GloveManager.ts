@@ -20,6 +20,12 @@ export class GloveManager {
   }
 
   async connectBle(gloveId: number): Promise<void> {
+    // "Connect" on a slot that already has a real glove adds the new glove to a free slot instead
+    // of replacing it, so two gloves end up side by side (split view) whichever button was used.
+    if (this.gloves[gloveId].sourceKind === 'ble' && this.gloves[gloveId].connected) {
+      const free = this.gloves.findIndex((o) => !o.connected || o.sourceKind === 'sim');
+      if (free >= 0) gloveId = free;
+    }
     const g = this.gloves[gloveId];
     try {
       await g.attach(new BleSource());
