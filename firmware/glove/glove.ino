@@ -7,8 +7,8 @@
  *
  * Wiring
  *   GY-521  VCC -> 3V3, GND -> GND, SDA -> GPIO 21, SCL -> GPIO 22 (default ESP32 I2C pins)
- *   Buttons: GPIO 13, 14, 27, 26, 25, 32, 35 (bits 0-6), each to GND. GPIO 35 is input-only with
- *   NO internal pull-up: give it an external 10k resistor to 3V3 or it floats. What each one does is chosen
+ *   Buttons: GPIO 13, 14, 27, 26, 25, 32, 33 (bits 0-6), each to GND. (GPIO 34-39 are input-only with
+ *   NO internal pull-up, so avoid them for buttons unless you add a 10k resistor to 3V3.) What each one does is chosen
  *   in the app (glove panel), so any button can be any job.
  *   INPUT_PULLUP, pressed = LOW.
  *   (Unwired buttons simply read "not pressed" thanks to the pull-ups. GPIO 12 is a boot strapping pin, so it is not used.)
@@ -39,7 +39,7 @@ static const int     PIN_SDA       = 21;   // default wiring; if the sensor does
 static const int     PIN_SCL       = 22;   // setup() tries SDA/SCL swapped (the 6-button glove has them swapped)
 static const uint32_t I2C_HZ        = 100000;
 static const int     NUM_BUTTONS   = 7;
-static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32, 35};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping); 34-39 need an external pull-up.
+static const int     BUTTON_PINS[NUM_BUTTONS] = {13, 14, 27, 26, 25, 32, 33};   // bit order of the bitmask; must match GLOVE_PINS in the app. Avoid GPIO 0/2/12/15 (strapping); 34-39 need an external pull-up.
 static const uint32_t SAMPLE_HZ    = 50;
 static const float   ALPHA         = 0.98f;  // complementary filter: gyro weight
 static const float   SIGN_ROLL     = -1.0f;  // sensor mounted mirrored: flip so rolling right reads positive
